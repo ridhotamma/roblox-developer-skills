@@ -72,3 +72,7 @@ node roblox-animation-skill/skill-source/scripts/selftest.cjs
 ```bash
 node roblox-vfx-skill/skill-source/scripts/selftest.cjs
 ```
+
+## License
+
+[MIT](LICENSE)
