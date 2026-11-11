@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Roblox VFX previews</title>
+<style>html,body{margin:0;background:#14171d}</style></head>
+<body><div id="rvfx"></div>
+<script>window.RVFX_EFFECTS = [{"name":"Campfire","title":"Campfire (loop)","description":"Environmental fire about 3 studs wide: layered flames, rising embers, thin smoke and a flickering warm light. Place the origin on top of the logs.","duration":1.6,"loop":true,"anchor":"ground","layers":[{"name":"Smoke","texture":"smoke","at":[0,3.2,0],"rate":5,"direction":"up","spread":[10,10],"speed":[2,3.2],"accel":[0.8,0.5,0],"lifetime":[2,2.8],"size":[[0,1.5],[1,5.5,1]],"transparency":[[0,1],[0.2,0.6],[1,1]],"color":["#5c554e","#35312e"],"rotation":[0,360],"rotSpeed":[-20,20],"lightEmission":0,"zOffset":-0.5,"drag":0.25},{"name":"FlameBase","texture":"flame","rate":22,"shape":{"type":"box","size":[2,0.3,2]},"at":[0,0.5,0],"direction":"up","spread":[8,8],"speed":[3,5.5],"lifetime":[0.5,0.85],"size":[[0,1.6,0.3],[0.3,2.6,0.4],[1,0.7]],"transparency":[[0,0.5],[0.15,0.15],[0.7,0.4],[1,1]],"color":[[0,"#fff1a8"],[0.3,"#ffa62b"],[0.75,"#e2460f"],[1,"#6a1404"]],"rotation":[-12,12],"lightEmission":0.85,"orientation":"cameraUp"},{"name":"FlameCore","texture":"glow","at":[0,0.9,0],"rate":10,"direction":"up","spread":[14,14],"speed":[1,2.5],"lifetime":[0.3,0.5],"size":[[0,1.8],[1,0.6]],"transparency":[[0,0.3],[1,1]],"color":["#fffbe0","#ffc34a"]},{"name":"Embers","texture":"dot","at":[0,1.2,0],"rate":7,"direction":"up","spread":[22,22],"speed":[4,9],"drag":0.5,"accel":[1.5,1,0],"lifetime":[1,1.8],"size":[[0,0.22,0.08],[1,0]],"transparency":[[0,0],[0.8,0.1],[1,1]],"color":["#ffe9a0","#ff7a1a"],"brightness":2.5},{"name":"FireLight","type":"light","at":[0,1.8,0],"color":"#ff9d47","range":18,"note":"Uneven keys make the flicker; first and last values match so the loop is seamless.","brightness":[[0,2.2],[0.21,2.9],[0.37,2],[0.62,2.7],[0.8,1.9],[1.1,3],[1.33,2.1],[1.6,2.2]]}],"dummy":[5,0]},{"name":"Explosion","title":"Fireball explosion","description":"Medium grenade-sized blast on the ground: flash, rolling fireball, shockwave ring on the floor, flying embers, then dark smoke that lingers. About 14 studs across.","duration":0.6,"anchor":"ground","dummy":[9,0],"markers":[{"t":0,"name":"Boom"},{"t":0.05,"name":"Damage"}],"layers":[{"name":"Flash","texture":"glow","at":[0,2.5,0],"burst":1,"lifetime":0.14,"size":[[0,6],[0.4,20],[1,14]],"transparency":[[0,0],[0.4,0.4],[1,1]],"color":["#ffffff","#ffd98a"],"brightness":2,"zOffset":2},{"name":"Fireball","texture":"smoke","burst":14,"note":"Additive smoke puffs coloured hot to dark read as rolling fire.","shape":{"type":"sphere","size":[3,3,3]},"at":[0,2.5,0],"spread":[20,20],"speed":[8,18],"drag":4,"accel":[0,5,0],"lifetime":[0.4,0.7],"size":[[0,3,1],[0.3,7,1.5],[1,9,2]],"transparency":[[0,0.1],[0.5,0.35],[1,1]],"color":[[0,"#fff3c4"],[0.2,"#ffb030"],[0.55,"#e2410c"],[1,"#3a0f06"]],"rotation":[0,360],"rotSpeed":[-60,60],"lightEmission":0.8,"brightness":1.5},{"name":"Shockwave","texture":"ring","at":[0,0.15,0],"burst":1,"orientation":"flat","note":"'flat' with a tiny upward speed lays the ring on the floor.","direction":"up","speed":0.01,"lifetime":0.4,"size":[[0,2],[0.3,16],[1,26]],"transparency":[[0,0.1],[0.5,0.6],[1,1]],"color":["#fff0c8","#ff9838"]},{"name":"Embers","texture":"dot","at":[0,2,0],"burst":28,"direction":"up","spread":[80,80],"speed":[18,42],"drag":2.2,"accel":[0,-38,0],"lifetime":[0.5,1.1],"size":[[0,0.5,0.15],[1,0]],"transparency":[[0,0],[0.8,0],[1,1]],"color":["#fff2b0","#ff8a1e","#d8320a"],"brightness":2},{"name":"Smoke","texture":"smoke","burst":[{"t":0.08,"count":10}],"note":"Opaque (lightEmission 0) so it darkens the fire behind it and stays readable in daylight.","shape":{"type":"sphere","size":[5,4,5]},"at":[0,3,0],"spread":[25,25],"speed":[3,8],"drag":1.5,"accel":[0,4,0],"lifetime":[1.2,1.9],"size":[[0,4,1],[1,11,2]],"transparency":[[0,1],[0.12,0.45],[0.6,0.7],[1,1]],"color":["#4a3a30","#26221f"],"rotation":[0,360],"rotSpeed":[-25,25],"lightEmission":0,"zOffset":-1},{"name":"Glow","type":"light","at":[0,3,0],"color":"#ff9a3c","range":[[0,30],[0.5,14]],"brightness":[[0,8],[0.1,4],[0.5,0]],"window":[0,0.55]}]},{"name":"GroundSlam","title":"Ground slam","description":"Heavy landing or hammer slam at the character's feet: two floor rings, a low dust skirt rushing outward, rock chips popping up and a short flash. Radius about 10 studs to match a slam hitbox.","duration":0.7,"anchor":"ground","dummy":"center","markers":[{"t":0,"name":"Slam"}],"layers":[{"name":"Flash","texture":"glow","at":[0,0.6,0],"burst":1,"lifetime":0.12,"size":[[0,5],[1,11]],"transparency":[[0,0.1],[1,1]],"color":"#fff1cf"},{"name":"RingFast","texture":"ring","at":[0,0.12,0],"burst":1,"orientation":"flat","speed":0.01,"lifetime":0.32,"size":[[0,3],[0.35,15],[1,21]],"transparency":[[0,0],[0.6,0.5],[1,1]],"color":["#ffffff","#ffd28a"]},{"name":"RingSlow","texture":"ring","at":[0,0.1,0],"burst":[{"t":0.06,"count":1}],"orientation":"flat","speed":0.01,"note":"A second, later ring gives the hit weight.","lifetime":0.55,"size":[[0,2],[0.5,11],[1,15]],"transparency":[[0,0.3],[0.6,0.65],[1,1]],"color":["#ffe6b8","#c9a06a"]},{"name":"Dust","texture":"smoke","burst":26,"note":"A flat sphere emits radially, so the dust runs along the floor.","shape":{"type":"sphere","size":[4,0.3,4],"style":"surface"},"at":[0,0.7,0],"spread":[6,6],"speed":[12,22],"drag":3.2,"accel":[0,2.5,0],"lifetime":[0.6,1],"size":[[0,1.6,0.4],[0.4,4,0.8],[1,5.5,1]],"transparency":[[0,0.15],[0.5,0.5],[1,1]],"color":["#cdbb9c","#8d8170"],"rotation":[0,360],"rotSpeed":[-40,40],"lightEmission":0},{"name":"Chips","texture":"shard","at":[0,0.3,0],"burst":18,"direction":"up","spread":[50,50],"speed":[14,26],"accel":[0,-80,0],"drag":0.6,"lifetime":[0.45,0.7],"size":[[0,0.7,0.3],[0.8,0.6,0.2],[1,0]],"transparency":[[0,0],[0.85,0],[1,1]],"color":["#9a8f80","#5e564c"],"rotation":[0,360],"rotSpeed":[-500,500],"lightEmission":0}]},{"name":"HealAura","title":"Healing aura (loop)","description":"Looping buff around a character: a slowly turning ring at the feet, soft motes rising around the body, a few bright sparkles and a gentle green light. Welds to the HumanoidRootPart; call :Stop() when the buff ends.","duration":2,"loop":true,"anchor":"character","layers":[{"name":"FloorRing","texture":"ring","at":[0,-2.85,0],"rate":1.5,"orientation":"flat","speed":0.01,"lifetime":1.4,"size":[[0,3],[1,8]],"transparency":[[0,1],[0.2,0.35],[1,1]],"color":["#b6ffcf","#3fe27d"],"rotSpeed":40,"lockedToPart":true},{"name":"Motes","texture":"glow","rate":14,"note":"A box part around the legs; particles drift up through the body.","shape":{"type":"box","size":[4.5,1,4.5]},"at":[0,-2.3,0],"direction":"up","spread":[8,8],"speed":[2.2,4],"drag":0.3,"lifetime":[1.1,1.7],"size":[[0,0],[0.2,0.55,0.2],[1,0]],"transparency":[[0,0.1],[0.7,0.3],[1,1]],"color":["#e6ffee","#59f08f"]},{"name":"Sparkles","texture":"spark","rate":5,"shape":{"type":"sphere","size":[5,6,5],"style":"surface"},"at":[0,0,0],"speed":[0.2,1],"lifetime":[0.4,0.7],"size":[[0,0],[0.3,1.3,0.4],[1,0]],"transparency":[[0,0],[1,0.6]],"color":"#f2fff6","rotation":[0,90],"rotSpeed":[-120,120],"brightness":1.6},{"name":"Glow","type":"light","at":[0,-1,0],"color":"#62f59a","range":12,"brightness":[[0,1.2],[1,2.2],[2,1.2]]}]},{"name":"HitSpark","title":"Melee hit spark","description":"Punch or sword impact at chest height: a 2-frame white flash, a ring that snaps outward, fast streak sparks and a blink of light. Play it at the hit position on the Hit marker of the attack animation.","duration":0.35,"anchor":"character","markers":[{"t":0,"name":"Impact"}],"layers":[{"name":"Flash","texture":"glow","at":[0,0.5,1.2],"burst":1,"note":"The read: big, white, gone in 3 frames.","lifetime":0.1,"size":[[0,2.5],[0.3,5],[1,3]],"transparency":[[0,0],[0.5,0.3],[1,1]],"color":["#ffffff","#ffe9a8"],"brightness":2,"zOffset":1},{"name":"Ring","texture":"ring","at":[0,0.5,1.2],"burst":1,"lifetime":0.22,"size":[[0,1],[0.35,4.6],[1,6]],"transparency":[[0,0],[0.4,0.35],[1,1]],"color":["#fff6d8","#ffb040"],"rotation":[0,360]},{"name":"Sparks","texture":"streak","at":[0,0.5,1.2],"burst":16,"orientation":"velocity","note":"Speed and drag do the work: they shoot out and stop.","direction":"forward","spread":[75,75],"speed":[22,46],"drag":5,"accel":[0,-30,0],"lifetime":[0.18,0.34],"size":[[0,1.5,0.4],[1,0.3]],"transparency":[[0,0],[0.7,0.2],[1,1]],"color":["#ffffff","#ffc24a","#ff6a1a"]},{"name":"Blink","type":"light","at":[0,0.5,1.2],"color":"#ffd27a","range":14,"brightness":[[0,6],[0.12,0]],"window":[0,0.14]}]},{"name":"LightningStrike","title":"Lightning strike","description":"A bolt from 40 studs up hits the ground: a thin telegraph line, then three overlapping curved beams that flicker, a ground flash, sparks and a hard blue-white light. The Strike marker is the damage frame.","duration":0.6,"anchor":"ground","dummy":[7,0],"camera":{"yaw":24,"pitch":6,"dist":62,"target":[0,17,0]},"markers":[{"t":0,"name":"Telegraph"},{"t":0.25,"name":"Strike"}],"layers":[{"name":"Telegraph","type":"beam","from":[0,40,0],"to":[0,0,0],"width":0.25,"color":"#9fd2ff","transparency":[[0,0.75],[1,0.4]],"pulse":[[0,0],[0.05,1],[0.25,0.3]],"window":[0,0.25]},{"name":"BoltA","type":"beam","from":[1.5,40,0],"to":[0,0,0],"curve0":[-5,-13,2],"curve1":[4,12,-2],"note":"One beam is one smooth curve; the forked look comes from stacking differently curved beams and flickering them.","width":[1.6,2.6],"texture":"glow","color":["#ffffff","#bfe4ff"],"segments":24,"pulse":[[0.25,1.4],[0.29,0.5],[0.32,1.2],[0.36,0.3],[0.4,0.9],[0.5,0]],"window":[0.25,0.5]},{"name":"BoltB","type":"beam","from":[-1,40,1],"to":[0,0,0],"curve0":[6,-10,-3],"curve1":[-5,15,1],"width":[0.9,1.5],"texture":"glow","color":["#dff1ff","#7fc4ff"],"segments":24,"pulse":[[0.25,1],[0.3,1.3],[0.34,0.2],[0.38,1],[0.46,0]],"window":[0.25,0.46]},{"name":"BoltCore","type":"beam","from":[0.4,40,0],"to":[0,0,0],"curve0":[-2,-14,0],"curve1":[1.5,13,0],"width":[0.5,0.8],"color":"#ffffff","segments":24,"brightness":2,"pulse":[[0.25,1],[0.33,1],[0.42,0]],"window":[0.25,0.42]},{"name":"GroundFlash","texture":"glow","at":[0,1,0],"burst":[{"t":0.25,"count":1}],"lifetime":0.22,"size":[[0,8],[0.3,20],[1,12]],"transparency":[[0,0],[1,1]],"color":["#ffffff","#8fcaff"],"brightness":2},{"name":"Ring","texture":"ring","at":[0,0.12,0],"burst":[{"t":0.25,"count":1}],"orientation":"flat","speed":0.01,"lifetime":0.35,"size":[[0,2],[0.4,14],[1,20]],"transparency":[[0,0],[1,1]],"color":["#ffffff","#69b4ff"]},{"name":"Sparks","texture":"streak","at":[0,0.5,0],"burst":[{"t":0.25,"count":22}],"orientation":"velocity","direction":"up","spread":[70,70],"speed":[25,55],"drag":3,"accel":[0,-60,0],"lifetime":[0.25,0.55],"size":[[0,1.6,0.4],[1,0.3]],"transparency":[[0,0],[0.7,0.2],[1,1]],"color":["#ffffff","#9ad1ff","#3c7dff"]},{"name":"StrikeLight","type":"light","at":[0,4,0],"color":"#bcdcff","range":45,"brightness":[[0.25,10],[0.3,3],[0.33,8],[0.5,0]],"window":[0.25,0.5]}]}];</script>
+<script>#!/usr/bin/env node
+// rvfx: Roblox VFX engine. One file, no dependencies. Runs in Node (CLI: build, report, storyboard, export)
+// and in the browser (interactive previewer embedded in preview.html).
+//   node rvfx.cjs effect.json [more.json ...] [--out DIR]
+(function (G) {
+'use strict';
+
+// ============ 1. MATH. World axes as in Roblox: +X right, +Y up, -Z forward. Specs are written [right, up, forward]. ============
+const D2R = Math.PI / 180, LN2 = Math.LN2;
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const len = a => Math.hypot(a[0], a[1], a[2]);
+const unit = a => mul(a, 1 / (len(a) || 1));
+const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
+const W = v => [v[0], v[1], -v[2]];                        // spec [right, up, fwd] <-> world [x, y, z]
+const perp = d => { const a = unit(cross(d, Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])); return [a, cross(d, a)]; };
+const rot = (v, k, deg) => { const c = Math.cos(deg * D2R), s = Math.sin(deg * D2R); return add(add(mul(v, c), mul(cross(k, v), s)), mul(k, dot(k, v) * (1 - c))); };
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+const num = x => { const s = (Math.abs(x) < 5e-7 ? 0 : x).toFixed(4); return s.replace(/\.?0+$/, '') || '0'; };
+const xml = s => String(s).replace(/[<>&"]/g, ch => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[ch]);
+
+// ============ 2. TEXTURES: procedural alpha masks (u, v in -1..1, v up). Previewed here, written as PNGs for upload. ============
+const noise = (() => { const h = (x, y) => { let n = Math.imul(x, 374761393) + Math.imul(y, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967296; };
+  const s = t => t * t * (3 - 2 * t);
+  const n1 = (x, y) => { const xi = Math.floor(x), yi = Math.floor(y), fx = s(x - xi), fy = s(y - yi);
+    return (h(xi, yi) * (1 - fx) + h(xi + 1, yi) * fx) * (1 - fy) + (h(xi, yi + 1) * (1 - fx) + h(xi + 1, yi + 1) * fx) * fy; };
+  return (x, y) => n1(x, y) * 0.6 + n1(x * 2.1 + 7, y * 2.1 + 3) * 0.4; })();
+const c01 = x => clamp(x, 0, 1);
+const TEX = {
+  glow: (u, v) => { const r2 = u * u + v * v; return r2 >= 1 ? 0 : (1 - r2) * (1 - r2) * (1 - r2); },
+  dot: (u, v) => c01((0.9 - Math.hypot(u, v)) / 0.12),
+  ring: (u, v) => { const r = Math.hypot(u, v); return r >= 1 ? 0 : Math.exp(-Math.pow((r - 0.8) / 0.085, 2)) * c01((1 - r) / 0.05); },
+  spark: (u, v) => { const r = Math.hypot(u, v); return r >= 1 ? 0 : c01(Math.pow(1 - r, 1.4) / (1 + 70 * Math.abs(u * v)) + Math.pow(c01(1 - r * 3.2), 2)); },
+  streak: (u, v) => Math.exp(-Math.pow(u / 0.14, 2)) * Math.pow(c01(1 - v * v), 1.5) * c01((1 - Math.abs(u)) / 0.3),
+  smoke: (u, v) => { const n = noise(u * 2.2 + 11, v * 2.2 + 5), r = Math.hypot(u, v) * (0.85 + 0.45 * noise(u * 1.3 + 3, v * 1.3 + 9)); return Math.pow(c01(1.12 - r * 1.2), 1.3) * (0.55 + 0.45 * n); },
+  star: (u, v) => { const r = Math.hypot(u, v), a = Math.atan2(u, v), k = Math.abs((((a / (Math.PI * 2 / 5)) % 1) + 1) % 1 - 0.5) * 2; return c01((0.36 + 0.6 * Math.pow(1 - k, 1.8) - r) / 0.06); },
+  shard: (u, v) => c01((1 - (Math.abs(u) / 0.42 + Math.abs(v) / 0.95)) / 0.1),
+  flame: (u, v) => { const h = (v + 1) / 2; if (h <= 0 || h >= 1) return 0; const hw = 0.66 * Math.sqrt(Math.min(1, h / 0.22)) * Math.pow(1 - h, 0.75); return c01((hw - Math.abs(u)) / 0.3) * (0.65 + 0.35 * noise(u * 3 + 2, v * 3 + 8)); },
+  _beamHard: u => c01((1 - Math.abs(u)) / 0.1),
+  _beamSoft: u => { const k = 1 - u * u; return k <= 0 ? 0 : k * k; },
+};
+const TEXTURES = Object.keys(TEX).filter(k => k[0] !== '_');
+// Textures that ship with every Roblox client, used until the user uploads the generated PNGs.
+const RBXTEX = 'rbxasset://textures/particles/';
+const BUILTIN = { glow: 'sparkles_main.dds', dot: 'sparkles_main.dds', spark: 'sparkles_main.dds', star: 'sparkles_main.dds', smoke: 'smoke_main.dds', flame: 'fire_main.dds' };
+const TN = 64, tabs = {};
+function texTab(name) {
+  if (tabs[name]) return tabs[name];
+  const t = new Float32Array(TN * TN), f = TEX[name];
+  for (let y = 0; y < TN; y++) for (let x = 0; x < TN; x++) t[y * TN + x] = f((x + 0.5) / TN * 2 - 1, 1 - (y + 0.5) / TN * 2);
+  return (tabs[name] = t);
+}
+
+// ============ 3. COMPILE: validate a spec, normalise every layer, pre-generate deterministic particles ============
+const DIRS = { up: [0, 1, 0], down: [0, -1, 0], right: [1, 0, 0], left: [-1, 0, 0], forward: [0, 0, 1], back: [0, 0, -1] };
+const FACE = { up: ['Top', 1], down: ['Bottom', 4], right: ['Right', 0], left: ['Left', 3], forward: ['Front', 5], back: ['Back', 2] };
+const ORIENT = { camera: ['FacingCamera', 0], cameraUp: ['FacingCameraWorldUp', 1], velocity: ['VelocityParallel', 2], flat: ['VelocityPerpendicular', 3] };
+const KEYS = {
+  particles: 'name type at direction shape texture textureId burst rate window lifetime speed spread rotation rotSpeed size transparency color accel drag lightEmission lightInfluence brightness orientation zOffset lockedToPart note',
+  light: 'name type at color range brightness window shadows note',
+  beam: 'name type from to curve0 curve1 width pulse window color transparency lightEmission lightInfluence brightness segments texture textureId note',
+};
+const TOP = 'name title description duration loop anchor dummy scale layers markers textures camera shots seed';
+function hexc(h, E, where) {
+  if (Array.isArray(h) && h.length === 3 && h.every(x => typeof x === 'number')) return h.map(x => c01(x / 255));
+  let s = String(h).trim().replace('#', ''); if (s.length === 3) s = s.replace(/./g, '$&$&');
+  if (!/^[0-9a-fA-F]{6}$/.test(s)) { E.push(`${where}: "${h}" is not a colour (use "#rrggbb")`); return [1, 1, 1]; }
+  return [0, 2, 4].map(i => parseInt(s.slice(i, i + 2), 16) / 255);
+}
+function numSeq(v, def, E, where) {                        // -> [[t, value, envelope]] over the particle's life (t 0..1)
+  if (v == null) v = def;
+  let k;
+  if (typeof v === 'number') k = [[0, v, 0], [1, v, 0]];
+  else if (Array.isArray(v) && v.length >= 2 && v.every(x => typeof x === 'number')) k = v.map((x, i) => [i / (v.length - 1), x, 0]);
+  else if (Array.isArray(v) && v.length && v.every(x => Array.isArray(x) && x.length >= 2 && x.every(y => typeof y === 'number'))) k = v.map(x => [x[0], x[1], x[2] || 0]);
+  else { E.push(`${where}: expected a number, [start, ..., end] or [[t, value], ...]`); return [[0, 1, 0], [1, 1, 0]]; }
+  for (let i = 0; i < k.length; i++) if (k[i][0] < 0 || k[i][0] > 1 || (i && k[i][0] < k[i - 1][0])) { E.push(`${where}: keypoint times must rise from 0 to 1`); break; }
+  if (k[0][0] > 0) k.unshift([0, k[0][1], k[0][2]]);
+  if (k[k.length - 1][0] < 1) k.push([1, k[k.length - 1][1], k[k.length - 1][2]]);
+  if (k.length > 20) E.push(`${where}: ${k.length} keypoints (Roblox allows 20)`);
+  return k;
+}
+function colSeq(v, def, E, where) {                        // -> [[t, [r, g, b]]]
+  if (v == null) v = def;
+  let k;
+  if (typeof v === 'string') k = [[0, hexc(v, E, where)], [1, hexc(v, E, where)]];
+  else if (Array.isArray(v) && v.length >= 2 && v.every(x => typeof x === 'string')) k = v.map((x, i) => [i / (v.length - 1), hexc(x, E, where)]);
+  else if (Array.isArray(v) && v.length && v.every(x => Array.isArray(x) && x.length === 2 && typeof x[0] === 'number')) k = v.map(x => [x[0], hexc(x[1], E, where)]);
+  else { E.push(`${where}: expected "#hex", ["#start", ..., "#end"] or [[t, "#hex"], ...]`); return [[0, [1, 1, 1]], [1, [1, 1, 1]]]; }
+  for (let i = 0; i < k.length; i++) if (k[i][0] < 0 || k[i][0] > 1 || (i && k[i][0] < k[i - 1][0])) { E.push(`${where}: keypoint times must rise from 0 to 1`); break; }
+  if (k[0][0] > 0) k.unshift([0, k[0][1]]);
+  if (k[k.length - 1][0] < 1) k.push([1, k[k.length - 1][1]]);
+  if (k.length > 20) E.push(`${where}: ${k.length} keypoints (Roblox allows 20)`);
+  return k;
+}
+function seqAt(k, x, e) {
+  if (x <= k[0][0]) return k[0][1] + (e ? e * k[0][2] : 0);
+  for (let i = 1; i < k.length; i++) if (x <= k[i][0]) { const a = k[i - 1], b = k[i], f = (x - a[0]) / (b[0] - a[0] || 1); return a[1] + (b[1] - a[1]) * f + (e ? e * (a[2] + (b[2] - a[2]) * f) : 0); }
+  const z = k[k.length - 1]; return z[1] + (e ? e * z[2] : 0);
+}
+function colAt(k, x) {
+  if (x <= k[0][0]) return k[0][1];
+  for (let i = 1; i < k.length; i++) if (x <= k[i][0]) { const a = k[i - 1], b = k[i], f = (x - a[0]) / (b[0] - a[0] || 1); return [a[1][0] + (b[1][0] - a[1][0]) * f, a[1][1] + (b[1][1] - a[1][1]) * f, a[1][2] + (b[1][2] - a[1][2]) * f]; }
+  return k[k.length - 1][1];
+}
+function range(v, def, E, where) {
+  if (v == null) v = def;
+  if (typeof v === 'number') return [v, v];
+  if (Array.isArray(v) && v.length === 2 && v.every(x => typeof x === 'number')) return v[0] <= v[1] ? v.slice() : [v[1], v[0]];
+  E.push(`${where}: expected a number or [min, max]`); return [0, 0];
+}
+function vec(v, def, E, where) {
+  if (v == null) v = def;
+  if (Array.isArray(v) && v.length === 3 && v.every(x => typeof x === 'number')) return v.slice();
+  E.push(`${where}: expected [right, up, forward]`); return [0, 0, 0];
+}
+function track(v, def, E, where) {                         // value over EFFECT time in seconds: number or [[t, value], ...]
+  if (v == null) v = def;
+  if (typeof v === 'number') return [[0, v]];
+  if (Array.isArray(v) && v.length && v.every(x => Array.isArray(x) && x.length === 2 && x.every(y => typeof y === 'number'))) {
+    for (let i = 1; i < v.length; i++) if (v[i][0] < v[i - 1][0]) { E.push(`${where}: track times must rise`); break; }
+    return v.map(x => x.slice());
+  }
+  E.push(`${where}: expected a number or [[seconds, value], ...]`); return [[0, 0]];
+}
+function trackAt(k, t) {
+  if (t <= k[0][0]) return k[0][1];
+  for (let i = 1; i < k.length; i++) if (t <= k[i][0]) { const a = k[i - 1], b = k[i]; return a[1] + (b[1] - a[1]) * (t - a[0]) / (b[0] - a[0] || 1); }
+  return k[k.length - 1][1];
+}
+const trackMax = k => Math.max(...k.map(x => x[1]));
+
+function compile(spec) {
+  const E = [], WN = [], NOTES = [];
+  const name = String(spec.name || 'Effect').replace(/[^A-Za-z0-9_]/g, '').replace(/^[^A-Za-z]+/, '') || 'Effect';
+  const c = { spec, name, title: spec.title || name, loop: !!spec.loop, errors: E, warnings: WN, notes: NOTES, layers: [], markers: [] };
+  for (const k of Object.keys(spec)) if (!TOP.split(' ').includes(k)) WN.push(`unknown top-level field "${k}" is ignored`);
+  const S = typeof spec.scale === 'number' && spec.scale > 0 ? spec.scale : 1;
+  c.scale = S;
+  c.duration = typeof spec.duration === 'number' && spec.duration > 0 ? spec.duration : (E.push('"duration" (seconds) is required'), 1);
+  c.anchor = spec.anchor === 'character' ? 'character' : 'ground';
+  if (spec.anchor && !['ground', 'character'].includes(spec.anchor)) E.push('"anchor" must be "ground" or "character"');
+  c.floorY = c.anchor === 'character' ? -3 : 0;
+  const dm = spec.dummy == null ? (c.anchor === 'character' ? 'center' : 'side') : spec.dummy;
+  c.dummy = dm === 'none' || dm === false ? null : dm === 'center' ? [0, 0] : dm === 'side' ? [6, 0] : Array.isArray(dm) && dm.length === 2 ? dm.slice() : (E.push('"dummy" must be "center", "side", "none" or [right, forward]'), null);
+  const texOverride = spec.textures || {};
+  const texUrl = (n, id) => { const v = id != null ? id : texOverride[n]; if (v == null || v === '') return null; return /^\d+$/.test(String(v)) ? 'rbxassetid://' + v : String(v); };
+  c.textures = {};                                         // name -> { url, uploaded }
+  const useTex = (n, id, where) => {
+    const url = texUrl(n, id);
+    if (!c.textures[n] || url) c.textures[n] = { url: url || RBXTEX + (BUILTIN[n] || 'sparkles_main.dds'), uploaded: !!url, standin: !url && !BUILTIN[n] };
+    return url;
+  };
+  const seen = {};
+  if (!Array.isArray(spec.layers) || !spec.layers.length) E.push('"layers" must be a non-empty array');
+  (Array.isArray(spec.layers) ? spec.layers : []).forEach((l, li) => {
+    const kind = l.type || 'particles', nm = String(l.name || '').replace(/[^A-Za-z0-9_]/g, ''), w = `layer ${li + 1} "${nm || '?'}"`;
+    if (!KEYS[kind]) { E.push(`${w}: unknown type "${kind}" (particles, light, beam)`); return; }
+    if (!nm) { E.push(`layer ${li + 1}: needs a "name" (letters, digits, _)`); return; }
+    if (seen[nm]) { E.push(`${w}: duplicate layer name`); return; } seen[nm] = 1;
+    for (const k of Object.keys(l)) if (!KEYS[kind].split(' ').includes(k)) WN.push(`${w}: unknown field "${k}" is ignored (${kind} layers accept: ${KEYS[kind].split(' ').slice(2).join(', ')})`);
+    const win = l.window == null ? [0, c.duration] : range(l.window, null, E, `${w}.window`);
+    const L = { kind, name: nm, note: l.note || '', window: win };
+    if (kind === 'particles') {
+      L.at = W(mul(vec(l.at, [0, 0, 0], E, `${w}.at`), S));
+      L.dirName = typeof l.direction === 'string' ? l.direction : null;
+      if (L.dirName && !DIRS[L.dirName]) E.push(`${w}.direction: "${l.direction}" (use up, down, left, right, forward, back or a vector)`);
+      const dv = l.direction == null ? [0, 1, 0] : (L.dirName ? DIRS[L.dirName] || [0, 1, 0] : vec(l.direction, null, E, `${w}.direction`));
+      if (l.direction == null) L.dirName = 'up';
+      L.dir = unit(W(dv));
+      if (l.shape) {
+        const sh = l.shape, type = sh.type || 'box';
+        if (!['box', 'sphere'].includes(type)) E.push(`${w}.shape.type: "${type}" (box or sphere)`);
+        const size = mul(vec(sh.size, [1, 1, 1], E, `${w}.shape.size`), S);
+        L.shape = { type, size, half: mul(size, 0.5), surface: sh.style === 'surface', inward: sh.inOut === 'inward' };
+        if (type === 'box' && !L.dirName) E.push(`${w}: a box shape needs a named direction (up, down, left, right, forward, back)`);
+        if (type === 'box' && sh.style === 'surface') WN.push(`${w}: "surface" style is only previewed for spheres`);
+      }
+      L.texture = l.texture || 'glow';
+      if (!TEX[L.texture] || L.texture[0] === '_') { E.push(`${w}.texture: "${L.texture}" (one of ${TEXTURES.join(', ')})`); L.texture = 'glow'; }
+      useTex(L.texture, l.textureId, w);
+      L.textureId = texUrl(L.texture, l.textureId);
+      L.bursts = l.burst == null ? [] : typeof l.burst === 'number' ? [{ t: 0, count: l.burst }] : [].concat(l.burst).map(b => ({ t: +b.t || 0, count: Math.round(+b.count || 0) }));
+      L.rate = +l.rate || 0;
+      if (!L.bursts.length && !L.rate) E.push(`${w}: needs "burst" and/or "rate"`);
+      L.lifetime = range(l.lifetime, [0.5, 1], E, `${w}.lifetime`);
+      if (L.lifetime[1] > 20) { WN.push(`${w}: lifetime ${L.lifetime[1]}s is clamped to 20s by Roblox`); L.lifetime = L.lifetime.map(x => Math.min(20, x)); }
+      if (L.lifetime[0] <= 0) { E.push(`${w}.lifetime must be > 0`); L.lifetime = [0.1, Math.max(0.1, L.lifetime[1])]; }
+      L.speed = range(l.speed, 0, E, `${w}.speed`).map(x => x * S);
+      L.spread = range(l.spread == null ? 0 : typeof l.spread === 'number' ? [l.spread, l.spread] : l.spread, 0, E, `${w}.spread`);
+      if (typeof l.spread !== 'number' && Array.isArray(l.spread)) L.spread = l.spread.slice(0, 2);
+      L.rotation = range(l.rotation, 0, E, `${w}.rotation`);
+      L.rotSpeed = range(l.rotSpeed, 0, E, `${w}.rotSpeed`);
+      L.size = numSeq(l.size, 1, E, `${w}.size`).map(k => [k[0], k[1] * S, k[2] * S]);
+      L.transparency = numSeq(l.transparency, [0, 1], E, `${w}.transparency`);
+      L.color = colSeq(l.color, '#ffffff', E, `${w}.color`);
+      L.accel = W(mul(vec(l.accel, [0, 0, 0], E, `${w}.accel`), S));
+      L.drag = +l.drag || 0;
+      L.le = l.lightEmission == null ? 1 : c01(+l.lightEmission);
+      L.li = l.lightInfluence == null ? 0 : c01(+l.lightInfluence);
+      L.brightness = l.brightness == null ? 1 : +l.brightness;
+      L.orientation = l.orientation || 'camera';
+      if (!ORIENT[L.orientation]) { E.push(`${w}.orientation: "${L.orientation}" (camera, cameraUp, velocity, flat)`); L.orientation = 'camera'; }
+      L.zOffset = +l.zOffset || 0;
+      L.locked = !!l.lockedToPart;
+      // deterministic particles
+      const R = rng(hash(name + '/' + nm) + (spec.seed | 0)), rr = a => a[0] + (a[1] - a[0]) * R(), P = [];
+      const [A, B] = perp(L.dir);
+      const born = b => {
+        let p0 = L.at, d = L.dir, a = A, bb = B;
+        if (L.shape) { const h = L.shape.half;
+          if (L.shape.type === 'box') p0 = add(p0, W([(R() * 2 - 1) * h[0], (R() * 2 - 1) * h[1], (R() * 2 - 1) * h[2]]));
+          else { let v; do { v = [R() * 2 - 1, R() * 2 - 1, R() * 2 - 1]; } while (dot(v, v) > 1 || dot(v, v) < 1e-4);
+            const n = unit(v), k = L.shape.surface ? 1 : Math.cbrt(R()), off = W([n[0] * h[0] * k, n[1] * h[1] * k, n[2] * h[2] * k]);
+            p0 = add(p0, off); d = mul(unit(off), L.shape.inward ? -1 : 1); [a, bb] = perp(d); } }
+        d = rot(rot(d, a, (R() * 2 - 1) * L.spread[0]), bb, (R() * 2 - 1) * L.spread[1]);
+        P.push({ b, life: rr(L.lifetime), p0, d, v0: mul(d, rr(L.speed)), rot0: rr(L.rotation), rs: rr(L.rotSpeed), es: R() * 2 - 1, et: R() * 2 - 1 });
+      };
+      for (const b of L.bursts) { if (b.count > 400) WN.push(`${w}: burst of ${b.count} particles is heavy; most bursts read well at 5 to 60`); for (let i = 0; i < Math.min(b.count, 5000); i++) born(b.t); }
+      if (L.rate) { if (L.rate > 400) WN.push(`${w}: rate ${L.rate}/s is heavy`); for (let i = 0; i < 20000; i++) { const b = win[0] + (i + 0.5) / L.rate; if (b >= win[1]) break; born(b); } }
+      L.P = P;
+      const a1 = 1 - seqAt(L.transparency, 1), s1 = seqAt(L.size, 1), sm = Math.max(...L.size.map(k => k[1]));
+      if (a1 > 0.2 && s1 > 0.2 * sm) WN.push(`${w}: still ${Math.round(a1 * 100)}% opaque at full size when it dies, so it will pop out; end "transparency" at 1 or "size" at 0`);
+    } else if (kind === 'light') {
+      L.at = W(mul(vec(l.at, [0, 0, 0], E, `${w}.at`), S));
+      L.color = hexc(l.color == null ? '#ffffff' : l.color, E, `${w}.color`);
+      L.range = track(l.range, 12, E, `${w}.range`).map(k => [k[0], k[1] * S]);
+      L.brightness = track(l.brightness, 2, E, `${w}.brightness`);
+      L.shadows = !!l.shadows;
+      if (trackMax(L.range) > 60) WN.push(`${w}: PointLight.Range is capped at 60 studs`);
+    } else {
+      L.from = W(mul(vec(l.from, null, E, `${w}.from`), S)); L.to = W(mul(vec(l.to, null, E, `${w}.to`), S));
+      L.curve0 = W(mul(vec(l.curve0, [0, 0, 0], E, `${w}.curve0`), S)); L.curve1 = W(mul(vec(l.curve1, [0, 0, 0], E, `${w}.curve1`), S));
+      L.width = range(l.width, 1, E, `${w}.width`); if (Array.isArray(l.width)) L.width = l.width.slice(0, 2); L.width = L.width.map(x => x * S);
+      L.pulse = track(l.pulse, 1, E, `${w}.pulse`);
+      L.color = colSeq(l.color, '#ffffff', E, `${w}.color`);
+      L.transparency = numSeq(l.transparency, 0, E, `${w}.transparency`);
+      L.le = l.lightEmission == null ? 1 : c01(+l.lightEmission);
+      L.li = l.lightInfluence == null ? 0 : c01(+l.lightInfluence);
+      L.brightness = l.brightness == null ? 1 : +l.brightness;
+      L.segments = clamp(Math.round(l.segments || 16), 1, 100);
+      L.texture = l.texture || null;
+      if (L.texture && L.texture !== 'glow') { E.push(`${w}.texture: beams support "glow" (soft edges) or none (solid)`); L.texture = null; }
+      if (L.texture) useTex('glow', l.textureId, w);
+      L.textureId = L.texture ? texUrl('glow', l.textureId) : null;
+      L.pts = t => { const p0 = L.from, p3 = L.to, p1 = add(p0, L.curve0), p2 = add(p3, L.curve1), u = 1 - t;
+        return add(add(mul(p0, u * u * u), mul(p1, 3 * u * u * t)), add(mul(p2, 3 * u * t * t), mul(p3, t * t * t))); };
+    }
+    c.layers.push(L);
+  });
+  for (const m of spec.markers || []) { if (typeof m.t !== 'number' || !m.name) E.push('markers need { "t": seconds, "name": "..." }'); else c.markers.push({ t: m.t, name: String(m.name) }); }
+
+  // tail (when the last particle dies), bounds, live counts
+  let tail = c.duration, maxLife = 0;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  const grow = (B, p, r, n) => { for (let i = 0; i < 3; i++) { const q = n ? r * Math.sqrt(Math.max(0, 1 - n[i] * n[i])) : r; if (p[i] - q < B.lo[i]) B.lo[i] = p[i] - q; if (p[i] + q > B.hi[i]) B.hi[i] = p[i] + q; } };
+  for (const L of c.layers) {
+    L.B = { lo: [Infinity, Infinity, Infinity], hi: [-Infinity, -Infinity, -Infinity] };
+    if (L.kind === 'particles') {
+      const step = Math.max(1, Math.floor(L.P.length / 1500));
+      for (let i = 0; i < L.P.length; i++) { const p = L.P[i]; if (!c.loop && p.b + p.life > tail) tail = p.b + p.life; if (p.life > maxLife) maxLife = p.life;
+        if (i % step === 0) for (let k = 0; k <= 4; k++) { const m = motion(L, p, p.life * k / 4), a = 1 - seqAt(L.transparency, k / 4, p.et); if (a > 0.08 || k === 0) grow(L.B, m.p, seqAt(L.size, k / 4, p.es) / 2, L.orientation === 'flat' ? (len(m.v) > 1e-4 ? unit(m.v) : p.d) : null); } }
+    } else if (L.kind === 'beam') { for (let i = 0; i <= 12; i++) grow(L.B, L.pts(i / 12), Math.max(L.width[0], L.width[1]) / 2); if (!c.loop) tail = Math.max(tail, L.window[1]); }
+    else { grow(L.B, L.at, 0.5); if (!c.loop) tail = Math.max(tail, L.window[1]); }
+    for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], L.B.lo[i]); hi[i] = Math.max(hi[i], L.B.hi[i]); }
+  }
+  c.total = c.loop ? c.duration : tail; c.maxLife = maxLife;
+  if (!isFinite(lo[0])) { lo.fill(-1); hi.fill(1); }
+  c.bounds = { lo, hi };
+  if (c.loop) for (const L of c.layers) if (L.kind === 'particles' && L.bursts.length === 0 && L.lifetime[1] > c.duration * 4) NOTES.push(`layer "${L.name}": lifetime is over 4x the loop length; fine in Roblox, the preview just layers generations`);
+  let peak = 0, peakT = 0; c.fps = 30;
+  for (const L of c.layers) L.peak = 0;
+  for (let f = 0; f <= Math.ceil(c.total * c.fps); f++) { const t = f / c.fps; let n = 0;
+    for (const L of c.layers) if (L.kind === 'particles') { const k = liveCount(c, L, t); if (k > L.peak) L.peak = k; n += k; }
+    if (n > peak) { peak = n; peakT = t; } }
+  c.peak = peak; c.peakT = peakT;
+  if (peak > 600) WN.push(`${peak} particles alive at once (t=${peakT.toFixed(2)}s); aim for under ~300 per effect so several can play together on phones`);
+  // camera framing
+  const cam = spec.camera || {}, blo = lo.slice(), bhi = hi.slice();
+  if (c.dummy) { const d = [c.dummy[0], c.floorY, -c.dummy[1]]; for (let i = 0; i < 3; i++) { blo[i] = Math.min(blo[i], d[i] - (i === 1 ? 0 : 1.5)); bhi[i] = Math.max(bhi[i], d[i] + (i === 1 ? 5.4 : 1.5)); } }
+  blo[1] = Math.max(blo[1], c.floorY);
+  const ctr = mul(add(blo, bhi), 0.5), rad = len(sub(bhi, blo)) / 2;
+  c.view = { yaw: cam.yaw == null ? 28 : cam.yaw, pitch: cam.pitch == null ? 14 : cam.pitch, dist: cam.dist || clamp(rad * 1.75, 9, 400), target: cam.target ? W(cam.target) : ctr };
+  // storyboard times
+  const n = 8;
+  c.shots = Array.isArray(spec.shots) && spec.shots.length ? spec.shots.slice(0, 12) :
+    Array.from({ length: n }, (_, i) => (c.loop ? c.duration * i / n : 0.02 + (c.total * 0.92 - 0.02) * Math.pow(i / (n - 1), 1.6)));
+  return c;
+}
+
+// ============ 4. SIMULATE: closed-form particle motion (velocity halves every 1/Drag seconds, plus constant acceleration) ============
+function motion(L, p, a) {
+  const k = L.drag * LN2, A = L.accel;
+  if (k > 1e-6) { const e = Math.exp(-k * a), g = (1 - e) / k, vt = [A[0] / k, A[1] / k, A[2] / k];
+    return { p: [p.p0[0] + vt[0] * a + (p.v0[0] - vt[0]) * g, p.p0[1] + vt[1] * a + (p.v0[1] - vt[1]) * g, p.p0[2] + vt[2] * a + (p.v0[2] - vt[2]) * g],
+      v: [vt[0] + (p.v0[0] - vt[0]) * e, vt[1] + (p.v0[1] - vt[1]) * e, vt[2] + (p.v0[2] - vt[2]) * e] }; }
+  return { p: [p.p0[0] + p.v0[0] * a + A[0] * a * a / 2, p.p0[1] + p.v0[1] * a + A[1] * a * a / 2, p.p0[2] + p.v0[2] * a + A[2] * a * a / 2],
+    v: [p.v0[0] + A[0] * a, p.v0[1] + A[1] * a, p.v0[2] + A[2] * a] };
+}
+function eachLive(c, L, t, fn) {
+  const P = L.P, per = c.loop ? c.duration : 0;
+  for (let i = 0; i < P.length; i++) { const p = P[i]; let a = t - p.b;
+    if (per) { a = ((a % per) + per) % per; for (; a < p.life; a += per) fn(p, a); }
+    else if (a >= 0 && a < p.life) fn(p, a); }
+}
+function liveCount(c, L, t) { let n = 0; eachLive(c, L, t, () => { n++; }); return n; }
+const inWindow = (c, L, t) => c.loop ? true : t >= L.window[0] && t < L.window[1];
+const lightsAt = (c, t, hidden) => c.layers.filter(L => L.kind === 'light' && !(hidden && hidden.has(L.name)) && inWindow(c, L, t))
+  .map(L => ({ p: L.at, col: L.color, range: trackAt(L.range, t), b: trackAt(L.brightness, t) })).filter(l => l.b > 0 && l.range > 0);
+
+// ============ 5. RENDER: software rasteriser into a float RGB buffer (same code for the browser preview and the PNG storyboard) ============
+function makeTarget(w, h) { return { w, h, buf: new Float32Array(w * h * 3), zb: new Float32Array(w * h) }; }
+const DUMMY = [[-0.5, 1, 1, 2, 1], [0.5, 1, 1, 2, 1], [0, 3, 2, 2, 1], [-1.5, 3, 1, 2, 1], [1.5, 3, 1, 2, 1], [0, 4.6, 1.2, 1.2, 1.2]]; // x, y, sx, sy, sz
+const SUN = unit([-0.4, 0.8, -0.45]);
+function render(c, t, view, T) {
+  const { w, h, buf, zb } = T, day = view.bg === 'day', hidden = view.hidden;
+  const yaw = view.yaw * D2R, pit = view.pitch * D2R;
+  const toCam = [Math.sin(yaw) * Math.cos(pit), Math.sin(pit), -Math.cos(yaw) * Math.cos(pit)];
+  const pos = add(view.target, mul(toCam, view.dist)), f = mul(toCam, -1), r = unit(cross(f, [0, 1, 0])), up = cross(r, f);
+  const focal = (h / 2) / Math.tan(25 * D2R), cx = w / 2, cy = h / 2;
+  const lights = lightsAt(c, t, hidden);
+  // background
+  const top = day ? [0.50, 0.68, 0.90] : [0.045, 0.05, 0.07], bot = day ? [0.80, 0.87, 0.94] : [0.10, 0.115, 0.15];
+  for (let y = 0, i = 0; y < h; y++) { const k = y / h, R = top[0] + (bot[0] - top[0]) * k, Gc = top[1] + (bot[1] - top[1]) * k, B = top[2] + (bot[2] - top[2]) * k;
+    for (let x = 0; x < w; x++, i += 3) { buf[i] = R; buf[i + 1] = Gc; buf[i + 2] = B; } }
+  zb.fill(1e9);
+  // floor: one ray per pixel, 4-stud grid, pooled light
+  const fy = c.floorY, fcol = day ? [0.46, 0.50, 0.44] : [0.105, 0.115, 0.14], gcol = day ? [0.38, 0.42, 0.37] : [0.17, 0.185, 0.22], lk = day ? 0.12 : 0.3;
+  for (let y = 0; y < h; y++) {
+    const dy = f[1] * focal + up[1] * (cy - y - 0.5); if (dy >= -1e-6) continue;
+    const s = (fy - pos[1]) / dy; if (s <= 0) continue;
+    const z = s * focal; if (z > 600) continue;
+    const bx = pos[0] + s * (f[0] * focal + up[0] * (cy - y - 0.5)), bz = pos[2] + s * (f[2] * focal + up[2] * (cy - y - 0.5));
+    const fog = c01(z / 260), k = y / h, lineW = Math.max(0.05, s * 1.2), gf = c01(1 - z / 140);
+    for (let x = 0, i = y * w * 3; x < w; x++, i += 3) {
+      const px = bx + s * r[0] * (x + 0.5 - cx), pz = bz + s * r[2] * (x + 0.5 - cx);
+      let gx = px / 4; gx = Math.abs(gx - Math.round(gx)) * 4; let gz = pz / 4; gz = Math.abs(gz - Math.round(gz)) * 4;
+      const g = c01(1 - Math.min(gx, gz) / lineW) * gf;
+      let R = fcol[0] + (gcol[0] - fcol[0]) * g, Gc = fcol[1] + (gcol[1] - fcol[1]) * g, B = fcol[2] + (gcol[2] - fcol[2]) * g;
+      for (let li = 0; li < lights.length; li++) { const l = lights[li], d = Math.hypot(px - l.p[0], fy - l.p[1], pz - l.p[2]); if (d < l.range) { const a = (1 - d / l.range) * (1 - d / l.range) * l.b * lk; R += l.col[0] * a; Gc += l.col[1] * a; B += l.col[2] * a; } }
+      buf[i] = R + (top[0] + (bot[0] - top[0]) * k - R) * fog; buf[i + 1] = Gc + (top[1] + (bot[1] - top[1]) * k - Gc) * fog; buf[i + 2] = B + (top[2] + (bot[2] - top[2]) * k - B) * fog;
+      zb[y * w + x] = z;
+    }
+  }
+  const proj = P => { const d = sub(P, pos), z = dot(d, f); if (z < 0.2) return null; const s = focal / z; return [cx + dot(d, r) * s, cy - dot(d, up) * s, z, s]; };
+  // scale dummy
+  if (c.dummy) {
+    const base = [c.dummy[0], fy, -c.dummy[1]], amb = day ? 1 : 0.72;
+    for (const b of DUMMY) { const ctr = add(base, [b[0], b[1], 0]), hs = [b[2] / 2, b[3] / 2, b[4] / 2];
+      for (let ax = 0; ax < 3; ax++) for (const sg of [-1, 1]) {
+        const n = [0, 0, 0]; n[ax] = sg; const fc = add(ctr, [n[0] * hs[0], n[1] * hs[1], n[2] * hs[2]]);
+        if (dot(sub(fc, pos), n) >= 0) continue;
+        const u = [0, 0, 0], v = [0, 0, 0]; u[(ax + 1) % 3] = hs[(ax + 1) % 3]; v[(ax + 2) % 3] = hs[(ax + 2) % 3];
+        const q = [add(add(fc, u), v), add(sub(fc, u), v), sub(sub(fc, u), v), sub(add(fc, u), v)].map(proj); if (q.some(p => !p)) continue;
+        const sh = (0.5 + 0.5 * Math.max(0, dot(n, SUN))) * amb; let col = [0.44 * sh, 0.47 * sh, 0.53 * sh];
+        for (const l of lights) { const dv = sub(l.p, fc), d = len(dv); if (d < l.range) { const a = (1 - d / l.range) * (1 - d / l.range) * l.b * 0.3 * (0.4 + 0.6 * Math.max(0, dot(n, unit(dv)))); col = [col[0] + l.col[0] * a, col[1] + l.col[1] * a, col[2] + l.col[2] * a]; } }
+        fillQuad(T, q, col, proj(fc)[2]);
+      } }
+  }
+  // collect sprites
+  const S = []; let live = 0;
+  const push = (C, U, V, col, a, le, tab, bri) => { const d = sub(C, pos), z = dot(d, f); if (z < 0.3 || a <= 0.004) return; const s = focal / z;
+    S.push({ z, sx: cx + dot(d, r) * s, sy: cy - dot(d, up) * s, ax: dot(U, r) * s, ay: -dot(U, up) * s, bx: dot(V, r) * s, by: -dot(V, up) * s, r: col[0] * bri, g: col[1] * bri, b: col[2] * bri, a, le, tab, zn: z - Math.max(len(U), len(V)) }); };
+  for (const L of c.layers) { if (hidden && hidden.has(L.name)) continue;
+    if (L.kind === 'particles') { const tab = texTab(L.texture);
+      eachLive(c, L, t, (p, a) => { live++; const x = a / p.life, m = motion(L, p, a), half = seqAt(L.size, x, p.es) / 2, al = 1 - seqAt(L.transparency, x, p.et); if (half <= 0 || al <= 0.004) return;
+        const col = colAt(L.color, x), th = (p.rot0 + p.rs * a) * D2R, cs = Math.cos(th), sn = Math.sin(th); let U, V;
+        if (L.orientation === 'velocity' || L.orientation === 'flat') {
+          const vd = len(m.v) > 1e-4 ? unit(m.v) : p.d;
+          if (L.orientation === 'velocity') { const view = unit(sub(m.p, pos)); let sd = cross(vd, view); if (len(sd) < 1e-4) sd = r; U = mul(unit(sd), half); V = mul(vd, half); }
+          else { const [a1, b1] = perp(vd); U = mul(add(mul(a1, cs), mul(b1, sn)), half); V = mul(sub(mul(b1, cs), mul(a1, sn)), half); }
+        } else { const uu = L.orientation === 'cameraUp' ? [0, 1, 0] : up; U = mul(add(mul(r, cs), mul(uu, sn)), half); V = mul(sub(mul(uu, cs), mul(r, sn)), half); }
+        push(m.p, U, V, col, clamp(al, 0, 1), L.le, tab, L.brightness); });
+    } else if (L.kind === 'beam' && inWindow(c, L, t)) { const pu = Math.max(0, trackAt(L.pulse, t)); if (pu <= 0) continue;
+      const n = Math.max(L.segments, 12), tab = texTab(L.texture ? '_beamSoft' : '_beamHard');
+      for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, p0 = L.pts(i / n), p1 = L.pts((i + 1) / n), mid = mul(add(p0, p1), 0.5), sd = sub(p1, p0);
+        let side = cross(sd, sub(mid, pos)); if (len(side) < 1e-6) continue;
+        let al = 1 - seqAt(L.transparency, u); if (L.texture) al *= Math.pow(c01(1 - Math.pow(2 * u - 1, 2)), 0.6);
+        const q0 = proj(p0), q1 = proj(p1); if (!q0 || !q1) continue; const k0 = S.length;
+        push(mid, mul(unit(side), (L.width[0] + (L.width[1] - L.width[0]) * u) * pu / 2), mul(sd, 0.5), colAt(L.color, u), c01(al), L.le, tab, L.brightness);
+        if (S.length > k0) { const sp = S[k0]; sp.sx = (q0[0] + q1[0]) / 2; sp.sy = (q0[1] + q1[1]) / 2; sp.bx = (q1[0] - q0[0]) / 2; sp.by = (q1[1] - q0[1]) / 2; sp.seg = 1; } } }
+  }
+  S.sort((a, b) => b.z - a.z);
+  for (let i = 0; i < S.length; i++) splat(T, S[i]);
+  return live;
+}
+function fillQuad(T, q, col, z) {
+  const { w, h, buf, zb } = T; let y0 = Infinity, y1 = -Infinity;
+  for (const p of q) { if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1]; }
+  y0 = Math.max(0, Math.ceil(y0 - 0.5)); y1 = Math.min(h - 1, Math.floor(y1 - 0.5));
+  for (let y = y0; y <= y1; y++) { const yc = y + 0.5; let xa = Infinity, xb = -Infinity;
+    for (let i = 0; i < 4; i++) { const a = q[i], b = q[(i + 1) % 4]; if ((a[1] <= yc && b[1] > yc) || (b[1] <= yc && a[1] > yc)) { const x = a[0] + (b[0] - a[0]) * (yc - a[1]) / (b[1] - a[1]); if (x < xa) xa = x; if (x > xb) xb = x; } }
+    xa = Math.max(0, Math.ceil(xa - 0.5)); xb = Math.min(w - 1, Math.floor(xb - 0.5));
+    for (let x = xa; x <= xb; x++) { const j = y * w + x; if (z < zb[j]) { zb[j] = z; buf[j * 3] = col[0]; buf[j * 3 + 1] = col[1]; buf[j * 3 + 2] = col[2]; } } }
+}
+function splat(T, s) {
+  const { w, h, buf, zb } = T; let { ax, ay, bx, by } = s;
+  const la = Math.hypot(ax, ay), lb = Math.hypot(bx, by); if (la < 1e-3 || lb < 1e-3) return;
+  if (la < 0.7) { ax *= 0.7 / la; ay *= 0.7 / la; } if (lb < 0.7) { bx *= 0.7 / lb; by *= 0.7 / lb; }
+  const det = ax * by - bx * ay; if (Math.abs(det) < 0.3) return;
+  const ex = Math.abs(ax) + Math.abs(bx), ey = Math.abs(ay) + Math.abs(by);
+  const x0 = Math.max(0, Math.floor(s.sx - ex)), x1 = Math.min(w - 1, Math.ceil(s.sx + ex)), y0 = Math.max(0, Math.floor(s.sy - ey)), y1 = Math.min(h - 1, Math.ceil(s.sy + ey));
+  const tab = s.tab, keep = 1 - s.le, N1 = TN - 1, id = 1 / det;
+  for (let y = y0; y <= y1; y++) { const dy = y + 0.5 - s.sy;
+    for (let x = x0; x <= x1; x++) { const dx = x + 0.5 - s.sx, u = (dx * by - dy * bx) * id, v = (dy * ax - dx * ay) * id;
+      if (u <= -1 || u >= 1 || v < -1 || v >= 1) continue;
+      const j = y * w + x; if (zb[j] < s.zn) continue;
+      const fx = (u + 1) * 0.5 * N1, fy = (1 - v) * 0.5 * N1, ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy, o = iy * TN + ix;
+      const ix1 = ix < N1 ? 1 : 0, iy1 = iy < N1 ? TN : 0;
+      const a = ((tab[o] * (1 - tx) + tab[o + ix1] * tx) * (1 - ty) + (tab[o + iy1] * (1 - tx) + tab[o + iy1 + ix1] * tx) * ty) * s.a;
+      if (a < 0.003) continue;
+      const i = j * 3, k = 1 - a * keep;
+      buf[i] = buf[i] * k + s.r * a; buf[i + 1] = buf[i + 1] * k + s.g * a; buf[i + 2] = buf[i + 2] * k + s.b * a; } }
+}
+const tone = x => (x < 0.8 ? x : 0.8 + 0.2 * (1 - Math.exp(-(x - 0.8) / 0.2)));
+function toRGBA(T, out, ox, oy, stride) {                  // tonemap the float buffer into an RGBA byte array (optionally into a larger sheet)
+  const { w, h, buf } = T; ox = ox || 0; oy = oy || 0; stride = stride || w;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 3, o = ((y + oy) * stride + x + ox) * 4;
+    out[o] = tone(buf[i]) * 255; out[o + 1] = tone(buf[i + 1]) * 255; out[o + 2] = tone(buf[i + 2]) * 255; out[o + 3] = 255; }
+  return out;
+}
+
+// ============ 6. REPORT ============
+const span = (B, i, sign) => { const a = sign * B.lo[i], b = sign * B.hi[i]; return `${Math.min(a, b).toFixed(1)}..${Math.max(a, b).toFixed(1)}`; };
+const extent = B => `R ${span(B, 0, 1)}  U ${span(B, 1, 1)}  F ${span(B, 2, -1)}`;
+function report(c) {
+  const o = [`=== ${c.name} · ${c.loop ? 'loop ' + c.duration.toFixed(2) + 's' : 'one-shot ' + c.duration.toFixed(2) + 's, last particle gone at ' + c.total.toFixed(2) + 's'} · anchor ${c.anchor}${c.scale !== 1 ? ' · scale ' + c.scale : ''} ===`];
+  for (const e of c.errors) o.push('ERROR ' + e);
+  if (c.errors.length) return o.join('\n');
+  o.push('Layers (studs; R = right, U = up from the origin, F = forward):');
+  for (const L of c.layers) {
+    if (L.kind === 'particles') { const em = [L.bursts.map(b => `burst ${b.count}@${b.t.toFixed(2)}s`).join(' '), L.rate ? `rate ${L.rate}/s${c.loop ? '' : ` ${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}` : ''].filter(Boolean).join(' + ');
+      o.push(`  ${L.name.padEnd(12)} particles  ${em} · life ${L.lifetime[0]}-${L.lifetime[1]}s · size ${num(seqAt(L.size, 0))}>${num(Math.max(...L.size.map(k => k[1])))}>${num(seqAt(L.size, 1))} · ${L.texture}${L.le >= 0.5 ? ' additive' : ' opaque'} · peak ${L.peak} alive\n  ${''.padEnd(12)} reach ${extent(L.B)}`); }
+    else if (L.kind === 'light') o.push(`  ${L.name.padEnd(12)} light      brightness peak ${num(trackMax(L.brightness))} · range ${num(trackMax(L.range))} · ${c.loop ? 'always on' : `${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}`);
+    else o.push(`  ${L.name.padEnd(12)} beam       ${len(sub(L.to, L.from)).toFixed(1)} studs long · width ${num(L.width[0])}>${num(L.width[1])} · ${c.loop ? 'always on' : `${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}\n  ${''.padEnd(12)} reach ${extent(L.B)}`);
+  }
+  o.push(`Whole effect: ${extent(c.bounds)} · peak ${c.peak} particles alive at t=${c.peakT.toFixed(2)}s`);
+  o.push('Storyboard panels (left to right, top to bottom) and particles alive per layer:');
+  const pl = c.layers.filter(L => L.kind === 'particles');
+  c.shots.forEach((t, i) => o.push(`  ${String(i + 1).padStart(2)}. t=${t.toFixed(2)}s  ` + pl.map(L => `${L.name} ${liveCount(c, L, t)}`).join(' · ')));
+  if (c.markers.length) o.push('Markers: ' + c.markers.map(m => `${m.name}@${m.t.toFixed(2)}s`).join(', '));
+  for (const [n, t] of Object.entries(c.textures)) o.push(`Texture ${n}: ${t.uploaded ? t.url : (t.standin ? 'no built-in match, Studio shows the default sparkle' : 'built-in stand-in ' + t.url.replace(RBXTEX, '')) + ` until textures/${n}.png is uploaded`}`);
+  for (const x of c.warnings) o.push('WARN ' + x);
+  for (const x of c.notes) o.push('NOTE ' + x);
+  if (!c.warnings.length) o.push('No warnings.');
+  return o.join('\n');
+}
+
+// ============ 7. EXPORT: one instance tree, written as .rbxmx XML and as a Studio command-bar script ============
+const V = { f: v => ({ t: 'float', v }), i: v => ({ t: 'int', v }), b: v => ({ t: 'bool', v }), s: v => ({ t: 'string', v }), v3: v => ({ t: 'Vector3', v }), v2: v => ({ t: 'Vector2', v }),
+  nr: v => ({ t: 'NumberRange', v }), ns: v => ({ t: 'NumberSequence', v }), cs: v => ({ t: 'ColorSequence', v }), c3: v => ({ t: 'Color3', v }), cf: (p, m) => ({ t: 'CFrame', p, m }),
+  en: (e, n) => ({ t: 'Enum', e, n: n[0], k: n[1] }), tex: (name, url) => ({ t: 'Content', name, url }), ref: o => ({ t: 'Ref', o }), src: v => ({ t: 'Source', v }) };
+const inst = (cls, name, props, kids) => ({ cls, name, props: props || {}, kids: kids || [] });
+const basisY = d => { const [a] = perp(d), z = cross(a, d); return [a[0], d[0], z[0], a[1], d[1], z[1], a[2], d[2], z[2]]; };       // +Y along d
+const basisX = d => { const [a, b] = perp(d); return [d[0], a[0], b[0], d[1], a[1], b[1], d[2], a[2], b[2]]; };                      // +X along d
+const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+function tree(c) {
+  const part = (name, size, pos) => inst('Part', name, { Anchored: V.b(true), CanCollide: V.b(false), CanTouch: V.b(false), CanQuery: V.b(false), CastShadow: V.b(false), Massless: V.b(true),
+    Transparency: V.f(1), Size: V.v3(size), CFrame: V.cf(pos, I3) });
+  const origin = part('Origin', [1, 1, 1], [0, 0, 0]), parts = [origin];
+  for (const L of c.layers) {
+    if (L.kind === 'particles') {
+      const e = inst('ParticleEmitter', L.name, { Enabled: V.b(c.loop && L.rate > 0), Rate: V.f(L.rate), Lifetime: V.nr(L.lifetime), Speed: V.nr(L.speed), SpreadAngle: V.v2(L.spread),
+        Rotation: V.nr(L.rotation), RotSpeed: V.nr(L.rotSpeed), Size: V.ns(L.size), Transparency: V.ns(L.transparency), Color: V.cs(L.color), Acceleration: V.v3(L.accel), Drag: V.f(L.drag),
+        LightEmission: V.f(L.le), LightInfluence: V.f(L.li), Brightness: V.f(L.brightness), ZOffset: V.f(L.zOffset), LockedToPart: V.b(L.locked), Orientation: V.en('ParticleOrientation', ORIENT[L.orientation]),
+        Texture: V.tex(L.texture, L.textureId || c.textures[L.texture].url), EmissionDirection: V.en('NormalId', L.shape ? FACE[L.dirName] || FACE.up : FACE.up) });
+      if (L.shape) {
+        e.props.Shape = V.en('ParticleEmitterShape', L.shape.type === 'sphere' ? ['Sphere', 1] : ['Box', 0]);
+        e.props.ShapeStyle = V.en('ParticleEmitterShapeStyle', L.shape.surface ? ['Surface', 1] : ['Volume', 0]);
+        e.props.ShapeInOut = V.en('ParticleEmitterShapeInOut', L.shape.inward ? ['Inward', 1] : ['Outward', 0]);
+        const p = part(L.name, L.shape.size.map(x => Math.max(0.05, Math.abs(x))), L.at); p.kids.push(e); parts.push(p);
+      } else origin.kids.push(inst('Attachment', L.name, { CFrame: V.cf(L.at, basisY(L.dir)) }, [e]));
+    } else if (L.kind === 'light') {
+      origin.kids.push(inst('Attachment', L.name, { CFrame: V.cf(L.at, I3) }, [inst('PointLight', L.name, { Enabled: V.b(c.loop), Color: V.c3(L.color), Range: V.f(Math.min(60, trackAt(L.range, 0))), Brightness: V.f(trackAt(L.brightness, 0)), Shadows: V.b(L.shadows) })]));
+    } else {
+      const d = unit(sub(L.to, L.from)), c0 = len(L.curve0), c1 = len(L.curve1);
+      const a0 = inst('Attachment', L.name + '_A0', { CFrame: V.cf(L.from, basisX(c0 > 1e-6 ? unit(L.curve0) : d)) }), a1 = inst('Attachment', L.name + '_A1', { CFrame: V.cf(L.to, basisX(c1 > 1e-6 ? mul(unit(L.curve1), -1) : d)) });
+      const pu = trackAt(L.pulse, 0);
+      origin.kids.push(a0, a1, inst('Beam', L.name, { Enabled: V.b(c.loop), Attachment0: V.ref(a0), Attachment1: V.ref(a1), CurveSize0: V.f(c0), CurveSize1: V.f(c1), Width0: V.f(L.width[0] * pu), Width1: V.f(L.width[1] * pu),
+        Color: V.cs(L.color), Transparency: V.ns(L.transparency), LightEmission: V.f(L.le), LightInfluence: V.f(L.li), Brightness: V.f(L.brightness), Segments: V.i(L.segments), FaceCamera: V.b(true),
+        Texture: V.tex(L.texture ? 'glow' : null, L.texture ? (L.textureId || c.textures.glow.url) : ''), TextureMode: V.en('TextureMode', ['Stretch', 0]), TextureLength: V.f(1), TextureSpeed: V.f(0) }));
+    }
+  }
+  return inst('ModuleScript', c.name, { Source: V.src(moduleSource(c)) }, [inst('Model', 'Template', { PrimaryPart: V.ref(origin) }, parts)]);
+}
+function moduleSource(c) {
+  const q = s => JSON.stringify(String(s)), rows = a => (a.length ? '\n\t' + a.join(',\n\t') + ',\n' : '');
+  const bursts = [], windows = [], tracks = [];
+  for (const L of c.layers) {
+    if (L.kind === 'particles') { for (const b of L.bursts) bursts.push(`{${q(L.name)}, ${num(b.t)}, ${b.count}}`); if (L.rate) windows.push(`{${q(L.name)}, ${num(L.window[0])}, ${num(L.window[1])}}`); }
+    else { windows.push(`{${q(L.name)}, ${num(L.window[0])}, ${num(L.window[1])}}`);
+      const tr = (prop, k, m, cap) => { if (k.length > 1) tracks.push(`{${q(L.name)}, ${q(prop)}, {${k.map(x => `{${num(x[0])}, ${num(cap ? Math.min(cap, x[1] * m) : x[1] * m)}}`).join(', ')}}}`); };
+      if (L.kind === 'light') { tr('Brightness', L.brightness, 1); tr('Range', L.range, 1, 60); } else { tr('Width0', L.pulse, L.width[0]); tr('Width1', L.pulse, L.width[1]); } }
+  }
+  return `-- ${c.name}: generated by the roblox-vfx skill. ${c.loop ? 'Looping effect.' : `One-shot, ${num(c.duration)}s (particles gone after ${num(c.total)}s).`}
+--   local ${c.name} = require(path.to.${c.name})
+--   local fx = ${c.name}.play(target, options)   -- target: CFrame | Vector3 | BasePart | Attachment | Model
+--   fx:Stop()                                    -- stop early (always needed for loops)
+-- options: parent (Instance, default workspace), follow (false = do not weld to a part target),
+--          offset (CFrame applied after the target), onMarker (function(name, model))
+local RunService = game:GetService("RunService")
+local TEMPLATE = script:WaitForChild("Template")
+local DURATION, TAIL, LOOP, MAX_LIFE = ${num(c.duration)}, ${num(c.total)}, ${c.loop}, ${num(c.maxLife)}
+local BURSTS = {${rows(bursts)}} -- layer, seconds, particle count
+local WINDOWS = {${rows(windows)}} -- layer, on at, off at
+local TRACKS = {${rows(tracks)}} -- layer, property, {seconds, value} keys
+local MARKERS = {${rows(c.markers.map(m => `{${num(m.t)}, ${q(m.name)}}`))}} -- seconds, name
+
+local VFX = { Name = ${q(c.name)}, Duration = DURATION, Tail = TAIL, Loop = LOOP, Template = TEMPLATE }
+
+local function valueAt(keys, t)
+	if t <= keys[1][1] then return keys[1][2] end
+	for i = 2, #keys do
+		local a, b = keys[i - 1], keys[i]
+		if t <= b[1] then return a[2] + (b[2] - a[2]) * (t - a[1]) / math.max(b[1] - a[1], 1e-6) end
+	end
+	return keys[#keys][2]
+end
+
+function VFX.play(target, options)
+	options = options or {}
+	local cf, weldTo
+	if typeof(target) == "CFrame" then cf = target
+	elseif typeof(target) == "Vector3" then cf = CFrame.new(target)
+	elseif typeof(target) == "Instance" and target:IsA("Attachment") then cf, weldTo = target.WorldCFrame, target.Parent
+	elseif typeof(target) == "Instance" and target:IsA("BasePart") then cf, weldTo = target.CFrame, target
+	elseif typeof(target) == "Instance" and target:IsA("Model") then
+		weldTo = target.PrimaryPart
+		cf = weldTo and weldTo.CFrame or target:GetPivot()
+	else error("VFX.play: target must be a CFrame, Vector3, BasePart, Attachment or Model", 2) end
+	if options.offset then cf = cf * options.offset end
+
+	local model = TEMPLATE:Clone()
+	model.Name = VFX.Name
+	model:PivotTo(cf)
+	if weldTo and options.follow ~= false then
+		for _, p in model:GetDescendants() do
+			if p:IsA("BasePart") then
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0, weld.Part1, weld.Parent = p, weldTo, p
+				p.Anchored = false
+			end
+		end
+	end
+	local objects = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") then objects[d.Name] = d end
+	end
+	model.Parent = options.parent or workspace
+
+	local alive, started, threads, conn = true, os.clock(), {}, nil
+	local function at(t, fn)
+		if t <= 0 then fn() return end
+		table.insert(threads, task.delay(t, function() if alive and model.Parent then fn() end end))
+	end
+	local function cycle()
+		for _, b in BURSTS do
+			local e = objects[b[1]]
+			if e then at(b[2], function() e:Emit(b[3]) end) end
+		end
+		if options.onMarker then
+			for _, m in MARKERS do at(m[1], function() options.onMarker(m[2], model) end) end
+		end
+	end
+	local function setAll(on)
+		for _, w in WINDOWS do
+			local o = objects[w[1]]
+			if o then o.Enabled = on end
+		end
+	end
+	local function finish(delayTime)
+		if not alive then return end
+		alive = false
+		if conn then conn:Disconnect() end
+		for _, th in threads do pcall(task.cancel, th) end
+		setAll(false)
+		task.delay(delayTime, function() model:Destroy() end)
+	end
+
+	if #TRACKS > 0 then
+		conn = RunService.Heartbeat:Connect(function()
+			if not model.Parent then finish(0) return end
+			local t = os.clock() - started
+			if LOOP then t = t % DURATION end
+			for _, tr in TRACKS do
+				local o = objects[tr[1]]
+				if o then o[tr[2]] = valueAt(tr[3], t) end
+			end
+		end)
+	end
+	if LOOP then
+		setAll(true)
+		table.insert(threads, task.spawn(function()
+			while alive and model.Parent do cycle() task.wait(DURATION) end
+		end))
+	else
+		for _, w in WINDOWS do
+			local o = objects[w[1]]
+			if o then
+				at(w[2], function() o.Enabled = true end)
+				at(w[3], function() o.Enabled = false end)
+			end
+		end
+		cycle()
+		task.delay(TAIL + 0.1, function() finish(0) end)
+	end
+
+	local handle = { Model = model }
+	function handle:Stop() finish(MAX_LIFE + 0.1) end
+	return handle
+end
+
+return VFX
+`;
+}
+function toRbxmx(c) {
+  const root = tree(c), ids = new Map(); let n = 0;
+  (function walk(o) { ids.set(o, 'RBX' + (++n)); o.kids.forEach(walk); })(root);
+  const xyz = v => `<X>${num(v[0])}</X><Y>${num(v[1])}</Y><Z>${num(v[2])}</Z>`;
+  const prop = (k, p) => { switch (p.t) {
+    case 'float': return `<float name="${k}">${num(p.v)}</float>`;
+    case 'int': return `<int name="${k}">${p.v}</int>`;
+    case 'bool': return `<bool name="${k}">${p.v}</bool>`;
+    case 'string': return `<string name="${k}">${xml(p.v)}</string>`;
+    case 'Vector3': return `<Vector3 name="${k === 'Size' ? 'size' : k}">${xyz(p.v)}</Vector3>`;
+    case 'Vector2': return `<Vector2 name="${k}"><X>${num(p.v[0])}</X><Y>${num(p.v[1])}</Y></Vector2>`;
+    case 'NumberRange': return `<NumberRange name="${k}">${num(p.v[0])} ${num(p.v[1])} </NumberRange>`;
+    case 'NumberSequence': return `<NumberSequence name="${k}">${p.v.map(x => `${num(x[0])} ${num(x[1])} ${num(x[2] || 0)} `).join('')}</NumberSequence>`;
+    case 'ColorSequence': return `<ColorSequence name="${k}">${p.v.map(x => `${num(x[0])} ${x[1].map(num).join(' ')} 0 `).join('')}</ColorSequence>`;
+    case 'Color3': return `<Color3 name="${k}"><R>${num(p.v[0])}</R><G>${num(p.v[1])}</G><B>${num(p.v[2])}</B></Color3>`;
+    case 'CFrame': return `<CoordinateFrame name="${k}">${xyz(p.p)}${['R00', 'R01', 'R02', 'R10', 'R11', 'R12', 'R20', 'R21', 'R22'].map((r, i) => `<${r}>${num(p.m[i])}</${r}>`).join('')}</CoordinateFrame>`;
+    case 'Enum': return `<token name="${k}">${p.k}</token>`;
+    case 'Content': return `<Content name="${k}">${p.url ? `<url>${xml(p.url)}</url>` : '<null></null>'}</Content>`;
+    case 'Ref': return `<Ref name="${k}">${ids.get(p.o)}</Ref>`;
+    case 'Source': return `<ProtectedString name="${k}"><![CDATA[${p.v.replace(/]]>/g, ']]]]><![CDATA[>')}]]></ProtectedString>`;
+  } throw new Error('unknown property type ' + p.t); };
+  const item = (o, ind) => `${ind}<Item class="${o.cls}" referent="${ids.get(o)}">\n${ind}\t<Properties>\n${ind}\t\t<string name="Name">${xml(o.name)}</string>\n` +
+    Object.entries(o.props).map(([k, p]) => `${ind}\t\t${prop(k, p)}\n`).join('') + `${ind}\t</Properties>\n` + o.kids.map(k => item(k, ind + '\t')).join('') + `${ind}</Item>\n`;
+  return '<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">\n' + item(root, '\t') + '</roblox>\n';
+}
+function toLuau(c) {
+  const root = tree(c), q = s => JSON.stringify(String(s)), ids = new Map(), lines = [], refs = []; let n = 0;
+  const lit = p => { switch (p.t) {
+    case 'float': case 'int': return num(p.v);
+    case 'bool': return String(p.v);
+    case 'string': return q(p.v);
+    case 'Vector3': return `Vector3.new(${p.v.map(num).join(', ')})`;
+    case 'Vector2': return `Vector2.new(${p.v.map(num).join(', ')})`;
+    case 'NumberRange': return `NumberRange.new(${num(p.v[0])}, ${num(p.v[1])})`;
+    case 'NumberSequence': return `NumberSequence.new({${p.v.map(x => `NumberSequenceKeypoint.new(${num(x[0])}, ${num(x[1])}, ${num(x[2] || 0)})`).join(', ')}})`;
+    case 'ColorSequence': return `ColorSequence.new({${p.v.map(x => `ColorSequenceKeypoint.new(${num(x[0])}, Color3.new(${x[1].map(num).join(', ')}))`).join(', ')}})`;
+    case 'Color3': return `Color3.new(${p.v.map(num).join(', ')})`;
+    case 'CFrame': return `CFrame.new(${p.p.concat(p.m).map(num).join(', ')})`;
+    case 'Enum': return `Enum.${p.e}.${p.n}`;
+    case 'Content': return p.name ? `TEXTURES.${p.name}` : '""';
+  } throw new Error('unknown property type ' + p.t); };
+  (function walk(o, parent) { const id = ++n; ids.set(o, id);
+    const ps = Object.entries(o.props).filter(([k, p]) => { if (p.t === 'Ref') { refs.push([o, k, p.o]); return false; } return p.t !== 'Source'; });
+    lines.push(`I[${id}] = make(${q(o.cls)}, ${q(o.name)}, ${parent ? `I[${parent}]` : 'nil'}, {${ps.map(([k, p]) => `${k} = ${lit(p)}`).join(', ')}})`);
+    o.kids.forEach(k => walk(k, id)); })(root, 0);
+  const texLines = Object.entries(c.textures).map(([nm, t]) => `\t${nm} = ${q(t.url)},${t.uploaded ? '' : ` -- ${t.standin ? 'no built-in match (default sparkle shown)' : 'built-in stand-in'}; upload textures/${nm}.png and paste "rbxassetid://<id>" here`}`);
+  let eq = '='; while (root.props.Source.v.includes(']' + eq + ']')) eq += '=';
+  return `-- ${c.name} · ${c.loop ? 'looping' : 'one-shot'} VFX · ${c.layers.length} layers · generated by the roblox-vfx skill
+-- Roblox Studio: View > Command Bar, paste this whole script and press Enter (Edit mode).
+-- Creates ReplicatedStorage.VFX.${c.name} (a ModuleScript with its Template model inside) and plays it once
+-- at the selected part, or in front of the camera if nothing is selected.
+local TEXTURES = {
+${texLines.join('\n')}
+}
+local SOURCE = [${eq}[
+${root.props.Source.v}]${eq}]
+local I = {}
+local function make(class, name, parent, props)
+	local o = Instance.new(class)
+	o.Name = name
+	for k, v in props do o[k] = v end
+	o.Parent = parent
+	return o
+end
+${lines.join('\n')}
+${refs.map(([o, k, t]) => `I[${ids.get(o)}].${k} = I[${ids.get(t)}]`).join('\n')}
+I[1].Source = SOURCE
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local folder = ReplicatedStorage:FindFirstChild("VFX")
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "VFX"
+	folder.Parent = ReplicatedStorage
+end
+local old = folder:FindFirstChild(${q(c.name)})
+if old then old:Destroy() end
+I[1].Parent = folder
+print(("[vfx] %s -> %s"):format(${q(c.name)}, I[1]:GetFullName()))
+
+local ok, err = pcall(function()
+	local sel = game:GetService("Selection"):Get()[1]
+	local cam = workspace.CurrentCamera
+	local where = (sel and sel:IsA("BasePart")) and CFrame.new(sel.Position) or CFrame.new((cam.CFrame * CFrame.new(0, -2, -24)).Position)
+	local fx = require(I[1]).play(where)
+	if ${c.loop} then task.delay(8, function() fx:Stop() end) end
+end)
+if not ok then warn("[vfx] built fine, but the test play failed: " .. tostring(err)) end
+`;
+}
+
+// ============ 8. PNG + STORYBOARD (Node only) ============
+function png(w, h, rgba) {
+  const zlib = require('zlib'), raw = Buffer.alloc((w * 4 + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (w * 4 + 1)] = 0; Buffer.from(rgba.buffer, rgba.byteOffset + y * w * 4, w * 4).copy(raw, y * (w * 4 + 1) + 1); }
+  const tbl = png.t || (png.t = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; }));
+  const crc = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = tbl[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]), cr = Buffer.alloc(4); cr.writeUInt32BE(crc(td)); return Buffer.concat([len, td, cr]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 6;
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))]);
+}
+function texturePng(name, size) {                          // white, alpha = mask: tint it with ParticleEmitter.Color
+  size = size || 256; const f = TEX[name], px = new Uint8Array(size * size * 4), ss = 3;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { let a = 0;
+    for (let j = 0; j < ss; j++) for (let i = 0; i < ss; i++) a += f((x + (i + 0.5) / ss) / size * 2 - 1, 1 - (y + (j + 0.5) / ss) / size * 2);
+    const o = (y * size + x) * 4; px[o] = px[o + 1] = px[o + 2] = 255; px[o + 3] = Math.round(c01(a / (ss * ss)) * 255); }
+  return png(size, size, px);
+}
+const FONT = { 0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111', '.': '000000000000010', s: '011100010001110', ' ': '000000000000000' };
+function storyboard(c) {                                   // PNG contact sheet of c.shots
+  const tw = 400, th = 300, cols = Math.min(4, c.shots.length), rows = Math.ceil(c.shots.length / cols), gap = 4;
+  const SW = cols * tw + (cols + 1) * gap, SH = rows * th + (rows + 1) * gap, sheet = new Uint8Array(SW * SH * 4).fill(255), T = makeTarget(tw, th);
+  for (let i = 0; i < SW * SH; i++) { sheet[i * 4] = 40; sheet[i * 4 + 1] = 44; sheet[i * 4 + 2] = 54; }
+  c.shots.forEach((t, i) => { const ox = gap + (i % cols) * (tw + gap), oy = gap + Math.floor(i / cols) * (th + gap);
+    render(c, t, Object.assign({ bg: 'dark' }, c.view), T); toRGBA(T, sheet, ox, oy, SW);
+    const txt = t.toFixed(2) + 's', sc = 3; let x = ox + 8;
+    for (const ch of txt) { const g = FONT[ch] || FONT[' '];
+      for (let k = 0; k < 15; k++) if (g[k] === '1') for (let a = 0; a < sc; a++) for (let b = 0; b < sc; b++) { const o = ((oy + 8 + Math.floor(k / 3) * sc + a) * SW + x + (k % 3) * sc + b) * 4; sheet[o] = sheet[o + 1] = sheet[o + 2] = 235; }
+      x += 4 * sc; } });
+  return png(SW, SH, sheet);
+}
+
+const API = { TEX, TEXTURES, compile, motion, render, makeTarget, toRGBA, report, tree, toRbxmx, toLuau, storyboard, texturePng, png, seqAt, colAt, trackAt, liveCount };
+
+// ============ 9. PREVIEWER (browser) ============
+const CSS = `
+.rv{--bg:#14171d;--panel:#1c2028;--line:#2c323d;--ink:#e8ebf0;--dim:#98a2b3;--acc:#ffb347;font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg);min-height:100vh;padding:16px;box-sizing:border-box}
+.rv *{box-sizing:border-box}.rv h1{font-size:20px;margin:0 0 2px}.rv .sub{color:var(--dim);margin:0 0 12px;max-width:70ch}
+.rv .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.rv button,.rv select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 12px;cursor:pointer}
+.rv button:hover{border-color:var(--dim)}.rv button.on{background:var(--acc);border-color:var(--acc);color:#1a1205;font-weight:600}
+.rv .grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}@media(max-width:860px){.rv .grid{grid-template-columns:1fr}}
+.rv canvas{width:100%;height:auto;display:block;border-radius:8px;border:1px solid var(--line);cursor:grab;touch-action:none;background:#0b0d11}
+.rv .bar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}.rv .bar input[type=range]{flex:1;min-width:120px;accent-color:var(--acc)}
+.rv .time{font-variant-numeric:tabular-nums;color:var(--dim);min-width:120px}.rv .side{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.rv .side h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:14px 0 6px}.rv .side h2:first-child{margin-top:0}
+.rv label.l{display:flex;gap:8px;align-items:flex-start;padding:5px 0;cursor:pointer;border-top:1px solid var(--line)}.rv label.l:first-of-type{border-top:0}
+.rv label.l b{font-weight:600}.rv label.l small{display:block;color:var(--dim)}.rv .mk{color:var(--dim)}.rv .mk b{color:var(--acc);font-weight:600}
+.rv .warn{color:#ffcf7a;margin:4px 0}.rv .hint{color:var(--dim);font-size:12px;margin-top:8px}
+`;
+function mount(specs, host) {
+  host = host || document.getElementById('rvfx');
+  const clips = specs.map(compile), esc = xml, CW = 640, CH = 400, T = makeTarget(CW, CH);
+  host.innerHTML = `<style>${CSS}</style><div class="rv"><div class="tabs"></div><h1></h1><p class="sub"></p><div class="grid"><div><canvas width="${CW}" height="${CH}"></canvas>
+<div class="bar"><button class="play">Pause</button><input type="range" min="0" max="1000" value="0"><span class="time"></span>
+<select class="speed"><option value="1">1x</option><option value="0.5">0.5x</option><option value="0.25">0.25x</option><option value="0.1">0.1x</option></select><button class="bg">Daylight</button><button class="reset">Reset view</button></div>
+<div class="hint">Drag to orbit, scroll to zoom. The grid is 4 studs; the dummy is a 5.2-stud avatar. Untick layers to judge each one alone.</div></div><div class="side"></div></div></div>`;
+  const $ = s => host.querySelector(s), cv = $('canvas'), ctx = cv.getContext('2d'), img = ctx.createImageData(CW, CH), scrub = $('input[type=range]');
+  let c, view, t = 0, playing = true, speed = 1, hold = 0, last = 0, bg = 'dark';
+  function pick(i) {
+    c = clips[i]; t = 0; hold = 0; view = Object.assign({ bg, hidden: new Set() }, c.view, { target: c.view.target.slice() });
+    $('.tabs').innerHTML = clips.length > 1 ? clips.map((k, j) => `<button data-i="${j}" class="${j === i ? 'on' : ''}">${esc(k.title)}</button>`).join('') : '';
+    $('h1').textContent = c.title; $('.sub').textContent = c.spec.description || '';
+    if (c.errors.length) { $('.side').innerHTML = c.errors.map(e => `<div class="warn">${esc(e)}</div>`).join(''); return; }
+    const sum = L => L.kind === 'particles' ? `${L.texture}, ${[L.bursts.length ? L.bursts.map(b => b.count + ' @' + b.t.toFixed(2) + 's').join(', ') : '', L.rate ? L.rate + '/s' : ''].filter(Boolean).join(' + ')}, life ${L.lifetime[0]}-${L.lifetime[1]}s`
+      : L.kind === 'light' ? `point light, range ${num(trackMax(L.range))}` : `beam, ${num(len(sub(L.to, L.from)))} studs`;
+    $('.side').innerHTML = `<h2>Layers</h2>` + c.layers.map(L => `<label class="l"><input type="checkbox" checked data-l="${L.name}"><span><b>${L.name}</b><small>${esc(sum(L))}${L.note ? '<br>' + esc(L.note) : ''}</small></span></label>`).join('') +
+      `<h2>Timing</h2><div class="mk">${c.loop ? 'Loops every ' + c.duration.toFixed(2) + 's' : 'One-shot, ' + c.duration.toFixed(2) + 's; particles gone by ' + c.total.toFixed(2) + 's'}<br>Peak ${c.peak} particles alive</div>` +
+      (c.markers.length ? `<h2>Markers</h2>` + c.markers.map(m => `<div class="mk"><b>${esc(m.name)}</b> at ${m.t.toFixed(2)}s</div>`).join('') : '') +
+      (c.warnings.length ? `<h2>Warnings</h2>` + c.warnings.map(w => `<div class="warn">${esc(w)}</div>`).join('') : '');
+  }
+  host.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.i) pick(+b.dataset.i);
+    else if (b.classList.contains('play')) { playing = !playing; b.textContent = playing ? 'Pause' : 'Play'; }
+    else if (b.classList.contains('bg')) { bg = bg === 'dark' ? 'day' : 'dark'; view.bg = bg; b.textContent = bg === 'dark' ? 'Daylight' : 'Night'; }
+    else if (b.classList.contains('reset')) Object.assign(view, c.view, { target: c.view.target.slice() }); });
+  host.addEventListener('change', e => { if (e.target.dataset.l) { e.target.checked ? view.hidden.delete(e.target.dataset.l) : view.hidden.add(e.target.dataset.l); } else if (e.target.classList.contains('speed')) speed = +e.target.value; });
+  scrub.addEventListener('input', () => { playing = false; $('.play').textContent = 'Play'; t = scrub.value / 1000 * c.total; hold = 0; });
+  let drag = null;
+  cv.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY, view.yaw, view.pitch]; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', e => { if (!drag) return; view.yaw = drag[2] + (e.clientX - drag[0]) * 0.5; view.pitch = clamp(drag[3] + (e.clientY - drag[1]) * 0.4, -5, 85); });
+  cv.addEventListener('pointerup', () => { drag = null; });
+  cv.addEventListener('wheel', e => { e.preventDefault(); view.dist = clamp(view.dist * Math.exp(e.deltaY * 0.0015), 3, 600); }, { passive: false });
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000 || 0); last = now;
+    if (c && !c.errors.length) {
+      if (playing) { if (c.loop) t = (t + dt * speed) % c.total; else if (t >= c.total) { hold += dt; if (hold > 0.5) { t = 0; hold = 0; } } else t = Math.min(c.total, t + dt * speed); scrub.value = Math.round(t / c.total * 1000); }
+      const live = render(c, t, view, T); toRGBA(T, img.data); ctx.putImageData(img, 0, 0);
+      $('.time').textContent = `${t.toFixed(2)} / ${c.total.toFixed(2)}s · ${live} alive`;
+    }
+    requestAnimationFrame(frame);
+  }
+  pick(0); requestAnimationFrame(frame);
+}
+
+// ============ 10. ENTRY POINTS ============
+if (typeof document !== 'undefined') {
+  G.RVfx = Object.assign(API, { mount });
+  const go = () => { if (G.RVFX_EFFECTS) mount(G.RVFX_EFFECTS); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+} else if (typeof module !== 'undefined') {
+  module.exports = API;
+  if (require.main === module) {
+    const fs = require('fs'), path = require('path'), args = process.argv.slice(2), oi = args.indexOf('--out');
+    const out = oi >= 0 ? args.splice(oi, 2)[1] : '.', specs = [];
+    if (!args.length) { console.error('usage: node rvfx.cjs effect.json [more.json ...] [--out DIR]'); process.exit(2); }
+    for (const f of args) specs.push(...[].concat(JSON.parse(fs.readFileSync(f, 'utf8'))));
+    fs.mkdirSync(path.join(out, 'textures'), { recursive: true });
+    let bad = 0; const tex = new Set();
+    for (const s of specs) {
+      const c = compile(s); console.log(report(c) + '\n');
+      if (c.errors.length) { bad++; continue; }
+      fs.writeFileSync(path.join(out, c.name + '.rbxmx'), toRbxmx(c)); fs.writeFileSync(path.join(out, c.name + '.lua'), toLuau(c));
+      fs.writeFileSync(path.join(out, `storyboard-${c.name}.png`), storyboard(c));
+      for (const [n, t] of Object.entries(c.textures)) if (!t.uploaded) tex.add(n);
+      console.log(`wrote ${c.name}.rbxmx, ${c.name}.lua, storyboard-${c.name}.png\n`);
+    }
+    for (const n of tex) fs.writeFileSync(path.join(out, 'textures', n + '.png'), texturePng(n));
+    if (tex.size) console.log(`wrote textures/{${[...tex].join(',')}}.png (white on transparent, 256px; upload to Roblox for the exact look)`);
+    const title = specs.length === 1 ? (specs[0].title || specs[0].name || 'VFX') + ' preview' : 'Roblox VFX previews';
+    fs.writeFileSync(path.join(out, 'preview.html'), `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${xml(title)}</title>
+<style>html,body{margin:0;background:#14171d}</style></head>
+<body><div id="rvfx"></div>
+<script>window.RVFX_EFFECTS = ${JSON.stringify(specs).replace(/</g, '\\u003c')};</` + `script>
+<script>${fs.readFileSync(__filename, 'utf8')}</` + `script>
+</body></html>
+`);
+    console.log(`wrote preview.html (${specs.length} effect${specs.length > 1 ? 's' : ''})`);
+    process.exit(bad ? 1 : 0);
+  }
+}
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+</body></html>

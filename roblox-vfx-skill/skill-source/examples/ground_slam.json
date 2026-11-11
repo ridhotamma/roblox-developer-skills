@@ -1,0 +1,298 @@
+{
+  "name": "GroundSlam",
+  "title": "Ground slam",
+  "description": "Heavy landing or hammer slam at the character's feet: two floor rings, a low dust skirt rushing outward, rock chips popping up and a short flash. Radius about 10 studs to match a slam hitbox.",
+  "duration": 0.7,
+  "anchor": "ground",
+  "dummy": "center",
+  "markers": [
+    {
+      "t": 0,
+      "name": "Slam"
+    }
+  ],
+  "layers": [
+    {
+      "name": "Flash",
+      "texture": "glow",
+      "at": [
+        0,
+        0.6,
+        0
+      ],
+      "burst": 1,
+      "lifetime": 0.12,
+      "size": [
+        [
+          0,
+          5
+        ],
+        [
+          1,
+          11
+        ]
+      ],
+      "transparency": [
+        [
+          0,
+          0.1
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "color": "#fff1cf"
+    },
+    {
+      "name": "RingFast",
+      "texture": "ring",
+      "at": [
+        0,
+        0.12,
+        0
+      ],
+      "burst": 1,
+      "orientation": "flat",
+      "speed": 0.01,
+      "lifetime": 0.32,
+      "size": [
+        [
+          0,
+          3
+        ],
+        [
+          0.35,
+          15
+        ],
+        [
+          1,
+          21
+        ]
+      ],
+      "transparency": [
+        [
+          0,
+          0
+        ],
+        [
+          0.6,
+          0.5
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "color": [
+        "#ffffff",
+        "#ffd28a"
+      ]
+    },
+    {
+      "name": "RingSlow",
+      "texture": "ring",
+      "at": [
+        0,
+        0.1,
+        0
+      ],
+      "burst": [
+        {
+          "t": 0.06,
+          "count": 1
+        }
+      ],
+      "orientation": "flat",
+      "speed": 0.01,
+      "note": "A second, later ring gives the hit weight.",
+      "lifetime": 0.55,
+      "size": [
+        [
+          0,
+          2
+        ],
+        [
+          0.5,
+          11
+        ],
+        [
+          1,
+          15
+        ]
+      ],
+      "transparency": [
+        [
+          0,
+          0.3
+        ],
+        [
+          0.6,
+          0.65
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "color": [
+        "#ffe6b8",
+        "#c9a06a"
+      ]
+    },
+    {
+      "name": "Dust",
+      "texture": "smoke",
+      "burst": 26,
+      "note": "A flat sphere emits radially, so the dust runs along the floor.",
+      "shape": {
+        "type": "sphere",
+        "size": [
+          4,
+          0.3,
+          4
+        ],
+        "style": "surface"
+      },
+      "at": [
+        0,
+        0.7,
+        0
+      ],
+      "spread": [
+        6,
+        6
+      ],
+      "speed": [
+        12,
+        22
+      ],
+      "drag": 3.2,
+      "accel": [
+        0,
+        2.5,
+        0
+      ],
+      "lifetime": [
+        0.6,
+        1.0
+      ],
+      "size": [
+        [
+          0,
+          1.6,
+          0.4
+        ],
+        [
+          0.4,
+          4,
+          0.8
+        ],
+        [
+          1,
+          5.5,
+          1
+        ]
+      ],
+      "transparency": [
+        [
+          0,
+          0.15
+        ],
+        [
+          0.5,
+          0.5
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "color": [
+        "#cdbb9c",
+        "#8d8170"
+      ],
+      "rotation": [
+        0,
+        360
+      ],
+      "rotSpeed": [
+        -40,
+        40
+      ],
+      "lightEmission": 0
+    },
+    {
+      "name": "Chips",
+      "texture": "shard",
+      "at": [
+        0,
+        0.3,
+        0
+      ],
+      "burst": 18,
+      "direction": "up",
+      "spread": [
+        50,
+        50
+      ],
+      "speed": [
+        14,
+        26
+      ],
+      "accel": [
+        0,
+        -80,
+        0
+      ],
+      "drag": 0.6,
+      "lifetime": [
+        0.45,
+        0.7
+      ],
+      "size": [
+        [
+          0,
+          0.7,
+          0.3
+        ],
+        [
+          0.8,
+          0.6,
+          0.2
+        ],
+        [
+          1,
+          0
+        ]
+      ],
+      "transparency": [
+        [
+          0,
+          0
+        ],
+        [
+          0.85,
+          0
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "color": [
+        "#9a8f80",
+        "#5e564c"
+      ],
+      "rotation": [
+        0,
+        360
+      ],
+      "rotSpeed": [
+        -500,
+        500
+      ],
+      "lightEmission": 0
+    }
+  ]
+}

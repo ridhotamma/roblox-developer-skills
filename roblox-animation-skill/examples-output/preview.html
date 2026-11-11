@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Roblox animation previews</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>html,body{margin:0;background:var(--ra-bg,#eceef2)}</style></head>
+<body><div id="ranim"></div>
+<script>window.RANIM_CLIPS = [{"name":"SoccerInstepKick","title":"Soccer instep kick","rig":"R15","priority":"Action","loop":false,"description":"Right-footed power shot. Plant the left foot beside the ball, whip the right leg through from a high backswing, strike with the laces, and let the leg carry up and across.","keys":[{"t":0,"label":"ready","note":"Athletic stance, weight even.","pose":{"LowerTorso":{"bendFwd":5},"UpperTorso":{"bendFwd":8},"Head":{"bendBack":6},"LeftUpperArm":{"fwd":10,"out":12},"LeftLowerArm":{"bend":35},"RightUpperArm":{"fwd":5,"out":12},"RightLowerArm":{"bend":35},"LeftUpperLeg":{"fwd":12,"out":5},"LeftLowerLeg":{"bend":20},"LeftFoot":"flat","RightUpperLeg":{"fwd":12,"out":5},"RightLowerLeg":{"bend":20},"RightFoot":"flat"}},{"t":0.17,"label":"step","note":"Left foot lifts and reaches for the plant spot.","pose":{"LowerTorso":{"bendFwd":5,"turnR":5,"moveFwd":0.2},"LeftUpperLeg":{"fwd":58,"out":5},"LeftLowerLeg":{"bend":70},"LeftFoot":{"fwd":10},"RightUpperLeg":{"fwd":4,"out":5},"RightLowerLeg":{"bend":14},"RightFoot":"flat"}},{"t":0.3,"label":"plant","note":"Left foot steps beside the ball, right leg trails.","ease":"in","pose":{"LowerTorso":{"bendFwd":4,"turnR":12,"moveFwd":0.5},"UpperTorso":{"bendFwd":4,"turnR":14},"Head":{"turnL":20,"bendFwd":12},"LeftUpperArm":{"fwd":35,"out":45},"LeftLowerArm":{"bend":25},"RightUpperArm":{"back":30,"out":20},"RightLowerArm":{"bend":40},"LeftUpperLeg":{"fwd":28,"out":4,"twistIn":10},"LeftLowerLeg":{"bend":28},"LeftFoot":"flat","RightUpperLeg":{"back":25,"out":6},"RightLowerLeg":{"bend":55},"RightFoot":{"back":25}}},{"t":0.47,"label":"backswing","note":"Hip opens, heel whips up toward the seat. Left arm flies out for balance.","ease":"in","pose":{"LowerTorso":{"bendBack":4,"turnR":22,"moveFwd":0.7},"UpperTorso":{"bendBack":6,"turnR":20,"leanL":8},"Head":{"turnL":30,"bendFwd":18},"LeftUpperArm":{"fwd":20,"out":80},"LeftLowerArm":{"bend":15},"RightUpperArm":{"back":45,"out":25},"RightLowerArm":{"bend":30},"LeftUpperLeg":{"fwd":14,"out":2,"twistIn":20},"LeftLowerLeg":{"bend":22},"LeftFoot":"flat","RightUpperLeg":{"back":48,"out":12},"RightLowerLeg":{"bend":118},"RightFoot":{"back":40}}},{"t":0.57,"label":"contact","note":"Laces through the ball, knee over it, ankle locked.","ease":"out","pose":{"LowerTorso":{"bendFwd":6,"turnL":8,"moveFwd":0.8},"UpperTorso":{"bendFwd":14,"turnL":6,"leanL":6},"Head":{"bendFwd":22},"LeftUpperArm":{"fwd":30,"out":55},"LeftLowerArm":{"bend":30},"RightUpperArm":{"back":20,"out":35},"RightLowerArm":{"bend":25},"LeftUpperLeg":{"fwd":2,"out":2,"twistOut":6},"LeftLowerLeg":{"bend":14},"LeftFoot":"flat","RightUpperLeg":{"fwd":22,"in":4},"RightLowerLeg":{"bend":30},"RightFoot":{"back":42}}},{"t":0.74,"label":"follow-through","note":"Leg carries high and across; the body rises onto the left toes.","pose":{"LowerTorso":{"bendFwd":2,"turnL":26,"moveFwd":1},"UpperTorso":{"bendFwd":10,"turnL":16},"Head":{"turnR":30,"bendBack":4},"LeftUpperArm":{"back":15,"out":40},"LeftLowerArm":{"bend":40},"RightUpperArm":{"fwd":35,"out":30},"RightLowerArm":{"bend":45},"LeftUpperLeg":{"back":12,"twistOut":14},"LeftLowerLeg":{"bend":10},"LeftFoot":{"back":22},"RightUpperLeg":{"fwd":92,"in":12},"RightLowerLeg":{"bend":28},"RightFoot":{"back":30}}},{"t":0.95,"label":"land","note":"Kicking foot drops in front, knees absorb.","pose":{"LowerTorso":{"bendFwd":10,"turnL":10,"moveFwd":1.15},"UpperTorso":{"bendFwd":12,"turnL":4},"Head":{"bendBack":10},"LeftUpperArm":{"fwd":5,"out":25},"LeftLowerArm":{"bend":45},"RightUpperArm":{"fwd":15,"out":25},"RightLowerArm":{"bend":45},"LeftUpperLeg":{"back":8},"LeftLowerLeg":{"bend":35},"LeftFoot":{"back":20},"RightUpperLeg":{"fwd":40},"RightLowerLeg":{"bend":42},"RightFoot":"flat"}},{"t":1.1,"label":"reset","note":"Small skip back onto both feet.","lift":0.2,"pose":{}},{"t":1.25,"label":"recover","copy":"ready"}],"markers":[{"t":0.57,"name":"Contact","value":"ball"}],"props":[{"type":"ball","radius":0.45,"color":"#f4f4f0","keys":[{"t":0,"at":[0.55,0.45,2.35]},{"t":0.57,"at":[0.55,0.45,2.35],"arc":1.6},{"t":1.25,"at":[0.2,0.45,13]}]}]},{"name":"BasketballJumpShot","title":"Basketball jump shot","rig":"R15","priority":"Action","loop":false,"description":"Right-handed jumper. Dip, rise through the legs, release at the top of the jump with a wrist snap, land on balance.","keys":[{"t":0,"label":"gather","note":"Knees bent, ball at the hip pocket.","ease":"inOut","pose":{"LowerTorso":{"bendFwd":14},"UpperTorso":{"bendFwd":14},"Head":{"bendBack":22},"RightUpperArm":{"fwd":25,"out":6},"RightLowerArm":{"bend":85},"RightHand":{"back":20},"LeftUpperArm":{"fwd":30,"in":8},"LeftLowerArm":{"bend":80},"LeftUpperLeg":{"fwd":50,"out":6},"LeftLowerLeg":{"bend":78},"LeftFoot":"flat","RightUpperLeg":{"fwd":50,"out":6},"RightLowerLeg":{"bend":78},"RightFoot":"flat"}},{"t":0.33,"label":"set","note":"Ball rises to the shooting pocket above the eyes, elbow under it.","ease":"in","pose":{"LowerTorso":{"bendFwd":6},"UpperTorso":{"bendFwd":4},"Head":{"bendBack":14},"RightUpperArm":{"fwd":105,"out":8},"RightLowerArm":{"bend":105},"RightHand":{"back":70},"LeftUpperArm":{"fwd":100,"in":14},"LeftLowerArm":{"bend":95},"LeftUpperLeg":{"fwd":36,"out":6},"LeftLowerLeg":{"bend":60},"LeftFoot":"flat","RightUpperLeg":{"fwd":36,"out":6},"RightLowerLeg":{"bend":60},"RightFoot":"flat"}},{"t":0.47,"label":"take-off","note":"Legs fire, toes leave last.","lift":0.35,"ease":"out","pose":{"LowerTorso":{"bendBack":2},"UpperTorso":{"bendBack":3},"Head":{"bendBack":14},"RightUpperArm":{"fwd":125,"out":8},"RightLowerArm":{"bend":95},"RightHand":{"back":75},"LeftUpperArm":{"fwd":118,"in":10},"LeftLowerArm":{"bend":80},"LeftUpperLeg":{"fwd":2},"LeftLowerLeg":{"bend":6},"LeftFoot":{"back":45},"RightUpperLeg":{"fwd":2},"RightLowerLeg":{"bend":6},"RightFoot":{"back":45}}},{"t":0.63,"label":"release","note":"Apex. Arm extends up and out, wrist snaps over.","lift":1.5,"pose":{"LowerTorso":{"bendBack":3},"UpperTorso":{"bendBack":2},"Head":{"bendBack":20},"RightUpperArm":{"fwd":152,"out":6},"RightLowerArm":{"bend":10},"RightHand":{"fwd":65},"LeftUpperArm":{"fwd":125,"out":10},"LeftLowerArm":{"bend":45},"LeftUpperLeg":{"fwd":6},"LeftLowerLeg":{"bend":18},"LeftFoot":{"back":40},"RightUpperLeg":{"fwd":6},"RightLowerLeg":{"bend":18},"RightFoot":{"back":40}}},{"t":0.83,"label":"hang","note":"Hold the follow-through on the way down.","lift":0.75,"ease":"in","copy":"release","pose":{"LeftUpperArm":{"fwd":85,"out":14},"LeftLowerArm":{"bend":50},"RightHand":{"fwd":75}}},{"t":0.97,"label":"land","note":"Balls of the feet, knees soak it up.","ease":"out","pose":{"LowerTorso":{"bendFwd":12},"UpperTorso":{"bendFwd":10},"Head":{"bendBack":20},"RightUpperArm":{"fwd":110,"out":8},"RightLowerArm":{"bend":30},"RightHand":{"fwd":60},"LeftUpperArm":{"fwd":45,"out":14},"LeftLowerArm":{"bend":60},"LeftUpperLeg":{"fwd":46,"out":6},"LeftLowerLeg":{"bend":72},"LeftFoot":"flat","RightUpperLeg":{"fwd":46,"out":6},"RightLowerLeg":{"bend":72},"RightFoot":"flat"}},{"t":1.4,"label":"recover","note":"Stand tall, arms drop.","pose":{"LowerTorso":{"bendFwd":3},"UpperTorso":{"bendFwd":3},"Head":{"bendBack":6},"RightUpperArm":{"fwd":12,"out":8},"RightLowerArm":{"bend":25},"RightHand":{},"LeftUpperArm":{"fwd":10,"out":8},"LeftLowerArm":{"bend":25},"LeftUpperLeg":{"fwd":10,"out":5},"LeftLowerLeg":{"bend":16},"LeftFoot":"flat","RightUpperLeg":{"fwd":10,"out":5},"RightLowerLeg":{"bend":16},"RightFoot":"flat"}}],"markers":[{"t":0.63,"name":"Release","value":"ball"},{"t":0.47,"name":"Jump"},{"t":0.97,"name":"Land"}],"props":[{"type":"ball","radius":0.6,"color":"#e07a2c","keys":[{"t":0,"at":"RightHand","offset":[-0.45,-0.55,0.2]},{"t":0.33,"at":"RightHand","offset":[-0.25,-0.2,0.75]},{"t":0.63,"at":"RightHand","offset":[-0.1,-0.5,0.6],"arc":3.2},{"t":1.4,"at":[0,9.5,13]}]}]},{"name":"JabCross","title":"Jab-cross combo","rig":"R15","priority":"Action","loop":false,"description":"Orthodox boxing one-two. The jab snaps from the shoulder; the cross is driven by the rear hip and a pivoting back foot.","keys":[{"t":0,"label":"guard","note":"Left foot forward, chin tucked, fists at the cheeks.","pose":{"LowerTorso":{"turnR":22,"bendFwd":4},"UpperTorso":{"turnR":8,"bendFwd":10},"Head":{"turnL":28,"bendFwd":4},"LeftUpperArm":{"fwd":50,"out":8},"LeftLowerArm":{"bend":120},"RightUpperArm":{"fwd":35,"out":14},"RightLowerArm":{"bend":132},"LeftUpperLeg":{"fwd":30,"out":6,"twistOut":15},"LeftLowerLeg":{"bend":30},"LeftFoot":"flat","RightUpperLeg":{"back":12,"out":12},"RightLowerLeg":{"bend":28},"RightFoot":"flat"}},{"t":0.1,"label":"jab","note":"Lead hand shoots straight out; shoulder turns in behind it.","ease":"out","copy":"guard","pose":{"LowerTorso":{"turnR":28,"bendFwd":4,"moveFwd":0.15},"UpperTorso":{"turnR":22,"bendFwd":10},"Head":{"turnL":46,"bendFwd":4},"LeftUpperArm":{"fwd":86,"in":22},"LeftLowerArm":{"bend":6}}},{"t":0.23,"label":"retract","note":"Jab comes home along the same line.","ease":"in","copy":"guard"},{"t":0.37,"label":"cross","note":"Rear hip and shoulder whip through, rear heel lifts and pivots.","ease":"out","copy":"guard","pose":{"LowerTorso":{"turnL":12,"bendFwd":8,"moveFwd":0.25},"UpperTorso":{"turnL":26,"bendFwd":12},"Head":{"turnR":36,"bendFwd":2},"LeftUpperArm":{"fwd":40,"out":12},"LeftLowerArm":{"bend":138},"RightUpperArm":{"fwd":84,"in":30},"RightLowerArm":{"bend":6},"LeftUpperLeg":{"fwd":34,"out":4,"twistOut":4},"LeftLowerLeg":{"bend":38},"LeftFoot":"flat","RightUpperLeg":{"back":22,"out":4,"twistIn":25},"RightLowerLeg":{"bend":42},"RightFoot":{"back":28}}},{"t":0.5,"label":"hold","note":"A beat of follow-through so the hit reads.","copy":"cross","pose":{"UpperTorso":{"turnL":30,"bendFwd":13},"Head":{"turnR":40,"bendFwd":2}}},{"t":0.8,"label":"recover","copy":"guard"}],"markers":[{"t":0.1,"name":"Hit","value":"jab"},{"t":0.37,"name":"Hit","value":"cross"}]},{"name":"R6SwordSlash","title":"Sword slash (R6)","rig":"R6","priority":"Action","loop":false,"description":"Right-handed diagonal cut. Coil away from the target, then unwind the torso and let the arm arrive last.","keys":[{"t":0,"label":"guard","note":"Blade up, left side leading.","pose":{"Torso":{"turnR":15,"bendFwd":4},"Head":{"turnL":15},"Right Arm":{"fwd":65,"out":10},"Left Arm":{"fwd":20,"out":15},"Left Leg":{"fwd":14,"out":4},"Right Leg":{"back":14,"out":4}}},{"t":0.2,"label":"wind-up","note":"Anticipation: torso coils right, sword goes high over the shoulder.","ease":"in","pose":{"Torso":{"turnR":42,"bendBack":6,"leanR":5},"Head":{"turnL":40},"Right Arm":{"fwd":165,"out":25},"Left Arm":{"fwd":45,"out":30},"Left Leg":{"fwd":20,"out":4},"Right Leg":{"back":18,"out":6}}},{"t":0.33,"label":"strike","note":"Fast segment. Hips lead, blade cuts down and across.","ease":"out","pose":{"Torso":{"turnL":30,"bendFwd":16,"leanL":4},"Head":{"turnR":28,"bendBack":8},"Right Arm":{"fwd":50,"in":30},"Left Arm":{"back":35,"out":25},"Left Leg":{"back":10,"out":4},"Right Leg":{"fwd":22,"out":4}}},{"t":0.47,"label":"follow-through","note":"Blade settles low across the body.","pose":{"Torso":{"turnL":44,"bendFwd":22,"leanL":6},"Head":{"turnR":40,"bendBack":12},"Right Arm":{"fwd":5,"in":35},"Left Arm":{"back":45,"out":30},"Left Leg":{"back":16,"out":4},"Right Leg":{"fwd":26,"out":4}}},{"t":0.8,"label":"recover","copy":"guard"}],"markers":[{"t":0.3,"name":"Hit","value":"slash"},{"t":0.2,"name":"Swoosh"}],"props":[{"type":"sword","size":[0.14,0.5,3.4],"color":"#aab4c4","at":"Right Arm","offset":[0,-0.85,1.9]}]},{"name":"Backflip","title":"Standing backflip","rig":"R15","priority":"Action","loop":false,"description":"Full 360 degree back tuck. Arms throw up to start the rotation, the tuck speeds it up, the body opens to spot the landing.","keys":[{"t":0,"label":"stand","pose":{"LowerTorso":{"bendFwd":2},"UpperTorso":{"bendFwd":3},"Head":{},"LeftUpperArm":{"fwd":5,"out":8},"LeftLowerArm":{"bend":15},"RightUpperArm":{"fwd":5,"out":8},"RightLowerArm":{"bend":15},"LeftUpperLeg":{"fwd":6,"out":4},"LeftLowerLeg":{"bend":10},"LeftFoot":"flat","RightUpperLeg":{"fwd":6,"out":4},"RightLowerLeg":{"bend":10},"RightFoot":"flat"}},{"t":0.27,"label":"crouch","note":"Anticipation: sit down, arms swing behind.","pose":{"LowerTorso":{"bendFwd":28},"UpperTorso":{"bendFwd":22},"Head":{"bendBack":20},"LeftUpperArm":{"back":55,"out":10},"LeftLowerArm":{"bend":10},"RightUpperArm":{"back":55,"out":10},"RightLowerArm":{"bend":10},"LeftUpperLeg":{"fwd":85,"out":6},"LeftLowerLeg":{"bend":105},"LeftFoot":"flat","RightUpperLeg":{"fwd":85,"out":6},"RightLowerLeg":{"bend":105},"RightFoot":"flat"}},{"t":0.47,"label":"launch","note":"Explode up; arms throw overhead, chest opens.","lift":0.5,"pose":{"LowerTorso":{"bendBack":20},"UpperTorso":{"bendBack":14},"Head":{"bendBack":25},"LeftUpperArm":{"fwd":165,"out":8},"LeftLowerArm":{"bend":10},"RightUpperArm":{"fwd":165,"out":8},"RightLowerArm":{"bend":10},"LeftUpperLeg":{"back":6},"LeftLowerLeg":{"bend":8},"LeftFoot":{"back":45},"RightUpperLeg":{"back":6},"RightLowerLeg":{"bend":8},"RightFoot":{"back":45}}},{"t":0.67,"label":"tuck","note":"Upside down at the apex, knees pulled to the chest.","lift":2.9,"pose":{"LowerTorso":{"bendBack":175},"UpperTorso":{"bendFwd":30},"Head":{"bendFwd":15},"LeftUpperArm":{"fwd":55,"out":6},"LeftLowerArm":{"bend":70},"RightUpperArm":{"fwd":55,"out":6},"RightLowerArm":{"bend":70},"LeftUpperLeg":{"fwd":120,"out":6},"LeftLowerLeg":{"bend":135},"LeftFoot":{"back":20},"RightUpperLeg":{"fwd":120,"out":6},"RightLowerLeg":{"bend":135},"RightFoot":{"back":20}}},{"t":0.87,"label":"open","note":"Kick out of the tuck and spot the floor.","lift":1.2,"pose":{"LowerTorso":{"bendBack":305},"UpperTorso":{"bendFwd":12},"Head":{"bendBack":15},"LeftUpperArm":{"fwd":40,"out":35},"LeftLowerArm":{"bend":30},"RightUpperArm":{"fwd":40,"out":35},"RightLowerArm":{"bend":30},"LeftUpperLeg":{"fwd":55,"out":6},"LeftLowerLeg":{"bend":45},"LeftFoot":{"back":20},"RightUpperLeg":{"fwd":55,"out":6},"RightLowerLeg":{"bend":45},"RightFoot":{"back":20}}},{"t":1,"label":"land","note":"Feet under the hips, deep knee bend absorbs the drop.","ease":"out","pose":{"LowerTorso":{"bendBack":338},"UpperTorso":{"bendFwd":20},"Head":{"bendBack":15},"LeftUpperArm":{"fwd":60,"out":30},"LeftLowerArm":{"bend":25},"RightUpperArm":{"fwd":60,"out":30},"RightLowerArm":{"bend":25},"LeftUpperLeg":{"fwd":75,"out":8},"LeftLowerLeg":{"bend":95},"LeftFoot":"flat","RightUpperLeg":{"fwd":75,"out":8},"RightLowerLeg":{"bend":95},"RightFoot":"flat"}},{"t":1.37,"label":"stand up","pose":{"LowerTorso":{"bendBack":358},"UpperTorso":{"bendFwd":3},"Head":{},"LeftUpperArm":{"fwd":5,"out":8},"LeftLowerArm":{"bend":15},"RightUpperArm":{"fwd":5,"out":8},"RightLowerArm":{"bend":15},"LeftUpperLeg":{"fwd":6,"out":4},"LeftLowerLeg":{"bend":10},"LeftFoot":"flat","RightUpperLeg":{"fwd":6,"out":4},"RightLowerLeg":{"bend":10},"RightFoot":"flat"}}],"markers":[{"t":0.47,"name":"Jump"},{"t":1,"name":"Land"}]},{"name":"R6Run","title":"Run cycle (R6)","rig":"R6","priority":"Movement","loop":true,"description":"Classic blocky sprint. Two authored poses; the second half of the stride is the first half mirrored, so the loop is perfectly symmetric.","keys":[{"t":0,"label":"contact R","note":"Right leg reaches, opposite arm forward.","pose":{"Torso":{"bendFwd":14,"turnL":8},"Head":{"bendBack":10,"turnR":8},"Right Leg":{"fwd":48},"Left Leg":{"back":38},"Right Arm":{"back":45,"out":6},"Left Arm":{"fwd":55,"out":6}}},{"t":0.13,"label":"push R","note":"Flight: both feet off the floor.","lift":0.3,"pose":{"Torso":{"bendFwd":16},"Head":{"bendBack":12},"Right Leg":{"back":12},"Left Leg":{"fwd":22},"Right Arm":{"fwd":8,"out":6},"Left Arm":{"back":4,"out":6}}},{"t":0.27,"label":"contact L","copy":"contact R","mirror":true},{"t":0.4,"label":"push L","copy":"push R","mirror":true},{"t":0.53,"label":"loop","copy":"contact R"}],"markers":[{"t":0,"name":"Footstep","value":"R"},{"t":0.27,"name":"Footstep","value":"L"}]}];</script>
+<script>/* ranim.cjs — Roblox R6/R15 motion engine, 3D previewer and keyframe exporter. One file, no dependencies.
+   Node:    node ranim.cjs clip.json [more.json ...] [--out DIR]
+            -> pose report on stdout, DIR/<Name>.rbxmx, DIR/<Name>.lua, DIR/storyboard-<Name>.svg (+.png), DIR/preview.html
+   Browser: window.RANIM_CLIPS = [spec, ...]; then run this script -> mounts the previewer in #ranim (or <body>). */
+(function (G) {
+'use strict';
+
+// ============ 1. MATH: vectors [x,y,z], quaternions [x,y,z,w]. Body axes: +X character's right, +Y up, -Z forward ============
+const D2R = Math.PI / 180, H = Math.SQRT1_2;
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const unit = a => mul(a, 1 / (Math.hypot(a[0], a[1], a[2]) || 1));
+const qax = (i, deg) => { const q = [0, 0, 0, Math.cos(deg * D2R / 2)]; q[i] = Math.sin(deg * D2R / 2); return q; };
+const qmul = (a, b) => [
+  a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1],
+  a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0],
+  a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3],
+  a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2]];
+const qinv = q => [-q[0], -q[1], -q[2], q[3]];
+const qrot = (q, v) => { const t = mul(cross(q, v), 2); return add(add(v, mul(t, q[3])), cross(q, t)); };
+const qmat = q => { const [x, y, z, w] = q; return [
+  1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w),
+  2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w),
+  2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]; };
+const qangle = (a, b) => 2 * Math.acos(Math.min(1, Math.abs(a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3]))) / D2R;
+
+// ============ 2. RIGS: joint pivots as in Roblox (C0 in parent, C1 in child), part sizes in studs ============
+// r0 = rotation baked into C0/C1 (R6 only). Export conjugates by it so authoring is always in body axes.
+const part = (parent, c0, c1, size, kind, side, r0) => ({ parent, c0, c1, size, kind, side: side || 0, r0 });
+const RIGS = { R15: { name: 'R15', hip: 2, root: 'LowerTorso', parts: {
+  LowerTorso: part('HumanoidRootPart', [0, -1, 0], [0, -0.2, 0], [2, 0.4, 1], 'root'),
+  UpperTorso: part('LowerTorso', [0, 0.2, 0], [0, -0.8, 0], [2, 1.6, 1], 'spine'),
+  Head: part('UpperTorso', [0, 0.8, 0], [0, -0.6, 0], [1.2, 1.2, 1.2], 'spine') } },
+R6: { name: 'R6', root: 'Torso', parts: {
+  Torso: part('HumanoidRootPart', [0, 0, 0], [0, 0, 0], [2, 2, 1], 'root', 0, [0, H, H, 0]),
+  Head: part('Torso', [0, 1, 0], [0, -0.5, 0], [1.2, 1.2, 1.2], 'spine', 0, [0, H, H, 0]) } } };
+for (const [S, s] of [['Left', -1], ['Right', 1]]) {
+  const P = RIGS.R15.parts, Q = RIGS.R6.parts, ry = [0, s * H, 0, H];
+  P[S + 'UpperArm'] = part('UpperTorso', [s, 0.56, 0], [-s * 0.5, 0.39, 0], [0.98, 1.17, 0.98], 'limb', s);
+  P[S + 'LowerArm'] = part(S + 'UpperArm', [0, -0.33, 0], [0, 0.26, 0], [0.92, 1.05, 0.92], 'limb', s);
+  P[S + 'Hand'] = part(S + 'LowerArm', [0, -0.5, 0], [0, 0.125, 0], [0.86, 0.3, 0.86], 'limb', s);
+  P[S + 'UpperLeg'] = part('LowerTorso', [s * 0.5, -0.2, 0], [0, 0.42, 0], [0.98, 1.22, 0.98], 'limb', s);
+  P[S + 'LowerLeg'] = part(S + 'UpperLeg', [0, -0.4, 0], [0, 0.38, 0], [0.92, 1.19, 0.92], 'limb', s);
+  P[S + 'Foot'] = part(S + 'LowerLeg', [0, -0.55, 0], [0, 0.1, 0], [0.96, 0.3, 1], 'limb', s);
+  Q[S + ' Arm'] = part('Torso', [s, 0.5, 0], [-s * 0.5, 0.5, 0], [1, 2, 1], 'limb', s, ry);
+  Q[S + ' Leg'] = part('Torso', [s, -1, 0], [s * 0.5, 1, 0], [1, 2, 1], 'limb', s, ry);
+}
+RIGS.R15.ends = { Head: 0, LeftHand: 0, RightHand: 0, LeftFoot: 0, RightFoot: 0 };       // reported points (0 = part centre)
+RIGS.R6.ends = { Head: 0, 'Left Arm': -1, 'Right Arm': -1, 'Left Leg': -1, 'Right Leg': -1 }; // -1 = bottom end of the part
+
+// ============ 3. CHANNELS: anatomical angles in degrees (positive = the named direction), studs for moves ============
+const CH = { spine: ['bendFwd', 'turnL', 'leanR'], limb: ['fwd', 'out', 'twistOut'],
+  root: ['bendFwd', 'turnL', 'leanR', 'moveR', 'moveUp', 'moveFwd'] };
+const ALIAS = { bendBack: 'bendFwd', turnR: 'turnL', leanL: 'leanR', back: 'fwd', in: 'out', twistIn: 'twistOut',
+  moveL: 'moveR', moveDown: 'moveUp', moveBack: 'moveFwd' };
+const LIMITS = { Head: [-50, 60, 85, 45], UpperTorso: [-40, 75, 60, 40], LowerArm: [-5, 155, 30, 95], LowerLeg: [-155, 5, 30, 40],
+  UpperLeg: [-75, 135, 95, 70], Foot: [-65, 50, 40, 40], Hand: [-85, 85, 50, 60] }; // [fwd min, fwd max, |ch2|, |ch3|]
+const flip = n => n.replace(/^(Left|Right)/, m => (m === 'Left' ? 'Right' : 'Left'));
+
+function canon(rig, name, ch, E, where) {            // {channel: value} -> canonical array for that joint
+  const P = rig.parts[name];
+  if (!P) { E.push(`${where}: unknown joint "${name}" for ${rig.name}. Valid: ${Object.keys(rig.parts).join(', ')}`); return null; }
+  const names = CH[P.kind], v = names.map(() => 0);
+  for (let [c, x] of Object.entries(ch || {})) {
+    let s = 1;
+    if (c === 'bend' && /Lower(Arm|Leg)$/.test(name)) { s = /Leg$/.test(name) ? -1 : 1; c = 'fwd'; }
+    if (ALIAS[c]) { s = -s; c = ALIAS[c]; }
+    const i = names.indexOf(c);
+    if (i < 0 || typeof x !== 'number' || !isFinite(x)) E.push(`${where}: "${name}.${c}" is not valid. ${name} takes: ${names.join(', ')} (or the opposite-direction names${/Lower(Arm|Leg)$/.test(name) ? ', or bend' : ''}), numbers only`);
+    else v[i] += s * x;
+  }
+  return v;
+}
+function mirrorPose(rig, pose) {                      // swap left/right; anatomical limb channels need no sign change
+  const o = {};
+  for (const [n, v] of Object.entries(pose)) {
+    const w = typeof v === 'string' ? v : v.slice();
+    if (rig.parts[n].kind !== 'limb') { w[1] = -w[1]; w[2] = -w[2]; if (w.length > 3) w[3] = -w[3]; }
+    o[flip(n)] = w;
+  }
+  return o;
+}
+function xform(P, v) {                                // canonical values -> joint transform {q, p} in body axes
+  const q = P.kind === 'limb'
+    ? qmul(qmul(qax(0, v[0]), qax(2, P.side * v[1])), qax(1, -P.side * v[2]))   // swing fwd, then out, then twist about own axis
+    : qmul(qmul(qax(1, v[1]), qax(0, -v[0])), qax(2, -v[2]));                   // turn, then bend, then lean
+  return { q, p: P.kind === 'root' ? [v[3], v[4], -v[5]] : [0, 0, 0] };
+}
+
+// ============ 4. TIMING: per-joint tracks, monotone-cubic "smooth" interpolation plus named eases ============
+const EASE = {
+  linear: u => u, in: u => u * u * u, out: u => 1 - (1 - u) ** 3,
+  inOut: u => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2), hold: u => (u < 1 ? 0 : 1),
+  overshoot: u => 1 + 2.70158 * (u - 1) ** 3 + 1.70158 * (u - 1) ** 2,
+  anticipate: u => 2.70158 * u * u * u - 1.70158 * u * u,
+  bounce: u => { const n = 7.5625, d = 2.75; if (u < 1 / d) return n * u * u; if (u < 2 / d) return n * (u -= 1.5 / d) * u + 0.75;
+    if (u < 2.5 / d) return n * (u -= 2.25 / d) * u + 0.9375; return n * (u -= 2.625 / d) * u + 0.984375; },
+  elastic: u => (u <= 0 || u >= 1 ? u : 2 ** (-10 * u) * Math.sin((u * 10 - 0.75) * 2 * Math.PI / 3) + 1) };
+function makeTrack(pts, loop, dur) {                  // adds tangents m[] (Fritsch-Carlson: no overshoot, eases at reversals)
+  const n = pts.length, per = loop && n > 2 && pts[0].t === 0 && Math.abs(pts[n - 1].t - dur) < 1e-6 &&
+    pts[0].v.every((x, i) => Math.abs(x - pts[n - 1].v[i]) < 1e-6);
+  pts.forEach((p, k) => {
+    const a = k > 0 ? pts[k - 1] : per ? pts[n - 2] : null, b = k < n - 1 ? pts[k + 1] : per ? pts[1] : null;
+    p.m = p.v.map((x, i) => {
+      if (!a || !b) return 0;
+      const h0 = k > 0 ? p.t - a.t : dur - a.t, h1 = k < n - 1 ? b.t - p.t : b.t;
+      const d0 = (x - a.v[i]) / h0, d1 = (b.v[i] - x) / h1;
+      if (d0 * d1 <= 0) return 0;
+      const w1 = 2 * h1 + h0, w2 = h1 + 2 * h0;
+      return (w1 + w2) / (w1 / d0 + w2 / d1);
+    });
+  });
+  return pts;
+}
+function evalTrack(p, t) {
+  const n = p.length;
+  if (t <= p[0].t) return p[0].v;
+  if (t >= p[n - 1].t) return p[n - 1].v;
+  let i = 0; while (p[i + 1].t < t) i++;
+  const a = p[i], b = p[i + 1], h = b.t - a.t, u = (t - a.t) / h;
+  if (a.ease === 'smooth') {
+    const u2 = u * u, u3 = u2 * u, h00 = 2 * u3 - 3 * u2 + 1, h10 = u3 - 2 * u2 + u, h01 = 3 * u2 - 2 * u3, h11 = u3 - u2;
+    return a.v.map((x, j) => h00 * x + h10 * h * a.m[j] + h01 * b.v[j] + h11 * h * b.m[j]);
+  }
+  const w = EASE[a.ease](u);
+  return a.v.map((x, j) => x + (b.v[j] - x) * w);
+}
+
+// ============ 5. COMPILE: validate a spec and build tracks ============
+function compile(spec) {
+  const E = [], W = [], rig = RIGS[spec.rig];
+  if (!rig) throw new Error(`"rig" must be "R6" or "R15" (got ${JSON.stringify(spec.rig)})`);
+  const fps = spec.fps || 30, snap = t => Math.round(t * fps) / fps, keys = [];
+  if (!Array.isArray(spec.keys) || spec.keys.length < 2) E.push('need at least 2 keys');
+  (spec.keys || []).forEach((k, i) => {
+    const where = `key ${i}${k.label ? ' "' + k.label + '"' : ''}`;
+    let pose = {}, lift = 0;
+    if (k.copy != null) {
+      const src = keys.find((s, j) => j === k.copy || s.label === k.copy);
+      if (!src) E.push(`${where}: copy target ${JSON.stringify(k.copy)} must be an earlier key index or label`);
+      else { pose = k.mirror ? mirrorPose(rig, src.pose) : JSON.parse(JSON.stringify(src.pose)); lift = src.lift; }
+    }
+    for (const [n, ch] of Object.entries(k.pose || {})) {
+      if (ch === 'flat') { if (/Foot$/.test(n) && rig.parts[n]) pose[n] = 'flat'; else E.push(`${where}: "flat" only applies to LeftFoot / RightFoot (R15)`); continue; }
+      const v = canon(rig, n, ch, E, where); if (v) pose[n] = v;
+    }
+    if (k.ease && !(k.ease in EASE) && k.ease !== 'smooth') E.push(`${where}: unknown ease "${k.ease}". Valid: smooth, ${Object.keys(EASE).join(', ')}`);
+    if (typeof k.t !== 'number') E.push(`${where}: missing time "t" (seconds)`);
+    keys.push({ t: snap(k.t || 0), label: k.label || '', note: k.note || '', ease: k.ease || 'smooth', lift: k.lift != null ? k.lift : lift, pose });
+  });
+  if (spec.mirror) keys.forEach(k => { k.pose = mirrorPose(rig, k.pose); });
+  keys.forEach((k, i) => { if (i && k.t <= keys[i - 1].t) E.push(`key ${i}: time ${k.t.toFixed(3)}s must be at least one frame after key ${i - 1}`); });
+  if (keys.length && keys[0].t !== 0) E.push('the first key must be at t = 0');
+  const last = keys.length ? keys[keys.length - 1].t : 0, n = Math.max(1, Math.round((spec.duration != null ? spec.duration : last) * fps));
+  if (last > n / fps + 1e-6) E.push(`a key at ${last}s is beyond "duration" ${spec.duration}s`);
+  const c = { spec, rig, fps, n, duration: n / fps, keys, loop: !!spec.loop, grounding: spec.grounding !== 'off', rootName: rig.root,
+    name: String(spec.name || 'Animation').replace(/[^\w-]/g, ''), errors: E, warnings: W, tracks: {}, props: [] };
+  if (E.length) return c;
+  const build = jn => {                             // a joint first named after key 0 starts from its rest pose
+    const pts = keys.filter(k => Array.isArray(k.pose[jn])).map(k => ({ t: k.t, v: k.pose[jn], ease: k.ease }));
+    if (pts.length && pts[0].t > 0 && typeof keys[0].pose[jn] !== 'string') pts.unshift({ t: 0, v: pts[0].v.map(() => 0), ease: keys[0].ease });
+    if (pts.length) c.tracks[jn] = makeTrack(pts, c.loop, c.duration); };
+  const named = new Set(); for (const k of keys) for (const jn of Object.keys(k.pose)) named.add(jn);
+  named.forEach(build);
+  c.liftTrack = makeTrack(keys.map(k => ({ t: k.t, v: [k.lift], ease: k.ease })), c.loop, c.duration);
+  for (const k of keys) for (const jn of Object.keys(k.pose)) if (k.pose[jn] === 'flat') {     // "flat": solve the ankle so the sole is level
+    const F = rig.parts[jn], pq = sample(c, k.t).W[F.parent].q, f = qrot(pq, [0, 0, -1]);
+    const m = qmat(qmul(qinv(pq), qax(1, Math.hypot(f[0], f[2]) > 0.2 ? Math.atan2(-f[0], -f[2]) / D2R : 0)));
+    k.pose[jn] = [Math.atan2(m[7], m[4]) / D2R, F.side * Math.asin(Math.max(-1, Math.min(1, -m[1]))) / D2R, -F.side * Math.atan2(m[2], m[0]) / D2R];
+    k.flat = (k.flat || []).concat(jn);
+  }
+  named.forEach(build);
+  if (c.grounding && keys.some(k => k.pose[rig.root] && k.pose[rig.root][4])) W.push(`${rig.root}.moveUp/moveDown is ignored while grounding is "auto": use the key's "lift" (height of the lowest body point above the floor), or set "grounding": "off"`);
+  for (const p of spec.props || []) {
+    const ks = (p.keys || [{ t: 0, at: p.at, offset: p.offset }]).map(k => {
+      let at = k.at, off = (k.offset || [0, 0, 0]).slice();
+      if (typeof at === 'string') { if (spec.mirror) { at = flip(at); off[0] = -off[0]; } if (!rig.parts[at]) E.push(`prop "${p.type}": unknown part "${at}"`); }
+      else if (Array.isArray(at)) { at = at.slice(); if (spec.mirror) at[0] = -at[0]; } else E.push(`prop "${p.type}": each key needs "at" (a part name or [right, up, fwd])`);
+      if (k.ease && !(k.ease in EASE)) E.push(`prop "${p.type}": unknown ease "${k.ease}" (props use: ${Object.keys(EASE).join(', ')})`);
+      return { t: k.t || 0, at, off, ease: k.ease || 'linear', arc: k.arc || 0 };
+    });
+    c.props.push({ type: p.type || 'ball', radius: p.radius || 0.5, size: p.size || [0.2, 0.2, 3], color: p.color || '#f08c2e', keys: ks });
+  }
+  return c;
+}
+
+// ============ 6. SAMPLE: joint transforms + forward kinematics + auto-grounding at any time ============
+function lowY(w, size) {                               // lowest corner height of an oriented box
+  const m = qmat(w.q);
+  return w.c[1] - (Math.abs(m[3]) * size[0] + Math.abs(m[4]) * size[1] + Math.abs(m[5]) * size[2]) / 2;
+}
+function sample(c, t) {                                // -> { L: joint transforms, W: world {c, q, pivot}, minY, lift }
+  const P = c.rig.parts, L = {}, W = { HumanoidRootPart: { c: [0, 3, 0], q: [0, 0, 0, 1] } };
+  let minY = Infinity;
+  for (const n in P) {
+    const l = L[n] = c.tracks[n] ? xform(P[n], evalTrack(c.tracks[n], t)) : { q: [0, 0, 0, 1], p: [0, 0, 0] };
+    if (c.grounding && n === c.rootName) l.p[1] = 0;
+    const pa = W[P[n].parent], q = qmul(pa.q, l.q), pivot = add(pa.c, qrot(pa.q, add(P[n].c0, l.p)));
+    W[n] = { q, pivot, c: sub(pivot, qrot(q, P[n].c1)) };
+    minY = Math.min(minY, lowY(W[n], P[n].size));
+  }
+  const lift = evalTrack(c.liftTrack, t)[0];
+  if (c.grounding) {                                   // put the lowest body point exactly `lift` studs above the floor
+    const dy = lift - minY; L[c.rootName].p[1] = dy; minY = lift;
+    for (const n in P) { W[n].c[1] += dy; W[n].pivot[1] += dy; }
+  }
+  return { L, W, minY, lift };
+}
+function propAt(c, pr, t, W) {                         // -> { c: position, q: orientation }
+  const anchor = k => (typeof k.at === 'string'
+    ? { c: add(W[k.at].c, qrot(W[k.at].q, [k.off[0], k.off[1], -k.off[2]])), q: W[k.at].q }
+    : { c: [k.at[0] + k.off[0], k.at[1] + k.off[1], -(k.at[2] + k.off[2])], q: [0, 0, 0, 1] });
+  const ks = pr.keys;
+  if (t <= ks[0].t) return anchor(ks[0]);
+  if (t >= ks[ks.length - 1].t) return anchor(ks[ks.length - 1]);
+  let i = 0; while (ks[i + 1].t < t) i++;
+  const a = anchor(ks[i]), b = anchor(ks[i + 1]), u = (t - ks[i].t) / (ks[i + 1].t - ks[i].t), w = EASE[ks[i].ease](u);
+  const p = a.c.map((x, j) => x + (b.c[j] - x) * w); p[1] += ks[i].arc * 4 * u * (1 - u);
+  return { c: p, q: a.q };
+}
+const bake = c => { const F = []; for (let i = 0; i <= c.n; i++) F.push(sample(c, i / c.fps)); return F; };
+const body = p => `R${p[0] >= 0 ? '+' : ''}${p[0].toFixed(2)} U${p[1].toFixed(2)} F${-p[2] >= 0 ? '+' : ''}${(-p[2]).toFixed(2)}`;
+const endPos = (c, W, n) => add(W[n].c, qrot(W[n].q, [0, c.rig.ends[n] * c.rig.parts[n].size[1] / 2, 0]));
+
+// ============ 7. REPORT: where the body actually is at every key, plus sanity warnings ============
+function report(c) {
+  const out = [`== ${c.name} · ${c.rig.name} · ${c.duration.toFixed(2)}s · ${c.n + 1} keyframes @${c.fps}fps · ${c.loop ? 'loop' : 'one-shot'} · ${c.spec.priority || 'Action'} ==`];
+  if (c.errors.length) return out.concat(c.errors.map(e => 'ERROR ' + e)).join('\n');
+  const P = c.rig.parts, warn = new Set(c.warnings), F = bake(c);
+  out.push('Positions are studs from the HumanoidRootPart floor point: R = to the character\'s right, U = above floor, F = in front.');
+  let prev = null;
+  c.keys.forEach((k, i) => {
+    const s = sample(c, k.t), hip = s.W[c.rootName].pivot[1], ch = qrot(s.W[c.rig.name === 'R6' ? 'Torso' : 'UpperTorso'].q, [0, 0, -1]);
+    const turn = Math.round(Math.atan2(-ch[0], -ch[2]) / D2R), pitch = Math.round(Math.asin(Math.max(-1, Math.min(1, -ch[1]))) / D2R);
+    out.push(`key ${i} t=${k.t.toFixed(2)}${k.label ? ' "' + k.label + '"' : ''}  ease=${k.ease}  lift=${k.lift}  hips U${hip.toFixed(2)}  chest: turned ${Math.abs(turn)}° ${turn >= 0 ? 'left' : 'right'}, pitched ${Math.abs(pitch)}° ${pitch >= 0 ? 'forward' : 'back'}`);
+    out.push('   ' + Object.keys(c.rig.ends).map(n => `${n} ${body(endPos(c, s.W, n))}`).join(' | '));
+    for (const [n, v] of Object.entries(k.pose)) {
+      if ((k.flat || []).includes(n)) continue;
+      const lim = LIMITS[n.replace(/^(Left|Right)/, '')];
+      if (lim && P[n].kind === 'limb') {
+        if (v[0] < lim[0] || v[0] > lim[1]) warn.add(`key ${i}: ${n} fwd=${v[0]} is outside the natural range ${lim[0]}..${lim[1]}` + (/Lower/.test(n) ? ' (elbows bend with +bend, knees with +bend; negative bends the joint backwards)' : ''));
+        if (Math.abs(v[1]) > lim[2]) warn.add(`key ${i}: ${n} out/in=${v[1]} exceeds ±${lim[2]}`);
+        if (Math.abs(v[2]) > lim[3]) warn.add(`key ${i}: ${n} twist=${v[2]} exceeds ±${lim[3]}`);
+      } else if (lim) {
+        if (v[0] < lim[0] || v[0] > lim[1]) warn.add(`key ${i}: ${n} bendFwd=${v[0]} is outside ${lim[0]}..${lim[1]}`);
+        if (Math.abs(v[1]) > lim[2]) warn.add(`key ${i}: ${n} turn=${v[1]} exceeds ±${lim[2]}`);
+        if (Math.abs(v[2]) > lim[3]) warn.add(`key ${i}: ${n} lean=${v[2]} exceeds ±${lim[3]}`);
+      }
+    }
+    if (prev && c.rig.name === 'R15') for (const n of Object.keys(c.rig.ends)) if (/Foot/.test(n)) { // planted feet that slide (R6 legs always swing with the torso)
+      const a = endPos(c, prev.W, n), b = endPos(c, s.W, n), ha = lowY(prev.W[n], P[n].size), hb = lowY(s.W[n], P[n].size), d = Math.hypot(a[0] - b[0], a[2] - b[2]);
+      if (ha < 0.12 && hb < 0.12 && d > 0.45) warn.add(`keys ${i - 1}->${i}: ${n} stays on the floor but slides ${d.toFixed(2)} studs (lift it for a step, or adjust the hip/leg angles)`);
+    }
+    prev = s;
+  });
+  let fast = 0, low = 0, fastAt = '';
+  F.forEach((f, i) => { low = Math.min(low, f.minY); if (i) for (const n in c.tracks) { const d = qangle(f.L[n].q, F[i - 1].L[n].q); if (d > fast) { fast = d; fastAt = `${n} at ${(i / c.fps).toFixed(2)}s`; } } });
+  if (fast > 75) warn.add(`${fastAt} rotates ${fast.toFixed(0)}° within one frame: give that segment more time, add an in-between key, or set "fps": 60`);
+  if (low < -0.05) warn.add(`the body dips ${(-low).toFixed(2)} studs below the floor (grounding is off)`);
+  const a = F[0], z = F[c.n], drift = Math.hypot(...sub(a.W[c.rootName].c, z.W[c.rootName].c));
+  if (c.loop) { let d = 0; for (const n in c.tracks) d = Math.max(d, qangle(a.L[n].q, z.L[n].q)); if (d > 1 || drift > 0.02) warn.add('loop does not close: make the last key {"copy": 0} at t = duration'); }
+  else if (Math.hypot(a.W[c.rootName].c[0] - z.W[c.rootName].c[0], a.W[c.rootName].c[2] - z.W[c.rootName].c[2]) > 0.3) warn.add('the clip ends with the body displaced from where it started; Roblox snaps it back when the track stops unless a script moves the character');
+  out.push(`animated joints (${animated(c, F).length}): ${animated(c, F).join(', ')}`);
+  for (const w of warn) out.push('WARN ' + w);
+  return out.join('\n');
+}
+function animated(c, F) {                              // joints written to the export; the root joins if grounding moves it
+  const a = new Set(Object.keys(c.tracks));
+  if (F.some(f => Math.abs(f.L[c.rootName].p[1]) > 1e-4)) a.add(c.rootName);
+  return Object.keys(c.rig.parts).filter(n => a.has(n));
+}
+
+// ============ 8. EXPORT: baked KeyframeSequence as .rbxmx XML and as a Studio command-bar script ============
+const PRIORITY = { Idle: 0, Movement: 1, Action: 2, Action2: 3, Action3: 4, Action4: 5, Core: 1000 };
+const num = x => { const s = (Math.abs(x) < 5e-7 ? 0 : x).toFixed(5); return s.replace(/\.?0+$/, '') || '0'; };
+const xml = s => String(s).replace(/[<>&"]/g, ch => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[ch]);
+function motor(P, l) {                                 // authored joint transform -> Motor6D.Transform
+  if (!P.r0) return l;
+  const i = qinv(P.r0); return { q: qmul(qmul(i, l.q), P.r0), p: qrot(i, l.p) };
+}
+function exportData(c) {
+  const F = bake(c), P = c.rig.parts, anim = animated(c, F), need = new Set(anim);
+  for (const n of anim) for (let p = P[n].parent; P[p]; p = P[p].parent) need.add(p);
+  const order = ['HumanoidRootPart'].concat(Object.keys(P).filter(n => need.has(n)));
+  const poses = order.map(n => ({ name: n, parent: P[n] ? order.indexOf(P[n].parent) : -1, weight: anim.includes(n) ? 1 : 0 }));
+  const frames = F.map((f, i) => ({ t: i / c.fps, name: '', markers: [], tf: poses.map(p => (p.weight ? motor(P[p.name], f.L[p.name]) : null)) }));
+  for (const k of c.keys) if (k.label) frames[Math.round(k.t * c.fps)].name = k.label;
+  if (c.spec.endKeyframe) frames[c.n].name = 'End';
+  for (const m of c.spec.markers || []) frames[Math.max(0, Math.min(c.n, Math.round(m.t * c.fps)))].markers.push([m.name, m.value == null ? '' : String(m.value)]);
+  return { poses, frames, priority: c.spec.priority in PRIORITY ? c.spec.priority : 'Action' };
+}
+function toRbxmx(c) {
+  const d = exportData(c); let id = 0;
+  const item = (cls, props, kids) => `<Item class="${cls}" referent="RBX${++id}"><Properties>${props}</Properties>${kids || ''}</Item>\n`;
+  const str = (n, v) => `<string name="${n}">${xml(v)}</string>`;
+  const cf = t => { const m = qmat(t ? t.q : [0, 0, 0, 1]), p = t ? t.p : [0, 0, 0];
+    return `<CoordinateFrame name="CFrame"><X>${num(p[0])}</X><Y>${num(p[1])}</Y><Z>${num(p[2])}</Z>` + ['R00', 'R01', 'R02', 'R10', 'R11', 'R12', 'R20', 'R21', 'R22'].map((k, i) => `<${k}>${num(m[i])}</${k}>`).join('') + '</CoordinateFrame>'; };
+  const pose = (f, i) => item('Pose', str('Name', d.poses[i].name) + cf(f.tf[i]) + `<token name="EasingDirection">0</token><token name="EasingStyle">0</token><float name="Weight">${d.poses[i].weight}</float>`,
+    d.poses.map((p, j) => (p.parent === i ? pose(f, j) : '')).join(''));
+  const kfs = d.frames.map(f => item('Keyframe', str('Name', f.name || 'Keyframe') + `<float name="Time">${num(f.t)}</float>`,
+    pose(f, 0) + f.markers.map(m => item('KeyframeMarker', str('Name', m[0]) + str('Value', m[1]))).join(''))).join('');
+  return '<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">\n' +
+    item('KeyframeSequence', str('Name', c.name) + (c.rig.hip ? `<float name="AuthoredHipHeight">${c.rig.hip}</float>` : '') +
+      `<bool name="Loop">${c.loop}</bool><token name="Priority">${PRIORITY[d.priority]}</token>`, '\n' + kfs) + '</roblox>\n';
+}
+function toLuau(c) {
+  const d = exportData(c), q = s => JSON.stringify(String(s));
+  const rows = d.frames.map(f => '{' + [num(f.t)].concat(f.tf.filter(Boolean).map(t => t.p.concat(t.q).map(num).join(','))).join(', ') + '},');
+  const marks = d.frames.flatMap((f, i) => f.markers.map(m => `{${i + 1},${q(m[0])},${q(m[1])}}`));
+  const names = d.frames.map((f, i) => (f.name ? `[${i + 1}]=${q(f.name)}` : '')).filter(Boolean);
+  return `-- ${c.name} (${c.rig.name}) · ${c.duration.toFixed(2)}s · ${d.frames.length} keyframes @${c.fps}fps
+-- Roblox Studio: View > Command Bar, paste this whole script and press Enter (Edit mode).
+-- Select your ${c.rig.name} rig first and the sequence is filed in its AnimSaves; otherwise it lands in ServerStorage.
+local NAME, LOOP, PRIORITY, HIP = ${q(c.name)}, ${c.loop}, Enum.AnimationPriority.${d.priority}, ${c.rig.hip || 'nil'}
+local POSES = {${d.poses.map(p => `{${q(p.name)},${p.parent + 1},${p.weight}}`).join(',')}} -- pose name, parent index, weight
+local MARKERS = {${marks.join(',')}} -- keyframe index, marker name, value
+local KEYNAMES = {${names.join(',')}}
+local FRAMES = { -- time, then x,y,z,qx,qy,qz,qw for every weighted pose in POSES order
+${rows.join('\n')}
+}
+local seq = Instance.new("KeyframeSequence")
+seq.Name, seq.Loop, seq.Priority = NAME, LOOP, PRIORITY
+if HIP then pcall(function() seq.AuthoredHipHeight = HIP end) end
+for fi, f in ipairs(FRAMES) do
+	local kf = Instance.new("Keyframe")
+	kf.Time = f[1]
+	if KEYNAMES[fi] then kf.Name = KEYNAMES[fi] end
+	local made, k = {}, 2
+	for i, d in ipairs(POSES) do
+		local pose = Instance.new("Pose")
+		pose.Name, pose.Weight, pose.EasingStyle = d[1], d[3], Enum.PoseEasingStyle.Linear
+		if d[3] > 0 then
+			pose.CFrame = CFrame.new(f[k], f[k + 1], f[k + 2], f[k + 3], f[k + 4], f[k + 5], f[k + 6])
+			k += 7
+		end
+		if d[2] == 0 then kf:AddPose(pose) else made[d[2]]:AddSubPose(pose) end
+		made[i] = pose
+	end
+	for _, m in ipairs(MARKERS) do
+		if m[1] == fi then
+			local marker = Instance.new("KeyframeMarker")
+			marker.Name, marker.Value = m[2], m[3]
+			kf:AddMarker(marker)
+		end
+	end
+	seq:AddKeyframe(kf)
+end
+local Selection = game:GetService("Selection")
+local rig = Selection:Get()[1]
+local saves = rig and rig:FindFirstChild("AnimSaves")
+local home = saves and (saves:IsA("ObjectValue") and saves.Value or saves) or game:GetService("ServerStorage")
+local old = home:FindFirstChild(NAME)
+if old and old:IsA("KeyframeSequence") then old:Destroy() end
+seq.Parent = home
+Selection:Set({seq})
+print(("[animation] %s: %d keyframes, %.2fs -> %s"):format(NAME, #FRAMES, FRAMES[#FRAMES][1], seq:GetFullName()))
+`;
+}
+
+// ============ 9. RENDER: draw-op list shared by the canvas previewer and the SVG storyboard ============
+const LIGHT = unit([-0.35, 0.85, -0.4]);
+const hex = h => { h = String(h).trim().replace('#', ''); if (h.length === 3) h = h.replace(/./g, '$&$&'); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); };
+const rgb = (c, s) => 'rgb(' + c.map(x => Math.round(Math.max(0, Math.min(255, x * (s || 1))))).join(',') + ')';
+const PAL = { torso: '#667085', head: '#d5dae3', left: '#1f7ae0', right: '#e8590c', face: '#18202b', grid: '#b4bcc9', shadow: '#000000' };
+function camera(yaw, pitch, dist, w, h, target) {      // yaw 0 = facing the character's front; +yaw orbits to its left side
+  const t = target || [0, 2.7, 0], cy = Math.cos(yaw * D2R), sy = Math.sin(yaw * D2R), cp = Math.cos(pitch * D2R), sp = Math.sin(pitch * D2R);
+  const eye = add(t, [-sy * cp * dist, sp * dist, -cy * cp * dist]), f = unit(sub(t, eye)), r = unit(cross(f, [0, 1, 0])), u = cross(r, f), focal = Math.min(w, h * 1.25) * 1.9;
+  return { eye, f, focal, proj: p => { const d = sub(p, eye), z = Math.max(0.2, dot(d, f)); return [w / 2 + dot(d, r) * focal / z, h / 2 - dot(d, u) * focal / z, z]; } };
+}
+function boxOps(ops, cam, c0, q, size, col, face) {
+  const ax = [qrot(q, [1, 0, 0]), qrot(q, [0, 1, 0]), qrot(q, [0, 0, 1])], h = mul(size, 0.5);
+  for (let i = 0; i < 3; i++) for (const s of [-1, 1]) {
+    const n = mul(ax[i], s), fc = add(c0, mul(n, h[i]));
+    if (dot(n, sub(fc, cam.eye)) >= 0) continue;
+    const u = mul(ax[(i + 1) % 3], h[(i + 1) % 3]), v = mul(ax[(i + 2) % 3], h[(i + 2) % 3]), sh = 0.6 + 0.4 * (0.5 + 0.5 * dot(n, LIGHT));
+    ops.push({ k: 'poly', p: [add(add(fc, u), v), add(sub(fc, u), v), sub(sub(fc, u), v), sub(add(fc, u), v)].map(cam.proj), f: rgb(col, sh), s: rgb(col, sh * 0.7) });
+    if (face && i === 2 && s === -1) for (const [x, y, w, t] of [[-0.24, 0.12, 0.07, 0.11], [0.24, 0.12, 0.07, 0.11], [0, -0.26, 0.2, 0.035]]) {
+      const o = add(fc, add(mul(ax[0], x), mul(ax[1], y))), a = mul(ax[0], w), b = mul(ax[1], t);
+      ops.push({ k: 'poly', p: [add(add(o, a), b), add(sub(o, a), b), sub(sub(o, a), b), sub(add(o, a), b)].map(cam.proj), f: rgb(face) });
+    }
+  }
+}
+function scene(c, S, t, cam, pal, opt) {               // -> draw ops, back to front
+  const ops = [], P = c.rig.parts, o = opt || {}, g = o.grid == null ? 5 : o.grid, col = k => hex(pal[k] || PAL[k]);
+  for (let i = -g; i <= g; i++) for (const [a, b] of [[[i, 0, -g], [i, 0, g]], [[-g, 0, i], [g, 0, i]]])
+    ops.push({ k: 'line', p: [cam.proj(a), cam.proj(b)], s: rgb(col('grid')), w: i === 0 ? 1.6 : 0.8, o: i === 0 ? 0.9 : 0.55 });
+  if (g) ops.push({ k: 'poly', p: [[0, 0, -g - 0.75], [-0.38, 0, -g - 0.1], [0.38, 0, -g - 0.1]].map(cam.proj), f: rgb(col('grid')) });
+  const items = [];
+  for (const n in P) {
+    const w = S.W[n], kind = n === 'Head' ? 'head' : /Torso/.test(n) ? 'torso' : /^Left/.test(n) ? 'left' : 'right';
+    const tone = /LowerTorso|Lower(Arm|Leg)/.test(n) ? 0.86 : /Hand|Foot/.test(n) ? 1.12 : 1;
+    items.push({ c: w.c, q: w.q, size: P[n].size, col: col(kind).map(x => x * tone), face: n === 'Head' ? col('face') : null });
+  }
+  for (const pr of c.props) { const a = propAt(c, pr, t, S.W); items.push({ c: a.c, q: a.q, size: pr.size, col: hex(pr.color), ball: pr.type === 'ball' ? pr.radius : 0 }); }
+  for (const it of items) {                            // soft blob shadows: they fade and widen with height
+    const r = (it.ball || Math.max(it.size[0], it.size[2]) * 0.5) * (1 + it.c[1] * 0.04), pts = [];
+    for (let a = 0; a < 12; a++) pts.push(cam.proj([it.c[0] + Math.cos(a * Math.PI / 6) * r, 0, it.c[2] + Math.sin(a * Math.PI / 6) * r]));
+    ops.push({ k: 'poly', p: pts, f: rgb(col('shadow')), o: 0.13 * Math.max(0.2, 1 - it.c[1] / 8) });
+  }
+  items.sort((a, b) => dot(sub(b.c, cam.eye), cam.f) - dot(sub(a.c, cam.eye), cam.f));
+  for (const it of items) {
+    if (it.ball) { const p = cam.proj(it.c); ops.push({ k: 'ball', p: [p], r: it.ball * cam.focal / p[2], f: rgb(it.col), s: rgb(it.col, 0.6) }); }
+    else boxOps(ops, cam, it.c, it.q, it.size, it.col, it.face);
+  }
+  for (const tr of o.trails || []) ops.push({ k: 'line', p: tr.pts.map(cam.proj), s: tr.color, w: 1.5, o: 0.45 });
+  return ops;
+}
+function trails(c, pal, propsOnly) {                   // hand/foot (and prop) paths over the whole clip
+  const F = bake(c), out = [];
+  if (!propsOnly) for (const n of Object.keys(c.rig.ends)) if (n !== 'Head') out.push({ color: rgb(hex((pal || PAL)[/^Left/.test(n) ? 'left' : 'right'])), pts: F.map(f => endPos(c, f.W, n)) });
+  c.props.forEach(pr => { if (pr.keys.length > 1) out.push({ color: rgb(hex(pr.color), 0.8), pts: F.map((f, i) => propAt(c, pr, i / c.fps, f.W).c) }); });
+  return out;
+}
+function storyboard(c) {                               // SVG contact sheet: every key from a 3/4 view and from the side
+  const w = 190, h = 210, per = Math.min(c.keys.length, 7), rows = Math.ceil(c.keys.length / per), tr = null;
+  const draw = ops => ops.map(o => {
+    const pts = o.p.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' '), op = o.o != null ? ` opacity="${o.o}"` : '';
+    if (o.k === 'poly') return `<polygon points="${pts}" fill="${o.f}" stroke="${o.s || 'none'}" stroke-linejoin="round"${op}/>`;
+    if (o.k === 'ball') return `<circle cx="${o.p[0][0].toFixed(1)}" cy="${o.p[0][1].toFixed(1)}" r="${o.r.toFixed(1)}" fill="${o.f}" stroke="${o.s}"/>`;
+    return `<polyline points="${pts}" fill="none" stroke="${o.s}" stroke-width="${o.w}"${op}/>`;
+  }).join('');
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${per * w}" height="${rows * (2 * h + 26)}" font-family="sans-serif" font-size="12"><defs><clipPath id="cell"><rect x="1" y="1" width="${w - 2}" height="${h - 2}"/></clipPath></defs><rect width="100%" height="100%" fill="#f3f5f8"/>`;
+  c.keys.forEach((k, i) => {
+    const x = (i % per) * w, y = Math.floor(i / per) * (2 * h + 26), S = sample(c, k.t);
+    s += `<text x="${x + 6}" y="${y + 16}" font-weight="bold">${i}. ${xml(k.label || 'key')} · ${k.t.toFixed(2)}s</text>`;
+    [[-35, 12, '3/4 front'], [-90, 4, 'side · faces right']].forEach(([yaw, pitch, cap], j) => {
+      const root = S.W[c.rootName].c, cam = camera(yaw, pitch, 16.5, w, h, [root[0] * 0.6, 3 + Math.max(0, root[1] - 3.2) * 0.85, root[2] * 0.6]);
+      s += `<g transform="translate(${x},${y + 24 + j * h})" clip-path="url(#cell)"><rect x="1" y="1" width="${w - 2}" height="${h - 2}" fill="#fff" stroke="#c9d0da"/>${draw(scene(c, S, k.t, cam, PAL, { grid: 3, trails: tr }))}<text x="6" y="${h - 8}" fill="#667085">${cap}</text></g>`;
+    });
+  });
+  return s + '</svg>';
+}
+
+const API = { RIGS, EASE, compile, sample, bake, report, toRbxmx, toLuau, storyboard, exportData };
+
+// ============ 10. PREVIEWER (browser) ============
+const CSS = `
+:root{--ra-bg:#eceef2;--ra-panel:#ffffff;--ra-ink:#18202b;--ra-muted:#5c6776;--ra-line:#d3d8e0;--ra-key:#a35f00;--ra-keyfill:#f2a900;--ra-mark:#c2255c;
+--ra-stage-a:#f8f9fb;--ra-stage-b:#dbe0e9;--ra-grid:#b4bcc9;--ra-torso:#667085;--ra-head:#d5dae3;--ra-left:#1f7ae0;--ra-right:#e8590c;--ra-face:#18202b;
+--ra-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--ra-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--ra-bg:#10141b;--ra-panel:#19202b;--ra-ink:#e8ecf2;--ra-muted:#97a3b4;--ra-line:#2b3545;--ra-key:#f5b942;--ra-keyfill:#f5b942;--ra-mark:#ff7aa8;
+--ra-stage-a:#222b39;--ra-stage-b:#0e1219;--ra-grid:#3b495e;--ra-torso:#8a94a8;--ra-head:#e1e6ee;--ra-left:#4c9dff;--ra-right:#ff7a33;--ra-face:#10141b}}
+:root[data-theme="dark"]{color-scheme:dark;--ra-bg:#10141b;--ra-panel:#19202b;--ra-ink:#e8ecf2;--ra-muted:#97a3b4;--ra-line:#2b3545;--ra-key:#f5b942;--ra-keyfill:#f5b942;--ra-mark:#ff7aa8;
+--ra-stage-a:#222b39;--ra-stage-b:#0e1219;--ra-grid:#3b495e;--ra-torso:#8a94a8;--ra-head:#e1e6ee;--ra-left:#4c9dff;--ra-right:#ff7a33;--ra-face:#10141b}
+.ra{box-sizing:border-box;max-width:1120px;margin:0 auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:var(--ra-bg);color:var(--ra-ink);font:15px/1.45 var(--ra-body)}
+.ra *{box-sizing:border-box}
+.ra button,.ra select{font:inherit;color:inherit;background:var(--ra-panel);border:1px solid var(--ra-line);border-radius:6px;padding:5px 10px;cursor:pointer}
+.ra button:hover{border-color:var(--ra-muted)}.ra button:focus-visible,.ra select:focus-visible,.ra-tl:focus-visible{outline:2px solid var(--ra-key);outline-offset:2px}
+.ra button[aria-pressed="true"],.ra button[aria-selected="true"]{background:var(--ra-ink);color:var(--ra-panel);border-color:var(--ra-ink)}
+.ra-tabs{display:flex;flex-wrap:wrap;gap:6px}.ra-tabs button{font:600 16px/1.2 var(--ra-display);letter-spacing:.02em;text-transform:uppercase}
+.ra-main{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(240px,1fr);gap:12px;align-items:start}
+@media (max-width:760px){.ra-main{grid-template-columns:minmax(0,1fr)}}
+.ra-stagebox{position:relative;border:1px solid var(--ra-line);border-radius:10px;overflow:hidden;background:linear-gradient(var(--ra-stage-a),var(--ra-stage-b))}
+.ra-stage{display:block;width:100%;touch-action:pan-y;cursor:grab}.ra-stage:active{cursor:grabbing}
+.ra-hud{position:absolute;left:12px;top:10px;display:flex;gap:10px;align-items:baseline;pointer-events:none}
+.ra-phase{font:700 22px/1 var(--ra-display);text-transform:uppercase;letter-spacing:.03em}
+.ra-time{font-variant-numeric:tabular-nums;color:var(--ra-muted);font-size:13px}
+.ra-views{position:absolute;right:8px;top:8px;display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:60%}.ra-views button{padding:2px 8px;font-size:13px}
+.ra-legend{position:absolute;left:12px;bottom:8px;display:flex;gap:12px;font-size:12px;color:var(--ra-muted);pointer-events:none}
+.ra-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px}
+.ra-info{background:var(--ra-panel);border:1px solid var(--ra-line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.ra-info h1{margin:0;font:700 28px/1.05 var(--ra-display);letter-spacing:.01em;text-wrap:balance}
+.ra-meta{margin:0;color:var(--ra-muted);font-size:13px;font-variant-numeric:tabular-nums}.ra-desc{margin:0}
+.ra-phases{list-style:none;margin:4px 0 0;padding:0;display:flex;flex-direction:column;gap:2px}
+.ra-phases button{display:grid;grid-template-columns:46px 1fr;gap:8px;width:100%;text-align:left;border-color:transparent;background:none;padding:5px 6px}
+.ra-phases button[aria-current="true"]{background:var(--ra-bg);border-color:var(--ra-line)}
+.ra-phases .t{font-variant-numeric:tabular-nums;color:var(--ra-key);font-weight:600}.ra-phases b{font-weight:600}.ra-phases span span{display:block;color:var(--ra-muted);font-size:13px}
+.ra-events{margin:0;font-size:13px;color:var(--ra-muted)}.ra-events b{color:var(--ra-mark)}
+.ra-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--ra-panel);border:1px solid var(--ra-line);border-radius:10px;padding:10px 12px}
+.ra-play{min-width:74px;font-weight:600}
+.ra-tl{position:relative;flex:1 1 260px;height:34px;cursor:pointer;touch-action:none}
+.ra-tl::before{content:"";position:absolute;left:0;right:0;top:15px;height:4px;border-radius:2px;background:var(--ra-line)}
+.ra-fill{position:absolute;left:0;top:15px;height:4px;border-radius:2px;background:var(--ra-ink)}
+.ra-key{position:absolute;top:11px;width:12px;height:12px;margin-left:-6px;transform:rotate(45deg);background:var(--ra-keyfill);border:1.5px solid var(--ra-panel)}
+.ra-mark{position:absolute;top:0;width:2px;height:15px;margin-left:-1px;background:var(--ra-mark)}.ra-mark::after{content:"";position:absolute;left:2px;top:0;border:4px solid transparent;border-left-color:var(--ra-mark)}
+.ra-head{position:absolute;top:5px;width:3px;height:24px;margin-left:-1.5px;border-radius:2px;background:var(--ra-ink)}
+.ra-strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.ra-strip button{flex:0 0 auto;padding:4px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;width:118px}
+.ra-strip canvas{width:108px;height:120px;border-radius:4px;background:linear-gradient(var(--ra-stage-a),var(--ra-stage-b))}
+.ra-strip button[aria-current="true"]{border-color:var(--ra-key);box-shadow:0 0 0 1px var(--ra-key)}
+.ra-strip b{font:600 14px/1.1 var(--ra-display);text-transform:uppercase;letter-spacing:.03em;max-width:108px;overflow-wrap:anywhere}.ra-strip small{color:var(--ra-muted);font-variant-numeric:tabular-nums}
+.ra-export{background:var(--ra-panel);border:1px solid var(--ra-line);border-radius:10px;padding:10px 14px}
+.ra-export summary{cursor:pointer;font-weight:600}.ra-export p{margin:8px 0;color:var(--ra-muted);font-size:14px;max-width:70ch}
+.ra-export .row{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.ra-export textarea{width:100%;height:190px;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ra-ink);background:var(--ra-bg);border:1px solid var(--ra-line);border-radius:6px;padding:8px;white-space:pre;resize:vertical}
+.ra-err{background:var(--ra-panel);border:1px solid var(--ra-mark);border-radius:10px;padding:12px 16px;white-space:pre-wrap;font:13px/1.5 ui-monospace,monospace}`;
+
+function mount(specs, host) {
+  const D = document, root = host || D.getElementById('ranim') || D.body;
+  const el = (tag, cls, text) => { const e = D.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  if (!D.getElementById('ra-css')) { const st = el('style'); st.id = 'ra-css'; st.textContent = CSS; D.head.appendChild(st); }
+  const clips = specs.map(s => { try { return compile(s); } catch (e) { return { name: s.name || 'clip', errors: [e.message], spec: s }; } });
+  const app = el('div', 'ra'); root.appendChild(app);
+  const still = G.matchMedia && G.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const st = { i: 0, t: 0, playing: !still, speed: 1, yaw: -35, pitch: 12, zoom: 21, trails: true, hold: 0 };
+  let c, pal, trailData, ui = {}, last = 0;
+  const readPal = () => { const cs = getComputedStyle(D.documentElement), o = {}; for (const k of ['torso', 'head', 'left', 'right', 'face', 'grid']) o[k] = cs.getPropertyValue('--ra-' + k).trim() || PAL[k]; o.shadow = '#000000'; return o; };
+  const paint = (cv, ops) => {
+    const x = cv.getContext('2d'); x.lineJoin = 'round';
+    for (const o of ops) {
+      x.globalAlpha = o.o == null ? 1 : o.o; x.beginPath();
+      if (o.k === 'ball') { const p = o.p[0], g = x.createRadialGradient(p[0] - o.r * 0.35, p[1] - o.r * 0.4, o.r * 0.1, p[0], p[1], o.r); g.addColorStop(0, '#ffffff'); g.addColorStop(0.35, o.f); g.addColorStop(1, o.s); x.arc(p[0], p[1], o.r, 0, 7); x.fillStyle = g; x.fill(); continue; }
+      o.p.forEach((p, i) => (i ? x.lineTo(p[0], p[1]) : x.moveTo(p[0], p[1])));
+      if (o.k === 'poly') { x.closePath(); x.fillStyle = o.f; x.fill(); if (o.s) { x.strokeStyle = o.s; x.lineWidth = 1; x.stroke(); } }
+      else { x.strokeStyle = o.s; x.lineWidth = o.w; x.stroke(); }
+    }
+    x.globalAlpha = 1;
+  };
+  const fit = (cv, w, h) => { const r = Math.min(2, G.devicePixelRatio || 1); cv.width = w * r; cv.height = h * r; cv.getContext('2d').setTransform(r, 0, 0, r, 0, 0); };
+  function draw() {
+    if (!c || c.errors.length) return;
+    const cv = ui.stage, w = cv.clientWidth, h = cv.clientHeight; if (!w) return;
+    if (cv.width !== Math.round(w * Math.min(2, G.devicePixelRatio || 1))) fit(cv, w, h);
+    cv.getContext('2d').clearRect(0, 0, w, h);
+    const S = sample(c, st.t), rc = S.W[c.rootName].c; st.ty = st.ty == null ? 2.7 : st.ty + (2.7 + Math.max(0, rc[1] - 3.4) * 0.55 - st.ty) * 0.25;
+    paint(cv, scene(c, S, st.t, camera(st.yaw, st.pitch, st.zoom, w, h, [rc[0] * 0.5, st.ty, rc[2] * 0.5]), pal, { trails: st.trails ? trailData : null }));
+    let cur = 0; c.keys.forEach((k, i) => { if (k.t <= st.t + 1e-6) cur = i; });
+    ui.phase.textContent = c.keys[cur].label || ''; ui.time.textContent = `${st.t.toFixed(2)} s · frame ${Math.round(st.t * c.fps)}/${c.n}`;
+    ui.fill.style.width = ui.headMark.style.left = (st.t / c.duration * 100) + '%'; ui.tl.setAttribute('aria-valuenow', st.t.toFixed(2));
+    ui.cur.forEach((list, j) => list.forEach((b, i) => b.setAttribute('aria-current', i === cur ? 'true' : 'false')));
+    ui.play.textContent = st.playing ? 'Pause' : 'Play';
+  }
+  const seek = t => { st.t = Math.max(0, Math.min(c.duration, t)); st.playing = false; draw(); };
+  function tick(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    if (c && !c.errors.length && st.playing) {
+      if (st.hold > 0) { st.hold -= dt; if (st.hold <= 0) st.t = 0; }
+      else { st.t += dt * st.speed; if (st.t >= c.duration) { if (c.loop) st.t %= c.duration; else { st.t = c.duration; st.hold = 0.7; } } }
+      draw();
+    }
+    G.requestAnimationFrame(tick);
+  }
+  function build() {
+    c = clips[st.i]; st.t = 0; st.hold = 0; app.textContent = ''; ui = { cur: [] };
+    if (clips.length > 1) { const tabs = el('div', 'ra-tabs'); tabs.setAttribute('role', 'tablist'); clips.forEach((k, i) => { const b = el('button', '', (k.spec.title || k.name) + (k.rig && !/R6|R15/.test(k.spec.title || '') ? ' · ' + k.rig.name : '')); b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', i === st.i); b.onclick = () => { st.i = i; st.playing = !still; build(); }; tabs.appendChild(b); }); app.appendChild(tabs); }
+    if (c.errors.length) { app.appendChild(el('div', 'ra-err', `${c.name}: this motion spec has errors\n\n` + c.errors.join('\n'))); return; }
+    pal = readPal(); trailData = trails(c, pal);
+    const main = el('div', 'ra-main'), box = el('div', 'ra-stagebox'), info = el('aside', 'ra-info');
+    ui.stage = el('canvas', 'ra-stage'); ui.stage.style.height = 'min(62vw, 470px)'; ui.stage.setAttribute('aria-label', '3D preview. Drag to orbit.');
+    const hud = el('div', 'ra-hud'); ui.phase = el('span', 'ra-phase'); ui.time = el('span', 'ra-time'); hud.append(ui.phase, ui.time);
+    const views = el('div', 'ra-views');
+    for (const [name, yaw, pitch] of [['3/4', -35, 12], ['Front', 0, 6], ['Side', -90, 4], ['Back', 180, 8], ['Top', 0, 85]]) { const b = el('button', '', name); b.onclick = () => { st.yaw = yaw; st.pitch = pitch; draw(); }; views.appendChild(b); }
+    const tb = el('button', '', 'Trails'); tb.setAttribute('aria-pressed', st.trails); tb.onclick = () => { st.trails = !st.trails; tb.setAttribute('aria-pressed', st.trails); draw(); }; views.appendChild(tb);
+    for (const [name, k] of [['−', 1.15], ['+', 0.87]]) { const b = el('button', '', name); b.setAttribute('aria-label', k > 1 ? 'Zoom out' : 'Zoom in'); b.onclick = () => { st.zoom = Math.max(8, Math.min(40, st.zoom * k)); draw(); }; views.appendChild(b); }
+    const leg = el('div', 'ra-legend'); for (const [k, name] of [['right', 'Right side'], ['left', 'Left side']]) { const s = el('span'), i = el('i'); i.style.background = `var(--ra-${k})`; s.append(i, name); leg.appendChild(s); }
+    leg.appendChild(el('span', '', 'Arrow on the floor = forward'));
+    box.append(ui.stage, hud, views, leg);
+    let drag = null;
+    ui.stage.onpointerdown = e => { drag = [e.clientX, e.clientY, st.yaw, st.pitch]; ui.stage.setPointerCapture(e.pointerId); };
+    ui.stage.onpointermove = e => { if (!drag) return; st.yaw = drag[2] + (e.clientX - drag[0]) * 0.5; st.pitch = Math.max(-10, Math.min(88, drag[3] + (e.clientY - drag[1]) * 0.35)); draw(); };
+    ui.stage.onpointerup = ui.stage.onpointercancel = () => { drag = null; };
+    info.appendChild(el('h1', '', c.spec.title || c.name));
+    info.appendChild(el('p', 'ra-meta', `${c.rig.name} · ${c.duration.toFixed(2)} s · ${c.n + 1} keyframes at ${c.fps} fps · ${c.loop ? 'looping' : 'one-shot'} · ${c.spec.priority || 'Action'} priority`));
+    if (c.spec.description) info.appendChild(el('p', 'ra-desc', c.spec.description));
+    const ph = el('ol', 'ra-phases'), list = []; ui.cur.push(list);
+    c.keys.forEach((k, i) => { const li = el('li'), b = el('button'), s = el('span'); b.append(el('span', 't', k.t.toFixed(2)), s); s.append(el('b', '', k.label || 'key ' + i)); if (k.note) s.append(el('span', '', k.note)); b.onclick = () => seek(k.t); li.appendChild(b); ph.appendChild(li); list.push(b); });
+    info.appendChild(ph);
+    const ms = c.spec.markers || [];
+    if (ms.length) { const p = el('p', 'ra-events', 'Animation events: '); ms.forEach((m, i) => { p.append(el('b', '', m.name), ` at ${(+m.t).toFixed(2)} s` + (i < ms.length - 1 ? ', ' : '')); }); info.appendChild(p); }
+    main.append(box, info); app.appendChild(main);
+    const bar = el('div', 'ra-bar'); ui.play = el('button', 'ra-play'); ui.play.onclick = () => { st.playing = !st.playing; if (st.playing && st.t >= c.duration) st.t = 0; st.hold = 0; draw(); };
+    const step = d => { const b = el('button', '', d < 0 ? '◀' : '▶'); b.setAttribute('aria-label', d < 0 ? 'Previous frame' : 'Next frame'); b.onclick = () => seek(Math.round(st.t * c.fps + d) / c.fps); return b; };
+    ui.tl = el('div', 'ra-tl'); ui.tl.tabIndex = 0; ui.tl.setAttribute('role', 'slider'); ui.tl.setAttribute('aria-label', 'Timeline'); ui.tl.setAttribute('aria-valuemin', 0); ui.tl.setAttribute('aria-valuemax', c.duration.toFixed(2));
+    ui.fill = el('div', 'ra-fill'); ui.headMark = el('div', 'ra-head'); ui.tl.appendChild(ui.fill);
+    c.keys.forEach(k => { const d = el('i', 'ra-key'); d.style.left = (k.t / c.duration * 100) + '%'; d.title = `${k.t.toFixed(2)} s ${k.label}`; ui.tl.appendChild(d); });
+    ms.forEach(m => { const d = el('b', 'ra-mark'); d.style.left = (m.t / c.duration * 100) + '%'; d.title = `event ${m.name} at ${m.t} s`; ui.tl.appendChild(d); });
+    ui.tl.appendChild(ui.headMark);
+    const scrub = e => { const r = ui.tl.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * c.duration); };
+    ui.tl.onpointerdown = e => { ui.tl.setPointerCapture(e.pointerId); scrub(e); ui.tl.onpointermove = scrub; };
+    ui.tl.onpointerup = ui.tl.onpointercancel = () => { ui.tl.onpointermove = null; };
+    ui.tl.onkeydown = e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); seek(Math.round(st.t * c.fps + (e.key === 'ArrowLeft' ? -1 : 1)) / c.fps); } };
+    const sp = el('select'); sp.id = 'ra-speed'; sp.setAttribute('aria-label', 'Playback speed'); for (const v of [1, 0.5, 0.25, 0.1]) { const o = el('option', '', v + '× speed'); o.value = v; sp.appendChild(o); } sp.value = st.speed; sp.onchange = () => { st.speed = +sp.value; };
+    bar.append(ui.play, step(-1), step(1), ui.tl, sp); app.appendChild(bar);
+    const strip = el('div', 'ra-strip'), thumbs = []; ui.cur.push(thumbs);
+    c.keys.forEach((k, i) => { const b = el('button'), cv = el('canvas'); b.append(cv, el('b', '', k.label || 'key ' + i), el('small', '', k.t.toFixed(2) + ' s')); b.onclick = () => seek(k.t); strip.appendChild(b); thumbs.push(b);
+      fit(cv, 108, 120); paint(cv, scene(c, sample(c, k.t), k.t, camera(-35, 12, 15.5, 108, 120, [0, 2.8, 0]), pal, { grid: 0 })); });
+    app.appendChild(strip);
+    const ex = el('details', 'ra-export'), ta = el('textarea'), row = el('div', 'row'), msg = el('p'); ta.readOnly = true; ta.id = 'ra-out'; ta.setAttribute('aria-label', 'Export text');
+    ex.appendChild(el('summary', '', 'Keyframes for Roblox Studio'));
+    ex.appendChild(el('p', '', `${c.n + 1} keyframes, one every 1/${c.fps} s, baked with linear easing so Studio plays exactly what you see here. Copy the Studio script, paste it into the Command Bar (View > Command Bar) with your ${c.rig.name} rig selected, and press Enter.`));
+    const kinds = [['Studio script', () => toLuau(c)], ['.rbxmx file contents', () => toRbxmx(c)], ['Motion spec (JSON)', () => JSON.stringify(c.spec, null, 1)]], btns = [];
+    kinds.forEach(([name, fn], i) => { const b = el('button', '', name); b.setAttribute('aria-pressed', i === 0); b.onclick = () => { ta.value = fn(); btns.forEach(o => o.setAttribute('aria-pressed', o === b)); msg.textContent = ''; }; btns.push(b); row.appendChild(b); });
+    const cp = el('button', '', 'Copy'); cp.onclick = () => { ta.select(); const ok = () => { msg.textContent = 'Copied.'; }, no = () => { msg.textContent = 'Copy was blocked here. The text is selected: press Ctrl/Cmd+C.'; }; try { navigator.clipboard.writeText(ta.value).then(ok, no); } catch (e) { no(); } };
+    row.appendChild(cp); ex.append(row, ta, msg); ex.ontoggle = () => { if (ex.open && !ta.value) ta.value = toLuau(c); }; app.appendChild(ex);
+    draw();
+  }
+  build(); G.addEventListener('resize', draw);
+  const retheme = () => { if (c && !c.errors.length) { const t = st.t, p = st.playing; build(); st.t = t; st.playing = p; draw(); } };
+  if (G.matchMedia) G.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', retheme);
+  if (G.MutationObserver) new MutationObserver(retheme).observe(D.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  G.requestAnimationFrame(t => { last = t; tick(t); });
+}
+
+// ============ 11. ENTRY POINTS ============
+if (typeof document !== 'undefined') {
+  G.RAnim = Object.assign(API, { mount });
+  const go = () => { if (G.RANIM_CLIPS) mount(G.RANIM_CLIPS); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+} else if (typeof module !== 'undefined') {
+  module.exports = API;
+  if (require.main === module) {
+    const fs = require('fs'), path = require('path'), args = process.argv.slice(2), oi = args.indexOf('--out');
+    const out = oi >= 0 ? args.splice(oi, 2)[1] : '.', specs = [];
+    if (!args.length) { console.error('usage: node ranim.cjs clip.json [more.json ...] [--out DIR]'); process.exit(2); }
+    for (const f of args) specs.push(...[].concat(JSON.parse(fs.readFileSync(f, 'utf8'))));
+    fs.mkdirSync(out, { recursive: true });
+    let bad = 0;
+    for (const s of specs) {
+      const c = compile(s); console.log(report(c) + '\n');
+      if (c.errors.length) { bad++; continue; }
+      fs.writeFileSync(path.join(out, c.name + '.rbxmx'), toRbxmx(c)); fs.writeFileSync(path.join(out, c.name + '.lua'), toLuau(c));
+      const svg = path.join(out, `storyboard-${c.name}.svg`), png = svg.replace(/svg$/, 'png'); fs.writeFileSync(svg, storyboard(c));
+      const run = (cmd, a) => { try { return require('child_process').spawnSync(cmd, a, { stdio: 'ignore' }).status === 0; } catch (e) { return false; } };
+      const ok = run('rsvg-convert', ['-o', png, svg]) || run('magick', [svg, png]) || run('convert', [svg, png]);
+      console.log(`wrote ${c.name}.rbxmx, ${c.name}.lua, ${path.basename(ok ? png : svg)}${ok ? '' : ' (no SVG->PNG converter found; open the SVG or screenshot preview.html)'}\n`);
+    }
+    const title = specs.length === 1 ? (specs[0].title || specs[0].name || 'Animation') + ' preview' : 'Roblox animation previews';
+    fs.writeFileSync(path.join(out, 'preview.html'), `<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${xml(title)}</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
+<style>html,body{margin:0;background:var(--ra-bg,#eceef2)}</style></head>
+<body><div id="ranim"></div>
+<script>window.RANIM_CLIPS = ${JSON.stringify(specs).replace(/</g, '\\u003c')};</` + `script>
+<script>${fs.readFileSync(__filename, 'utf8')}</` + `script>
+</body></html>
+`);
+    console.log(`wrote preview.html (${specs.length} clip${specs.length > 1 ? 's' : ''})`);
+    process.exit(bad ? 1 : 0);
+  }
+}
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+</script>
+</body></html>

@@ -1,0 +1,16 @@
+{
+  "name": "R6Run", "title": "Run cycle (R6)", "rig": "R6", "priority": "Movement", "loop": true,
+  "description": "Classic blocky sprint. Two authored poses; the second half of the stride is the first half mirrored, so the loop is perfectly symmetric.",
+  "keys": [
+    { "t": 0, "label": "contact R", "note": "Right leg reaches, opposite arm forward.",
+      "pose": { "Torso": { "bendFwd": 14, "turnL": 8 }, "Head": { "bendBack": 10, "turnR": 8 },
+        "Right Leg": { "fwd": 48 }, "Left Leg": { "back": 38 }, "Right Arm": { "back": 45, "out": 6 }, "Left Arm": { "fwd": 55, "out": 6 } } },
+    { "t": 0.13, "label": "push R", "note": "Flight: both feet off the floor.", "lift": 0.3,
+      "pose": { "Torso": { "bendFwd": 16 }, "Head": { "bendBack": 12 },
+        "Right Leg": { "back": 12 }, "Left Leg": { "fwd": 22 }, "Right Arm": { "fwd": 8, "out": 6 }, "Left Arm": { "back": 4, "out": 6 } } },
+    { "t": 0.27, "label": "contact L", "copy": "contact R", "mirror": true },
+    { "t": 0.4, "label": "push L", "copy": "push R", "mirror": true },
+    { "t": 0.53, "label": "loop", "copy": "contact R" }
+  ],
+  "markers": [ { "t": 0, "name": "Footstep", "value": "R" }, { "t": 0.27, "name": "Footstep", "value": "L" } ]
+}

@@ -1,0 +1,62 @@
+{
+  "name": "SoccerInstepKick",
+  "title": "Soccer instep kick",
+  "rig": "R15",
+  "priority": "Action",
+  "loop": false,
+  "description": "Right-footed power shot. Plant the left foot beside the ball, whip the right leg through from a high backswing, strike with the laces, and let the leg carry up and across.",
+  "keys": [
+    { "t": 0, "label": "ready", "note": "Athletic stance, weight even.",
+      "pose": {
+        "LowerTorso": { "bendFwd": 5 }, "UpperTorso": { "bendFwd": 8 }, "Head": { "bendBack": 6 },
+        "LeftUpperArm": { "fwd": 10, "out": 12 }, "LeftLowerArm": { "bend": 35 },
+        "RightUpperArm": { "fwd": 5, "out": 12 }, "RightLowerArm": { "bend": 35 },
+        "LeftUpperLeg": { "fwd": 12, "out": 5 }, "LeftLowerLeg": { "bend": 20 }, "LeftFoot": "flat",
+        "RightUpperLeg": { "fwd": 12, "out": 5 }, "RightLowerLeg": { "bend": 20 }, "RightFoot": "flat" } },
+    { "t": 0.17, "label": "step", "note": "Left foot lifts and reaches for the plant spot.",
+      "pose": { "LowerTorso": { "bendFwd": 5, "turnR": 5, "moveFwd": 0.2 }, "LeftUpperLeg": { "fwd": 58, "out": 5 }, "LeftLowerLeg": { "bend": 70 }, "LeftFoot": { "fwd": 10 },
+        "RightUpperLeg": { "fwd": 4, "out": 5 }, "RightLowerLeg": { "bend": 14 }, "RightFoot": "flat" } },
+    { "t": 0.3, "label": "plant", "note": "Left foot steps beside the ball, right leg trails.", "ease": "in",
+      "pose": {
+        "LowerTorso": { "bendFwd": 4, "turnR": 12, "moveFwd": 0.5 }, "UpperTorso": { "bendFwd": 4, "turnR": 14 }, "Head": { "turnL": 20, "bendFwd": 12 },
+        "LeftUpperArm": { "fwd": 35, "out": 45 }, "LeftLowerArm": { "bend": 25 },
+        "RightUpperArm": { "back": 30, "out": 20 }, "RightLowerArm": { "bend": 40 },
+        "LeftUpperLeg": { "fwd": 28, "out": 4, "twistIn": 10 }, "LeftLowerLeg": { "bend": 28 }, "LeftFoot": "flat",
+        "RightUpperLeg": { "back": 25, "out": 6 }, "RightLowerLeg": { "bend": 55 }, "RightFoot": { "back": 25 } } },
+    { "t": 0.47, "label": "backswing", "note": "Hip opens, heel whips up toward the seat. Left arm flies out for balance.", "ease": "in",
+      "pose": {
+        "LowerTorso": { "bendBack": 4, "turnR": 22, "moveFwd": 0.7 }, "UpperTorso": { "bendBack": 6, "turnR": 20, "leanL": 8 }, "Head": { "turnL": 30, "bendFwd": 18 },
+        "LeftUpperArm": { "fwd": 20, "out": 80 }, "LeftLowerArm": { "bend": 15 },
+        "RightUpperArm": { "back": 45, "out": 25 }, "RightLowerArm": { "bend": 30 },
+        "LeftUpperLeg": { "fwd": 14, "out": 2, "twistIn": 20 }, "LeftLowerLeg": { "bend": 22 }, "LeftFoot": "flat",
+        "RightUpperLeg": { "back": 48, "out": 12 }, "RightLowerLeg": { "bend": 118 }, "RightFoot": { "back": 40 } } },
+    { "t": 0.57, "label": "contact", "note": "Laces through the ball, knee over it, ankle locked.", "ease": "out",
+      "pose": {
+        "LowerTorso": { "bendFwd": 6, "turnL": 8, "moveFwd": 0.8 }, "UpperTorso": { "bendFwd": 14, "turnL": 6, "leanL": 6 }, "Head": { "bendFwd": 22 },
+        "LeftUpperArm": { "fwd": 30, "out": 55 }, "LeftLowerArm": { "bend": 30 },
+        "RightUpperArm": { "back": 20, "out": 35 }, "RightLowerArm": { "bend": 25 },
+        "LeftUpperLeg": { "fwd": 2, "out": 2, "twistOut": 6 }, "LeftLowerLeg": { "bend": 14 }, "LeftFoot": "flat",
+        "RightUpperLeg": { "fwd": 22, "in": 4 }, "RightLowerLeg": { "bend": 30 }, "RightFoot": { "back": 42 } } },
+    { "t": 0.74, "label": "follow-through", "note": "Leg carries high and across; the body rises onto the left toes.",
+      "pose": {
+        "LowerTorso": { "bendFwd": 2, "turnL": 26, "moveFwd": 1.0 }, "UpperTorso": { "bendFwd": 10, "turnL": 16 }, "Head": { "turnR": 30, "bendBack": 4 },
+        "LeftUpperArm": { "back": 15, "out": 40 }, "LeftLowerArm": { "bend": 40 },
+        "RightUpperArm": { "fwd": 35, "out": 30 }, "RightLowerArm": { "bend": 45 },
+        "LeftUpperLeg": { "back": 12, "twistOut": 14 }, "LeftLowerLeg": { "bend": 10 }, "LeftFoot": { "back": 22 },
+        "RightUpperLeg": { "fwd": 92, "in": 12 }, "RightLowerLeg": { "bend": 28 }, "RightFoot": { "back": 30 } } },
+    { "t": 0.95, "label": "land", "note": "Kicking foot drops in front, knees absorb.",
+      "pose": {
+        "LowerTorso": { "bendFwd": 10, "turnL": 10, "moveFwd": 1.15 }, "UpperTorso": { "bendFwd": 12, "turnL": 4 }, "Head": { "bendBack": 10 },
+        "LeftUpperArm": { "fwd": 5, "out": 25 }, "LeftLowerArm": { "bend": 45 },
+        "RightUpperArm": { "fwd": 15, "out": 25 }, "RightLowerArm": { "bend": 45 },
+        "LeftUpperLeg": { "back": 8 }, "LeftLowerLeg": { "bend": 35 }, "LeftFoot": { "back": 20 },
+        "RightUpperLeg": { "fwd": 40 }, "RightLowerLeg": { "bend": 42 }, "RightFoot": "flat" } },
+    { "t": 1.1, "label": "reset", "note": "Small skip back onto both feet.", "lift": 0.2, "pose": {} },
+    { "t": 1.25, "label": "recover", "copy": "ready" }
+  ],
+  "markers": [ { "t": 0.57, "name": "Contact", "value": "ball" } ],
+  "props": [
+    { "type": "ball", "radius": 0.45, "color": "#f4f4f0",
+      "keys": [ { "t": 0, "at": [0.55, 0.45, 2.35] }, { "t": 0.57, "at": [0.55, 0.45, 2.35], "arc": 1.6 }, { "t": 1.25, "at": [0.2, 0.45, 13] } ] }
+  ]
+}

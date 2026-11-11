@@ -1,0 +1,26 @@
+{
+  "name": "JabCross", "title": "Jab-cross combo", "rig": "R15", "priority": "Action", "loop": false,
+  "description": "Orthodox boxing one-two. The jab snaps from the shoulder; the cross is driven by the rear hip and a pivoting back foot.",
+  "keys": [
+    { "t": 0, "label": "guard", "note": "Left foot forward, chin tucked, fists at the cheeks.",
+      "pose": { "LowerTorso": { "turnR": 22, "bendFwd": 4 }, "UpperTorso": { "turnR": 8, "bendFwd": 10 }, "Head": { "turnL": 28, "bendFwd": 4 },
+        "LeftUpperArm": { "fwd": 50, "out": 8 }, "LeftLowerArm": { "bend": 120 },
+        "RightUpperArm": { "fwd": 35, "out": 14 }, "RightLowerArm": { "bend": 132 },
+        "LeftUpperLeg": { "fwd": 30, "out": 6, "twistOut": 15 }, "LeftLowerLeg": { "bend": 30 }, "LeftFoot": "flat",
+        "RightUpperLeg": { "back": 12, "out": 12 }, "RightLowerLeg": { "bend": 28 }, "RightFoot": "flat" } },
+    { "t": 0.1, "label": "jab", "note": "Lead hand shoots straight out; shoulder turns in behind it.", "ease": "out", "copy": "guard",
+      "pose": { "LowerTorso": { "turnR": 28, "bendFwd": 4, "moveFwd": 0.15 }, "UpperTorso": { "turnR": 22, "bendFwd": 10 }, "Head": { "turnL": 46, "bendFwd": 4 },
+        "LeftUpperArm": { "fwd": 86, "in": 22 }, "LeftLowerArm": { "bend": 6 } } },
+    { "t": 0.23, "label": "retract", "note": "Jab comes home along the same line.", "ease": "in", "copy": "guard" },
+    { "t": 0.37, "label": "cross", "note": "Rear hip and shoulder whip through, rear heel lifts and pivots.", "ease": "out", "copy": "guard",
+      "pose": { "LowerTorso": { "turnL": 12, "bendFwd": 8, "moveFwd": 0.25 }, "UpperTorso": { "turnL": 26, "bendFwd": 12 }, "Head": { "turnR": 36, "bendFwd": 2 },
+        "LeftUpperArm": { "fwd": 40, "out": 12 }, "LeftLowerArm": { "bend": 138 },
+        "RightUpperArm": { "fwd": 84, "in": 30 }, "RightLowerArm": { "bend": 6 },
+        "LeftUpperLeg": { "fwd": 34, "out": 4, "twistOut": 4 }, "LeftLowerLeg": { "bend": 38 }, "LeftFoot": "flat",
+        "RightUpperLeg": { "back": 22, "out": 4, "twistIn": 25 }, "RightLowerLeg": { "bend": 42 }, "RightFoot": { "back": 28 } } },
+    { "t": 0.5, "label": "hold", "note": "A beat of follow-through so the hit reads.", "copy": "cross",
+      "pose": { "UpperTorso": { "turnL": 30, "bendFwd": 13 }, "Head": { "turnR": 40, "bendFwd": 2 } } },
+    { "t": 0.8, "label": "recover", "copy": "guard" }
+  ],
+  "markers": [ { "t": 0.1, "name": "Hit", "value": "jab" }, { "t": 0.37, "name": "Hit", "value": "cross" } ]
+}

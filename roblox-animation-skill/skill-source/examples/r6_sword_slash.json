@@ -1,0 +1,25 @@
+{
+  "name": "R6SwordSlash", "title": "Sword slash (R6)", "rig": "R6", "priority": "Action", "loop": false,
+  "description": "Right-handed diagonal cut. Coil away from the target, then unwind the torso and let the arm arrive last.",
+  "keys": [
+    { "t": 0, "label": "guard", "note": "Blade up, left side leading.",
+      "pose": { "Torso": { "turnR": 15, "bendFwd": 4 }, "Head": { "turnL": 15 },
+        "Right Arm": { "fwd": 65, "out": 10 }, "Left Arm": { "fwd": 20, "out": 15 },
+        "Left Leg": { "fwd": 14, "out": 4 }, "Right Leg": { "back": 14, "out": 4 } } },
+    { "t": 0.2, "label": "wind-up", "note": "Anticipation: torso coils right, sword goes high over the shoulder.", "ease": "in",
+      "pose": { "Torso": { "turnR": 42, "bendBack": 6, "leanR": 5 }, "Head": { "turnL": 40 },
+        "Right Arm": { "fwd": 165, "out": 25 }, "Left Arm": { "fwd": 45, "out": 30 },
+        "Left Leg": { "fwd": 20, "out": 4 }, "Right Leg": { "back": 18, "out": 6 } } },
+    { "t": 0.33, "label": "strike", "note": "Fast segment. Hips lead, blade cuts down and across.", "ease": "out",
+      "pose": { "Torso": { "turnL": 30, "bendFwd": 16, "leanL": 4 }, "Head": { "turnR": 28, "bendBack": 8 },
+        "Right Arm": { "fwd": 50, "in": 30 }, "Left Arm": { "back": 35, "out": 25 },
+        "Left Leg": { "back": 10, "out": 4 }, "Right Leg": { "fwd": 22, "out": 4 } } },
+    { "t": 0.47, "label": "follow-through", "note": "Blade settles low across the body.",
+      "pose": { "Torso": { "turnL": 44, "bendFwd": 22, "leanL": 6 }, "Head": { "turnR": 40, "bendBack": 12 },
+        "Right Arm": { "fwd": 5, "in": 35 }, "Left Arm": { "back": 45, "out": 30 },
+        "Left Leg": { "back": 16, "out": 4 }, "Right Leg": { "fwd": 26, "out": 4 } } },
+    { "t": 0.8, "label": "recover", "copy": "guard" }
+  ],
+  "markers": [ { "t": 0.3, "name": "Hit", "value": "slash" }, { "t": 0.2, "name": "Swoosh" } ],
+  "props": [ { "type": "sword", "size": [0.14, 0.5, 3.4], "color": "#aab4c4", "at": "Right Arm", "offset": [0, -0.85, 1.9] } ]
+}

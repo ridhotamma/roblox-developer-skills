@@ -1,0 +1,25 @@
+{
+  "name": "HealAura",
+  "title": "Healing aura (loop)",
+  "description": "Looping buff around a character: a slowly turning ring at the feet, soft motes rising around the body, a few bright sparkles and a gentle green light. Welds to the HumanoidRootPart; call :Stop() when the buff ends.",
+  "duration": 2,
+  "loop": true,
+  "anchor": "character",
+  "layers": [
+    { "name": "FloorRing", "texture": "ring", "at": [0, -2.85, 0], "rate": 1.5, "orientation": "flat", "speed": 0.01,
+      "lifetime": 1.4, "size": [[0, 3], [1, 8]], "transparency": [[0, 1], [0.2, 0.35], [1, 1]],
+      "color": ["#b6ffcf", "#3fe27d"], "rotSpeed": 40, "lockedToPart": true },
+    { "name": "Motes", "texture": "glow", "rate": 14,
+      "note": "A box part around the legs; particles drift up through the body.",
+      "shape": { "type": "box", "size": [4.5, 1, 4.5] }, "at": [0, -2.3, 0], "direction": "up", "spread": [8, 8],
+      "speed": [2.2, 4], "drag": 0.3,
+      "lifetime": [1.1, 1.7], "size": [[0, 0], [0.2, 0.55, 0.2], [1, 0]], "transparency": [[0, 0.1], [0.7, 0.3], [1, 1]],
+      "color": ["#e6ffee", "#59f08f"] },
+    { "name": "Sparkles", "texture": "spark", "rate": 5,
+      "shape": { "type": "sphere", "size": [5, 6, 5], "style": "surface" }, "at": [0, 0, 0],
+      "speed": [0.2, 1], "lifetime": [0.4, 0.7], "size": [[0, 0], [0.3, 1.3, 0.4], [1, 0]], "transparency": [[0, 0], [1, 0.6]],
+      "color": "#f2fff6", "rotation": [0, 90], "rotSpeed": [-120, 120], "brightness": 1.6 },
+    { "name": "Glow", "type": "light", "at": [0, -1, 0], "color": "#62f59a", "range": 12,
+      "brightness": [[0, 1.2], [1, 2.2], [2, 1.2]] }
+  ]
+}
