@@ -24,7 +24,8 @@ Roblox offers two ways to build cars:
 | Wheels | real cylinders with physics | visual only |
 | Grip | Roblox's contact friction | an explicit tire model you tune |
 | Tuning | indirect (part friction, motor torque, spring constants tied to part mass) | real variables (torque curve, gears, grip, Hz, damping ratio) |
-| Stability at speed | wheels can jitter, bounce or clip through thin geometry | stable; only rays touch the ground |
+| Stability at speed | wheels can jitter, bounce or clip through thin geometry | stable; only casts touch the ground |
+| Kerbs and terrain | wheels catch on vertical faces | sphere casts roll over steps up to ~0.5× the wheel radius |
 | Reuse across models | spring/motor values change with part masses | spec is mass-independent |
 | Cost | many constraints per car | 4–8 raycasts per car per step |
 
@@ -99,6 +100,8 @@ lateral force = −μ × load × sin(C × atan(B × slipAngle))
 
 **Friction circle.** Drive or brake force plus lateral force can't exceed `μ × load` together: braking hard in a corner reduces cornering grip, flooring it in a RWD car mid-corner makes the rear step out. This single rule produces trail braking, power oversteer and understeer at the limit.
 
+**Slide grip.** Past the peak the curve never drops below `SlideGrip` (0.75–0.86). The plain formula falls to under half of peak grip at 30° of slip, which turns every slide into a spin; real tires keep most of their grip while sliding, which is what makes drifting possible (see drifting.md).
+
 **Low speed.** At near-zero speed slip angles become meaningless, so forces are capped to what stops the sideways or forward motion in one step (no jitter when parked).
 
 ## 7. Powertrain
@@ -140,7 +143,11 @@ rolling   = Crr × load          (RollingResistance 0.01–0.02)
 
 Typical `Cd × A` (m²): hatchback 0.65, sports car 0.62, pickup 1.45, kart 0.5. Top speed without a limiter is where drive force equals drag + rolling resistance in the best gear.
 
-## 11. What's simplified
+## 11. Sphere casts, hull and recovery
+
+Suspension uses `Workspace:Spherecast` with a sphere of 85% of the wheel radius, starting at the mount; the wheel length is the cast distance minus the radius difference. Hits on surfaces steeper than ~70° are ignored (walls are for the hull). The body's collision is a generated hull (box with rounded nose and tail cylinders, bottom at axle height, friction 0.08). Stuck assist, auto-flip, air control and `Recover()` are described in anti-stuck.md.
+
+## 12. What's simplified
 
 - No wheel spin inertia or clutch slip outside launch: drive force is limited by grip but the engine rpm follows road speed. Burnouts and wheel-spin sounds come from the `Slip` telemetry instead.
 - One slip curve and grip value per axle; no camber, toe, tire temperature or wear.

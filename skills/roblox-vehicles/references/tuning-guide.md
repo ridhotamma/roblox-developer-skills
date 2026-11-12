@@ -67,6 +67,9 @@ Change one thing at a time and drive the same corner before and after.
 | Jitters when standing still | normal raycast noise at very low speed | already capped; make sure body parts don't collide with the ground at rest (ride height) |
 | Sinks into the ground | rest length solved for wrong gravity, or Workspace.Gravity changed after build | keep gravity constant, rebuild, or raise frequency |
 | Wheels float above/below the road | wheel radius detected wrong | set `WheelRadius` attribute on the wheel |
+| Gets stuck on kerbs, trees, terrain | see anti-stuck.md | keep AutoHull on, hull friction ≤ 0.15, props in VehicleIgnore, fix kerb heights |
+| Spins out of every slide | slide grip too low | tires.slideGrip 0.8–0.86, drift stabilizer ↑ |
+| Lands on its roof after jumps | no air control | recovery.airControl 0.3–0.5 |
 
 ## 4. Arcade vs simulation
 
@@ -86,7 +89,7 @@ Arcade cars are still defined by the same variables; they're just less realistic
 
 ## 5. Setups
 
-**Drift (RWD):** frontWeight 0.50–0.52, rear grip 5–10% below front, tire shape 1.7, handbrakeGripScale 0.35, steering maxAngle 45–55 (drift cars run extra lock), plenty of mid-range torque, short gears, rollCenter 0.5. Optionally an auto-countersteer assist for keyboard players (steer target += k × rear slip angle).
+**Drift (RWD):** see drifting.md and `specs/drift_car.json`: frontWeight 0.50–0.52, rear grip 5–12% below front, slideGrip 0.82–0.88, tire shape 1.6–1.75, handbrakeGripScale 0.3–0.4, steering maxAngle 50–55, mid-range torque, short gears, countersteer 0.5–0.7, drift maxAngle 60–70, stabilizer 0.5–0.7.
 
 **Off-road / truck:** maxLength 2.2–3.0 studs, rideHeight 0.5–0.55, frequency 1.9–2.4 Hz, damping 0.3, grip 0.75–0.9, AWD 40/60, comHeight 0.75–0.9 m, low first gear for climbing.
 

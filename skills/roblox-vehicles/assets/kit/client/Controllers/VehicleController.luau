@@ -4,6 +4,10 @@
 --     come for free), plus handbrake on LeftShift / gamepad X / a touch button
 --   * runs VehicleSim every physics step (the server gave this client network ownership)
 --   * speed-dependent field of view and a small HUD: speed, gear, rpm bar
+--   * Reset (R / gamepad Y / touch button) puts the car back on its wheels, with a cooldown
+--   * drift score: points build while sliding (angle x speed), banked shortly after the slide
+--     ends; reset by a spin-out or a stuck assist. Cosmetic here: validate on the server
+--     before rewarding anything (see references/drifting.md).
 -- When the player leaves the seat the sim stops and the server takes the car back.
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -17,6 +21,8 @@ local VehicleSpecs = require(ReplicatedStorage.Shared.Vehicle.VehicleSpecs)
 local USE_MPH = false -- HUD units
 local FOV_BOOST = 14 -- extra degrees of field of view at high speed
 local FOV_BOOST_KMH = 220
+local RESET_COOLDOWN = 3
+local DRIFT_BANK_DELAY = 1.2 -- seconds after a drift ends before its points are banked
 
 local player = Players.LocalPlayer
 
@@ -32,7 +38,7 @@ local session: {
 }? = nil
 local handbrake = false
 
-local function buildHud(): (ScreenGui, TextLabel, TextLabel, Frame)
+local function buildHud(): (ScreenGui, TextLabel, TextLabel, Frame, TextLabel)
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VehicleHud"
 	gui.ResetOnSpawn = false
@@ -78,8 +84,20 @@ local function buildHud(): (ScreenGui, TextLabel, TextLabel, Frame)
 	fill.BorderSizePixel = 0
 	fill.Parent = bar
 
+	local drift = Instance.new("TextLabel")
+	drift.AnchorPoint = Vector2.new(0.5, 0)
+	drift.Position = UDim2.new(0.5, 0, 0, 90)
+	drift.Size = UDim2.fromOffset(320, 48)
+	drift.BackgroundTransparency = 1
+	drift.Font = Enum.Font.GothamBlack
+	drift.TextScaled = true
+	drift.TextColor3 = Color3.fromRGB(255, 196, 61)
+	drift.TextStrokeTransparency = 0.3
+	drift.Text = ""
+	drift.Parent = gui
+
 	gui.Parent = player:WaitForChild("PlayerGui")
-	return gui, speed, gear, fill
+	return gui, speed, gear, fill, drift
 end
 
 local function stop()
@@ -92,6 +110,7 @@ local function stop()
 	s.sim:Destroy()
 	s.gui:Destroy()
 	ContextActionService:UnbindAction("VehicleHandbrake")
+	ContextActionService:UnbindAction("VehicleReset")
 	local camera = workspace.CurrentCamera
 	if camera then
 		camera.FieldOfView = s.baseFov
@@ -107,7 +126,7 @@ local function start(seat: VehicleSeat, model: Model)
 		return
 	end
 	local camera = workspace.CurrentCamera
-	local gui, speedLabel, gearLabel, rpmFill = buildHud()
+	local gui, speedLabel, gearLabel, rpmFill, driftLabel = buildHud()
 
 	ContextActionService:BindAction("VehicleHandbrake", function(_, state)
 		handbrake = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
@@ -116,8 +135,40 @@ local function start(seat: VehicleSeat, model: Model)
 	ContextActionService:SetTitle("VehicleHandbrake", "Drift")
 	ContextActionService:SetPosition("VehicleHandbrake", UDim2.new(1, -150, 1, -150))
 
+	local lastReset = -math.huge
+	ContextActionService:BindAction("VehicleReset", function(_, state)
+		if state == Enum.UserInputState.Begin and os.clock() - lastReset >= RESET_COOLDOWN then
+			lastReset = os.clock()
+			sim:Recover()
+		end
+		return Enum.ContextActionResult.Sink
+	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonY)
+	ContextActionService:SetTitle("VehicleReset", "Reset")
+	ContextActionService:SetPosition("VehicleReset", UDim2.new(1, -230, 1, -190))
+
+	local driftPoints, bankedPoints, sinceDrift = 0, 0, 0
 	local connection = RunService.PreSimulation:Connect(function(dt)
 		local t = sim:Step(dt, { Throttle = seat.ThrottleFloat, Steer = seat.SteerFloat, Handbrake = handbrake })
+
+		-- Drift score: angle x speed while sliding; a spin-out (way past the max angle) or a
+		-- stuck assist loses the current drift, a clean exit banks it.
+		if t.Drifting then
+			sinceDrift = 0
+			driftPoints += math.abs(t.DriftAngle) * math.abs(t.SpeedKmh) * dt * 0.05
+			if math.abs(t.DriftAngle) > spec.Drift.MaxAngle + 25 or t.Stuck then
+				driftPoints = 0
+			end
+		elseif driftPoints > 0 then
+			sinceDrift += dt
+			if sinceDrift >= DRIFT_BANK_DELAY then
+				bankedPoints += math.floor(driftPoints)
+				driftPoints = 0
+			end
+		end
+		driftLabel.Text = if driftPoints >= 1
+			then `DRIFT +{math.floor(driftPoints)}`
+			elseif bankedPoints > 0 then `{bankedPoints} pts`
+			else ""
 		local kmh = math.abs(t.SpeedKmh)
 		speedLabel.Text = if USE_MPH then `{math.floor(kmh / 1.609)} mph` else `{math.floor(kmh)} km/h`
 		gearLabel.Text = if t.Gear < 0 then "R" else tostring(t.Gear)

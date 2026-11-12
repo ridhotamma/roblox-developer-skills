@@ -21,6 +21,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local PhysicsService = game:GetService("PhysicsService")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
@@ -32,6 +33,9 @@ local TAG = "Vehicle"
 local WHEEL_PATTERN = "^Wheel([FR])([LR])(%d*)$"
 local SLEEP_AFTER = 2 -- seconds settled before a parked car is anchored
 local SPEED_MARGIN = 1.35 -- flag drivers going this much over the spec's top speed
+local COLLISION_GROUP = "VehicleHull"
+local IGNORE_GROUP = "VehicleIgnore"
+
 
 -- Optional: roblox-security's Sanctions for implausible speeds.
 local securityFolder = script.Parent.Parent:FindFirstChild("Security")
@@ -98,6 +102,67 @@ local function findWheels(model: Model): { { instance: Instance, front: boolean,
 	return wheels
 end
 
+-- Collision groups: vehicle hulls ignore anything in "VehicleIgnore" (grass, flowers, small
+-- rocks, bushes, debris) for both collisions and suspension casts.
+local function ensureCollisionGroups()
+	for _, group in { COLLISION_GROUP, IGNORE_GROUP } do
+		if not PhysicsService:IsCollisionGroupRegistered(group) then
+			PhysicsService:RegisterCollisionGroup(group)
+		end
+	end
+	PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, IGNORE_GROUP, false)
+end
+
+-- Invisible collision hull in the root's space: a box between rounded nose and tail cylinders,
+-- with its bottom no lower than the axles.
+local function buildHull(root: BasePart, minCorner: Vector3, maxCorner: Vector3, axleY: number, friction: number)
+	local bottom = math.max(minCorner.Y, axleY)
+	local top = math.max(maxCorner.Y, bottom + 1)
+	local height = top - bottom
+	local width = math.max(maxCorner.X - minCorner.X, 1)
+	local length = math.max(maxCorner.Z - minCorner.Z, 2)
+	local radius = math.min(height / 2, length / 4)
+	local centerX = (minCorner.X + maxCorner.X) / 2
+	local centerZ = (minCorner.Z + maxCorner.Z) / 2
+	local physics = PhysicalProperties.new(0.7, friction, 0.05, 100, 1) -- friction weight 100: ours wins
+
+	local function hullPart(name: string, shape: Enum.PartType, size: Vector3, offset: Vector3)
+		local part = Instance.new("Part")
+		part.Name = name
+		part.Shape = shape
+		part.Size = size
+		part.CFrame = root.CFrame * CFrame.new(offset)
+		part.Transparency = 1
+		part.CanCollide = true
+		part.CanQuery = false
+		part.CanTouch = false
+		part.Massless = true
+		part.CustomPhysicalProperties = physics
+		part.CollisionGroup = COLLISION_GROUP
+		part.Parent = root.Parent
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = part
+		weld.Parent = root
+	end
+
+	hullPart(
+		"HullBody",
+		Enum.PartType.Block,
+		Vector3.new(width, height, math.max(length - 2 * radius, 0.5)),
+		Vector3.new(centerX, bottom + height / 2, centerZ)
+	)
+	-- Cylinders lie along X (the car's width): rounded lower edges at the nose (-Z) and tail (+Z).
+	for _, z in { minCorner.Z + radius, maxCorner.Z - radius } do
+		hullPart(
+			"HullEnd",
+			Enum.PartType.Cylinder,
+			Vector3.new(width, radius * 2, radius * 2),
+			Vector3.new(centerX, bottom + radius, z)
+		)
+	end
+end
+
 local function build(model: Model, spec: any): boolean
 	local wheels = findWheels(model)
 	local fronts, rears = 0, 0
@@ -153,6 +218,7 @@ local function build(model: Model, spec: any): boolean
 	root.CanQuery = false
 	root.CanTouch = false
 	root.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5)
+	root.CollisionGroup = COLLISION_GROUP -- VehicleSim's casts use this group's rules
 	root.Parent = model
 
 	-- Body: weld to the root, massless, so the root alone defines mass and inertia.
@@ -180,6 +246,13 @@ local function build(model: Model, spec: any): boolean
 			end
 		end
 	end
+	-- Never stuck, the body side: detailed meshes snag on kerbs, roots and terrain ridges. Unless
+	-- the model opts out (attribute KeepCollision = true), the body stops colliding and a hidden
+	-- hull takes over: bottom at axle height (clearance), rounded nose and tail (ride over and
+	-- deflect off things), very low friction (scrape along walls and trees instead of grabbing).
+	local autoHull = spec.Body.AutoHull and model:GetAttribute("KeepCollision") ~= true
+	local minCorner = Vector3.one * math.huge
+	local maxCorner = -Vector3.one * math.huge
 	for _, d in model:GetDescendants() do
 		if d:IsA("BasePart") and d ~= root then
 			if inWheel(d) then
@@ -187,12 +260,33 @@ local function build(model: Model, spec: any): boolean
 			else
 				d.Anchored = false
 				d.Massless = true
+				d.CollisionGroup = COLLISION_GROUP
+				if autoHull then
+					d.CanCollide = false
+					for _, sx in { -0.5, 0.5 } do
+						for _, sy in { -0.5, 0.5 } do
+							for _, sz in { -0.5, 0.5 } do
+								local world = (d.CFrame * CFrame.new(d.Size * Vector3.new(sx, sy, sz))).Position
+								local corner = root.CFrame:PointToObjectSpace(world)
+								minCorner = minCorner:Min(corner)
+								maxCorner = maxCorner:Max(corner)
+							end
+						end
+					end
+				end
 				local weld = Instance.new("WeldConstraint")
 				weld.Part0 = root
 				weld.Part1 = d
 				weld.Parent = root
 			end
 		end
+	end
+	if autoHull and minCorner.X < math.huge then
+		local axleY = 0
+		for _, w in wheels do
+			axleY += root.CFrame:PointToObjectSpace(centerOf(w.instance)).Y / #wheels
+		end
+		buildHull(root, minCorner, maxCorner, axleY, spec.Body.HullFriction)
 	end
 
 	-- Suspension mounts and tire contacts per wheel.
@@ -250,6 +344,14 @@ local function build(model: Model, spec: any): boolean
 	aero.ApplyAtCenterOfMass = true
 	aero.Force = Vector3.zero
 	aero.Parent = aeroAttachment
+
+	-- Air control: VehicleSim levels the car with this while all wheels are off the ground.
+	local stabilizer = Instance.new("Torque")
+	stabilizer.Name = "Stabilizer"
+	stabilizer.Attachment0 = aeroAttachment
+	stabilizer.RelativeTo = Enum.ActuatorRelativeTo.World
+	stabilizer.Torque = Vector3.zero
+	stabilizer.Parent = aeroAttachment
 
 	model.PrimaryPart = root
 	model:SetAttribute("ChassisBuilt", true)
@@ -350,6 +452,10 @@ function VehicleService:Spawn(name: string, cframe: CFrame, parent: Instance?): 
 	CollectionService:AddTag(model, TAG)
 	model.Parent = parent or workspace
 	return model
+end
+
+function VehicleService:Init()
+	ensureCollisionGroups()
 end
 
 function VehicleService:Start()

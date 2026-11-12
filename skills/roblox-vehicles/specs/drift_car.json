@@ -1,0 +1,91 @@
+{
+  "name": "DriftCar",
+  "title": "Rear-drive drift build, 2.0 L turbo",
+  "mass": 1250,
+  "frontWeight": 0.52,
+  "comHeight": 0.47,
+  "wheelbase": 2.47,
+  "wheelRadius": 0.32,
+  "drivetrain": "RWD",
+  "engine": {
+    "idleRpm": 950,
+    "redlineRpm": 8000,
+    "launchRpm": 4000,
+    "efficiency": 0.88,
+    "speedLimitKmh": 0,
+    "torqueCurve": [
+      [
+        1000,
+        220
+      ],
+      [
+        3000,
+        380
+      ],
+      [
+        5500,
+        420
+      ],
+      [
+        7000,
+        380
+      ],
+      [
+        8000,
+        320
+      ]
+    ]
+  },
+  "gearbox": {
+    "ratios": [
+      3.32,
+      1.9,
+      1.31,
+      1.0,
+      0.8
+    ],
+    "reverse": 3.1,
+    "finalDrive": 4.8,
+    "shiftUpRpm": 7700,
+    "shiftDownRpm": 4200,
+    "shiftTime": 0.15
+  },
+  "brakes": {
+    "decelG": 1.05,
+    "frontBias": 0.6,
+    "handbrakeGripScale": 0.3
+  },
+  "steering": {
+    "maxAngle": 52,
+    "speed": 6,
+    "highSpeedScale": 0.45,
+    "highSpeedKmh": 160
+  },
+  "tires": {
+    "gripFront": 1.05,
+    "gripRear": 0.95,
+    "stiffness": 9,
+    "shape": 1.7,
+    "slideGrip": 0.86,
+    "rollingResistance": 0.012
+  },
+  "suspension": {
+    "frequencyFront": 3.0,
+    "frequencyRear": 2.8,
+    "dampingRatio": 0.4,
+    "maxLength": 1.3,
+    "rideHeight": 0.6,
+    "antiRoll": 0.5,
+    "rollCenter": 0.55
+  },
+  "drift": {
+    "countersteer": 0.6,
+    "maxAngle": 65,
+    "stabilizer": 0.6
+  },
+  "aero": {
+    "cd": 0.33,
+    "area": 1.95,
+    "downforceCl": 0.1
+  }
+}

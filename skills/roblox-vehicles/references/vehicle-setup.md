@@ -37,7 +37,8 @@ SportsCarBlue (Model)              attribute Vehicle = "SportsCar", tag "Vehicle
 - Body parts can be anchored or welded already: the builder unanchors them, welds each to `ChassisRoot`, and makes them massless. Joints between body and wheels are removed (wheels become visuals).
 - Don't use constraint-based wheels (hinges, cylindrical constraints): remove them; the wheels are only visuals here.
 - Keep body collision boxes simple (`CollisionFidelity = Box` or `Hull` on big meshes) for performance and fewer snags.
-- Optional attributes on the model: `EngineSound` (`rbxassetid://...` looping engine sample).
+- Optional attributes on the model: `EngineSound` and `TireSound` (`rbxassetid://...` loops), `KeepCollision = true` to keep the body's own collision instead of the generated hull (must then pass the stuck test course in anti-stuck.md).
+- Body collision is replaced by a hidden rounded hull (`HullBody`, `HullEnd` parts) unless `KeepCollision` is set; body parts end up `CanCollide = false`.
 
 ## 2. Reusing one chassis across many meshes
 
@@ -102,8 +103,9 @@ VehicleSeat input is digital on keyboard (−1, 0, 1); the sim's steering speed 
 
 ## 10. Effects
 
-- **Skid marks**: when a wheel's slip > 0.9, place thin dark parts or a `Trail` between two attachments at the contact point; fade and cap the count.
-- **Tire smoke**: a ParticleEmitter at each rear contact, `Rate` from slip (opaque smoke; see the `roblox-vfx` skill's smoke recipes).
+Tire smoke, skid marks and tire squeal are built into `VehicleVisuals` (drifting.md §6). The rest below are ideas to add.
+
+
 - **Exhaust**: small smoke puffs with rate from throttle; flame pops on lift-off at high rpm.
 - **Brake lights**: a `SurfaceLight`/neon part enabled when braking (seat throttle opposite to motion).
 - **Dust**: on dirt materials, a dust emitter at contacts by speed.
@@ -131,7 +133,8 @@ The driver's client owns the car's physics, so it can move it anywhere. The kit'
 | Problem | Check |
 |---|---|
 | Nothing happens when sitting | Model tagged `Vehicle`? `Vehicle` attribute matches a spec? Output shows `[VehicleService]` warnings? Seat is a `VehicleSeat`? |
-| Car falls through or sinks | Wheels named correctly (four found)? Ground parts `CanCollide` and `CanQuery` on? |
+| Car falls through or sinks | Wheels named correctly (four found)? Ground parts `CanCollide` and `CanQuery` on, and not in `VehicleIgnore`? |
+| Gets stuck somewhere | anti-stuck.md: is the hull on, the spot's kerb/prop/terrain within the map rules? |
 | Car flies or explodes on spawn | Body parts intersecting the ground at spawn; spawn higher. A huge wheel radius from a misleading mesh: set `WheelRadius`. |
 | Drives backwards / sideways | Front wheels are named `WheelF*`? (Forward is rear → front.) |
 | Wheels left behind | They're visuals updated by `VehicleVisuals`: is the component bound (client components folder, Loader)? |

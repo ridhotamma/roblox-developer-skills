@@ -33,7 +33,10 @@ const DEFAULTS = {
   gearbox: { ratios: [3.5, 2.0, 1.4, 1.05, 0.85], reverse: 3.3, finalDrive: 3.9, shiftUpRpm: 6000, shiftDownRpm: 2800, shiftTime: 0.25 },
   brakes: { decelG: 1.0, frontBias: 0.65, handbrakeGripScale: 0.5 },
   steering: { maxAngle: 34, speed: 4, highSpeedScale: 0.4, highSpeedKmh: 160 },
-  tires: { gripFront: 1.0, gripRear: 1.0, stiffness: 10, shape: 1.9, rollingResistance: 0.013 },
+  tires: { gripFront: 1.0, gripRear: 1.0, stiffness: 10, shape: 1.9, slideGrip: 0.8, rollingResistance: 0.013 },
+  drift: { countersteer: 0.15, maxAngle: 50, stabilizer: 0.5 },
+  recovery: { airControl: 0.3, autoFlip: true, stuckAssist: true },
+  body: { autoHull: true, hullFriction: 0.08 },
   suspension: { frequencyFront: 2.4, frequencyRear: 2.6, dampingRatio: 0.35, maxLength: 1.6, rideHeight: 0.6, antiRoll: 0.3, rollCenter: 0.5 },
   aero: { cd: 0.32, area: 2.1, downforceCl: 0 },
 };
@@ -60,6 +63,9 @@ function normalize(raw) {
   if (s.engine.redlineRpm <= s.engine.idleRpm) errors.push('engine.redlineRpm must be above idleRpm');
   for (const [k, v] of [['mass', s.mass], ['wheelRadius', s.wheelRadius], ['comHeight', s.comHeight]]) if (!(v > 0)) errors.push(`${k} must be positive`);
   if (!(s.frontWeight > 0 && s.frontWeight < 1)) errors.push('frontWeight must be between 0 and 1');
+  if (!(s.tires.slideGrip >= 0 && s.tires.slideGrip <= 1)) errors.push('tires.slideGrip must be between 0 and 1');
+  if (!(s.drift.countersteer >= 0 && s.drift.countersteer <= 1)) errors.push('drift.countersteer must be between 0 and 1');
+  if (!(s.recovery.airControl >= 0 && s.recovery.airControl <= 1)) errors.push('recovery.airControl must be between 0 and 1');
   if (errors.length) throw new Error(`${s.name || '(unnamed)'}: ${errors.join('; ')}`);
   return s;
 }
@@ -220,11 +226,14 @@ function report(s) {
   }
   if (s.suspension.dampingRatio < 0.2) warnings.push('dampingRatio below 0.2 bounces; 0.25-0.45 is typical');
   if (s.suspension.dampingRatio > 0.8) warnings.push('dampingRatio above 0.8 feels stiff and skips over bumps');
+  if (s.tires.slideGrip < 0.6) warnings.push('tires.slideGrip below 0.6: slides collapse into spins; 0.75-0.85 keeps drifts controllable');
+  if (!s.body.autoHull) warnings.push('body.autoHull is off: the detailed body mesh collides with the world and can snag on curbs and trees');
+  if (s.body.hullFriction > 0.3) warnings.push('body.hullFriction above 0.3: scraping walls and trees will grab and stop the car');
   const lowGearTop = gearSpeeds[0];
   if (lowGearTop < 25) warnings.push(`1st gear tops out at ${lowGearTop.toFixed(0)} km/h: very short, the car will shift almost immediately`);
   if (top.limiter.startsWith('redline') && top.kmh < gearSpeeds[gearSpeeds.length - 1] - 1) warnings.push('top speed limited by redline: a taller top gear or final drive would go faster');
   const powerToWeight = (p.kw * 1000) / s.mass;
-  return { name: s.name, title: s.title, peakKw: p.kw, peakHp: p.kw * 1.341, peakRpm: p.rpm, powerToWeight, launch, top, brake, gearSpeeds, susp, lateralG: (s.tires.gripFront + s.tires.gripRear) / 2, warnings };
+  return { name: s.name, title: s.title, peakKw: p.kw, peakHp: p.kw * 1.341, peakRpm: p.rpm, powerToWeight, launch, top, brake, gearSpeeds, susp, lateralG: (s.tires.gripFront + s.tires.gripRear) / 2, slideGrip: s.tires.slideGrip, countersteer: s.drift.countersteer, driftMaxAngle: s.drift.maxAngle, warnings };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -242,6 +251,7 @@ function printReport(r) {
   lines.push(`  cornering    ~${f(r.lateralG, 2)} g on flat ground (more with downforce)`);
   lines.push(`  gear tops    ${r.gearSpeeds.map((v, i) => `${i + 1}:${f(v, 0)}`).join('  ')} km/h at redline`);
   lines.push(`  suspension   front ${f(r.susp.front.frequency, 1)} Hz sag ${f(r.susp.front.sagStuds, 2)} / bump ${f(r.susp.front.bumpTravelStuds, 2)} studs · rear ${f(r.susp.rear.frequency, 1)} Hz sag ${f(r.susp.rear.sagStuds, 2)} / bump ${f(r.susp.rear.bumpTravelStuds, 2)} studs`);
+  lines.push(`  handling     slide grip ${f(r.slideGrip, 2)} · countersteer assist ${f(r.countersteer, 2)} · stabilizer past ${r.driftMaxAngle}°`);
   for (const w of r.warnings) lines.push(`  WARN ${w}`);
   return lines.join('\n');
 }

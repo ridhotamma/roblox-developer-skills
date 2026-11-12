@@ -42,6 +42,9 @@ check('rejects bad name', bad({ name: '1x' }, 'identifier'));
 check('rejects increasing gear ratios', bad({ name: 'X', gearbox: { ratios: [1, 2] } }, 'must decrease'));
 check('rejects unknown drivetrain', bad({ name: 'X', drivetrain: '4WD' }, 'FWD, RWD or AWD'));
 check('rejects unsorted torque curve', bad({ name: 'X', engine: { torqueCurve: [[3000, 100], [1000, 90]] } }, 'must increase'));
+check('rejects slideGrip out of range', bad({ name: 'X', tires: { slideGrip: 1.5 } }, 'slideGrip'));
+check('warns when the auto hull is off', R.report(R.normalize({ name: 'H', body: { autoHull: false } })).warnings.some((w) => w.includes('autoHull')));
+check('warns on grabby hull friction', R.report(R.normalize({ name: 'F', body: { hullFriction: 0.6 } })).warnings.some((w) => w.includes('hullFriction')));
 
 // Bundled specs land in realistic ranges for their class.
 const specsDir = path.join(__dirname, '..', 'specs');
@@ -52,6 +55,7 @@ const expect = {
   SportsCar: { t100: [3.5, 5], top: [270, 300], brake: [30, 38] },
   PickupTruck: { t100: [5.5, 8.5], top: [160, 200], brake: [40, 50] },
   Kart: { t60kmh: [3, 6.5], top: [70, 100], brake: [25, 40] },
+  DriftCar: { t100: [4, 6], top: [230, 270], brake: [32, 40] },
 };
 for (const [name, e] of Object.entries(expect)) {
   const r = byName[name];

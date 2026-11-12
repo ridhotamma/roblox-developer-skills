@@ -58,7 +58,8 @@
     "gripRear": 1.25,
     "stiffness": 13,
     "shape": 1.8,
-    "rollingResistance": 0.02
+    "rollingResistance": 0.02,
+    "slideGrip": 0.85
   },
   "suspension": {
     "frequencyFront": 3.5,
@@ -72,5 +73,15 @@
     "cd": 0.8,
     "area": 0.6,
     "downforceCl": 0
+  },
+  "drift": {
+    "countersteer": 0.45,
+    "maxAngle": 60,
+    "stabilizer": 0.4
+  },
+  "recovery": {
+    "airControl": 0.5,
+    "autoFlip": true,
+    "stuckAssist": true
   }
 }

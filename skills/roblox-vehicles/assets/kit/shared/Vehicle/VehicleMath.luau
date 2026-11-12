@@ -104,9 +104,16 @@ end
 
 -- Normalised lateral tire force (-1..1) for a slip angle in radians: a simplified Pacejka
 -- "magic formula" sin(C * atan(B * slip)). B (stiffness) sets how fast grip builds; C (shape)
--- how it falls off past the peak, which is what makes slides catchable or snappy.
-function VehicleMath.TireCurve(slipAngle: number, stiffness: number, shape: number): number
-	return math.sin(shape * math.atan(stiffness * slipAngle))
+-- how it falls off past the peak. Past the peak the force never drops below `slideGrip`:
+-- real tires keep most of their grip while sliding, which is what makes drifts holdable
+-- instead of collapsing into a spin.
+function VehicleMath.TireCurve(slipAngle: number, stiffness: number, shape: number, slideGrip: number): number
+	local x = shape * math.atan(stiffness * math.abs(slipAngle))
+	local force = math.sin(x)
+	if x > math.pi / 2 then
+		force = math.max(force, slideGrip)
+	end
+	return if slipAngle < 0 then -force else force
 end
 
 -- Spring rate and damping (Roblox units) for a corner mass and natural frequency.

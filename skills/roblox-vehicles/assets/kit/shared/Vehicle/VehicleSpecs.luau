@@ -5,6 +5,84 @@
 -- angles degrees, frequency Hz. Everything performance-related is independent of the mesh.
 
 return table.freeze({
+	DriftCar = table.freeze({
+		Title = "Rear-drive drift build, 2.0 L turbo",
+		Mass = 1250,
+		FrontWeight = 0.52,
+		ComHeight = 0.47,
+		WheelRadius = 0.32,
+		Drivetrain = "RWD",
+		AwdFrontSplit = 0.4,
+		Engine = table.freeze({
+			IdleRpm = 950,
+			RedlineRpm = 8000,
+			LaunchRpm = 4000,
+			Efficiency = 0.88,
+			SpeedLimitKmh = 0,
+			TorqueCurve = table.freeze({
+				table.freeze({ 1000, 220 }),
+				table.freeze({ 3000, 380 }),
+				table.freeze({ 5500, 420 }),
+				table.freeze({ 7000, 380 }),
+				table.freeze({ 8000, 320 }),
+			}),
+		}),
+		Gearbox = table.freeze({
+			Ratios = table.freeze({ 3.32, 1.9, 1.31, 1, 0.8 }),
+			Reverse = 3.1,
+			FinalDrive = 4.8,
+			ShiftUpRpm = 7700,
+			ShiftDownRpm = 4200,
+			ShiftTime = 0.15,
+		}),
+		Brakes = table.freeze({
+			DecelG = 1.05,
+			FrontBias = 0.6,
+			HandbrakeGripScale = 0.3,
+		}),
+		Steering = table.freeze({
+			MaxAngle = 52,
+			Speed = 6,
+			HighSpeedScale = 0.45,
+			HighSpeedKmh = 160,
+		}),
+		Tires = table.freeze({
+			GripFront = 1.05,
+			GripRear = 0.95,
+			Stiffness = 9,
+			Shape = 1.7,
+			SlideGrip = 0.86,
+			RollingResistance = 0.012,
+		}),
+		Drift = table.freeze({
+			Countersteer = 0.6,
+			MaxAngle = 65,
+			Stabilizer = 0.6,
+		}),
+		Recovery = table.freeze({
+			AirControl = 0.3,
+			AutoFlip = true,
+			StuckAssist = true,
+		}),
+		Body = table.freeze({
+			AutoHull = true,
+			HullFriction = 0.08,
+		}),
+		Suspension = table.freeze({
+			FrequencyFront = 3,
+			FrequencyRear = 2.8,
+			DampingRatio = 0.4,
+			MaxLength = 1.3,
+			RideHeight = 0.6,
+			AntiRoll = 0.5,
+			RollCenter = 0.55,
+		}),
+		Aero = table.freeze({
+			Cd = 0.33,
+			Area = 1.95,
+			DownforceCl = 0.1,
+		}),
+	}),
 	Hatchback = table.freeze({
 		Title = "Front-drive city hatchback, 1.6 L",
 		Mass = 1200,
@@ -51,7 +129,22 @@ return table.freeze({
 			GripRear = 0.95,
 			Stiffness = 9,
 			Shape = 1.9,
+			SlideGrip = 0.78,
 			RollingResistance = 0.012,
+		}),
+		Drift = table.freeze({
+			Countersteer = 0.15,
+			MaxAngle = 40,
+			Stabilizer = 0.6,
+		}),
+		Recovery = table.freeze({
+			AirControl = 0.3,
+			AutoFlip = true,
+			StuckAssist = true,
+		}),
+		Body = table.freeze({
+			AutoHull = true,
+			HullFriction = 0.08,
 		}),
 		Suspension = table.freeze({
 			FrequencyFront = 2.5,
@@ -113,7 +206,22 @@ return table.freeze({
 			GripRear = 1.25,
 			Stiffness = 13,
 			Shape = 1.8,
+			SlideGrip = 0.85,
 			RollingResistance = 0.02,
+		}),
+		Drift = table.freeze({
+			Countersteer = 0.45,
+			MaxAngle = 60,
+			Stabilizer = 0.4,
+		}),
+		Recovery = table.freeze({
+			AirControl = 0.5,
+			AutoFlip = true,
+			StuckAssist = true,
+		}),
+		Body = table.freeze({
+			AutoHull = true,
+			HullFriction = 0.08,
 		}),
 		Suspension = table.freeze({
 			FrequencyFront = 3.5,
@@ -176,7 +284,22 @@ return table.freeze({
 			GripRear = 0.85,
 			Stiffness = 8,
 			Shape = 1.8,
+			SlideGrip = 0.75,
 			RollingResistance = 0.016,
+		}),
+		Drift = table.freeze({
+			Countersteer = 0.15,
+			MaxAngle = 40,
+			Stabilizer = 0.7,
+		}),
+		Recovery = table.freeze({
+			AirControl = 0.4,
+			AutoFlip = true,
+			StuckAssist = true,
+		}),
+		Body = table.freeze({
+			AutoHull = true,
+			HullFriction = 0.08,
 		}),
 		Suspension = table.freeze({
 			FrequencyFront = 2.3,
@@ -239,7 +362,22 @@ return table.freeze({
 			GripRear = 1.15,
 			Stiffness = 11,
 			Shape = 1.9,
+			SlideGrip = 0.82,
 			RollingResistance = 0.011,
+		}),
+		Drift = table.freeze({
+			Countersteer = 0.3,
+			MaxAngle = 55,
+			Stabilizer = 0.5,
+		}),
+		Recovery = table.freeze({
+			AirControl = 0.3,
+			AutoFlip = true,
+			StuckAssist = true,
+		}),
+		Body = table.freeze({
+			AutoHull = true,
+			HullFriction = 0.08,
 		}),
 		Suspension = table.freeze({
 			FrequencyFront = 2.9,
