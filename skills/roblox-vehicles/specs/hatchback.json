@@ -1,0 +1,84 @@
+{
+  "name": "Hatchback",
+  "title": "Front-drive city hatchback, 1.6 L",
+  "mass": 1200,
+  "frontWeight": 0.61,
+  "comHeight": 0.52,
+  "wheelbase": 2.55,
+  "wheelRadius": 0.31,
+  "drivetrain": "FWD",
+  "engine": {
+    "idleRpm": 850,
+    "redlineRpm": 6500,
+    "launchRpm": 2600,
+    "efficiency": 0.86,
+    "torqueCurve": [
+      [
+        1000,
+        110
+      ],
+      [
+        2500,
+        145
+      ],
+      [
+        4000,
+        158
+      ],
+      [
+        5500,
+        150
+      ],
+      [
+        6500,
+        128
+      ]
+    ],
+    "speedLimitKmh": 0
+  },
+  "gearbox": {
+    "ratios": [
+      3.55,
+      1.95,
+      1.34,
+      1.03,
+      0.82
+    ],
+    "reverse": 3.4,
+    "finalDrive": 4.06,
+    "shiftUpRpm": 6100,
+    "shiftDownRpm": 2600,
+    "shiftTime": 0.3
+  },
+  "brakes": {
+    "decelG": 0.95,
+    "frontBias": 0.68,
+    "handbrakeGripScale": 0.55
+  },
+  "steering": {
+    "maxAngle": 36,
+    "speed": 4,
+    "highSpeedScale": 0.4,
+    "highSpeedKmh": 150
+  },
+  "tires": {
+    "gripFront": 0.95,
+    "gripRear": 0.95,
+    "stiffness": 9,
+    "shape": 1.9,
+    "rollingResistance": 0.012
+  },
+  "suspension": {
+    "frequencyFront": 2.5,
+    "frequencyRear": 2.7,
+    "dampingRatio": 0.32,
+    "maxLength": 1.7,
+    "rideHeight": 0.6,
+    "antiRoll": 0.3
+  },
+  "aero": {
+    "cd": 0.31,
+    "area": 2.15,
+    "downforceCl": 0
+  }
+}

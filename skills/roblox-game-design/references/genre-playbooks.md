@@ -90,7 +90,7 @@ Each playbook: **fantasy · core loop · first 60 s · what keeps them · pitfal
 - **Core loop**: race/drive → earn → buy/upgrade vehicles → faster/new tracks.
 - **First 60 s**: in a car and moving within 10 s; a short race or driving challenge; vehicle handling that feels good on touch.
 - **Keeps them**: vehicle collection and customization, time trials and leaderboards, friends.
-- **Pitfalls**: physics jank (network ownership to the driver, tuned suspension), bad touch controls, long walks to the garage.
+- **Pitfalls**: physics jank (network ownership to the driver, tuned suspension; the `roblox-vehicles` skill covers both), bad touch controls, long walks to the garage.
 
 ## Minigames / party
 

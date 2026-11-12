@@ -1,0 +1,90 @@
+{
+  "name": "PickupTruck",
+  "title": "Four-wheel-drive pickup, 5.0 L V8",
+  "mass": 2300,
+  "frontWeight": 0.57,
+  "comHeight": 0.78,
+  "wheelbase": 3.7,
+  "wheelRadius": 0.41,
+  "drivetrain": "AWD",
+  "awdFrontSplit": 0.4,
+  "engine": {
+    "idleRpm": 650,
+    "redlineRpm": 6000,
+    "launchRpm": 2200,
+    "efficiency": 0.82,
+    "torqueCurve": [
+      [
+        1000,
+        380
+      ],
+      [
+        2500,
+        480
+      ],
+      [
+        4000,
+        540
+      ],
+      [
+        5000,
+        520
+      ],
+      [
+        6000,
+        450
+      ]
+    ],
+    "speedLimitKmh": 180
+  },
+  "gearbox": {
+    "ratios": [
+      4.7,
+      2.99,
+      2.15,
+      1.77,
+      1.52,
+      1.28,
+      1.0,
+      0.85,
+      0.69,
+      0.64
+    ],
+    "reverse": 4.87,
+    "finalDrive": 3.55,
+    "shiftUpRpm": 5600,
+    "shiftDownRpm": 2000,
+    "shiftTime": 0.25
+  },
+  "brakes": {
+    "decelG": 0.85,
+    "frontBias": 0.7,
+    "handbrakeGripScale": 0.6
+  },
+  "steering": {
+    "maxAngle": 38,
+    "speed": 3,
+    "highSpeedScale": 0.45,
+    "highSpeedKmh": 140
+  },
+  "tires": {
+    "gripFront": 0.85,
+    "gripRear": 0.85,
+    "stiffness": 8,
+    "shape": 1.8,
+    "rollingResistance": 0.016
+  },
+  "suspension": {
+    "frequencyFront": 2.3,
+    "frequencyRear": 2.5,
+    "dampingRatio": 0.3,
+    "maxLength": 2.4,
+    "rideHeight": 0.55,
+    "antiRoll": 0.25
+  },
+  "aero": {
+    "cd": 0.45,
+    "area": 3.2,
+    "downforceCl": 0
+  }
+}

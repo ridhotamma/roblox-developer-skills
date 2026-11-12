@@ -10,6 +10,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | [roblox-project-structure](skills/roblox-project-structure/) | A studio-style codebase: Rojo / Wally / Rokit project scaffold, architecture guidance and audits of existing games |
 | [roblox-game-design](skills/roblox-game-design/) | Game design docs, hooks and onboarding, core loops, progression, level design and playtest plans |
 | [roblox-game-research](skills/roblox-game-research/) | Live Roblox chart and game data, teardowns of viral and top-earning games, and an original game brief with a monetization plan |
+| [roblox-vehicles](skills/roblox-vehicles/) | Reusable raycast-suspension car chassis driven by real-life specs (torque curve, gears, brakes, grip, suspension), a performance report tool and a Luau kit |
 | [roblox-security](skills/roblox-security/) | Anti-exploit and anti-cheat: secure remotes, a server-side anti-cheat kit, and a scanner for backdoors and exploitable code |
 
 ## Install

@@ -37,7 +37,7 @@ Run on the server, every 0.25–0.5 s per player (kit: `AntiCheatService`). For 
 
 On a failed check: flag with a weight, and **rubber-band** (move the character back to the last valid position and zero its velocity). Rubber-banding alone removes the advantage even before any kick, and it's harmless to an honest player who was lagging.
 
-Seated players (vehicles, seats) are skipped or checked against the vehicle's max speed.
+Seated players (vehicles, seats) are skipped or checked against the vehicle's max speed (the `roblox-vehicles` skill's VehicleService does that check against each car's spec).
 
 ## 3. False positives and how to avoid them
 

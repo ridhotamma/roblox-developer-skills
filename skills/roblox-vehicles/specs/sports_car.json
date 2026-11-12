@@ -1,0 +1,85 @@
+{
+  "name": "SportsCar",
+  "title": "Rear-drive sports coupe, 3.0 L turbo",
+  "mass": 1450,
+  "frontWeight": 0.5,
+  "comHeight": 0.46,
+  "wheelbase": 2.45,
+  "wheelRadius": 0.34,
+  "drivetrain": "RWD",
+  "engine": {
+    "idleRpm": 900,
+    "redlineRpm": 7200,
+    "launchRpm": 3500,
+    "efficiency": 0.88,
+    "torqueCurve": [
+      [
+        1000,
+        300
+      ],
+      [
+        1800,
+        500
+      ],
+      [
+        5000,
+        510
+      ],
+      [
+        6500,
+        450
+      ],
+      [
+        7200,
+        400
+      ]
+    ],
+    "speedLimitKmh": 290
+  },
+  "gearbox": {
+    "ratios": [
+      3.83,
+      2.36,
+      1.69,
+      1.31,
+      1.0,
+      0.84
+    ],
+    "reverse": 3.6,
+    "finalDrive": 3.46,
+    "shiftUpRpm": 6900,
+    "shiftDownRpm": 3600,
+    "shiftTime": 0.15
+  },
+  "brakes": {
+    "decelG": 1.15,
+    "frontBias": 0.62,
+    "handbrakeGripScale": 0.4
+  },
+  "steering": {
+    "maxAngle": 32,
+    "speed": 5,
+    "highSpeedScale": 0.3,
+    "highSpeedKmh": 200
+  },
+  "tires": {
+    "gripFront": 1.12,
+    "gripRear": 1.15,
+    "stiffness": 11,
+    "shape": 1.9,
+    "rollingResistance": 0.011
+  },
+  "suspension": {
+    "frequencyFront": 2.9,
+    "frequencyRear": 3.1,
+    "dampingRatio": 0.4,
+    "maxLength": 1.3,
+    "rideHeight": 0.6,
+    "antiRoll": 0.5
+  },
+  "aero": {
+    "cd": 0.32,
+    "area": 2.0,
+    "downforceCl": 0.25
+  }
+}
