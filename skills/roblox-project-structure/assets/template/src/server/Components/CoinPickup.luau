@@ -9,6 +9,10 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local CurrencyService = require(ServerScriptService.Server.Services.CurrencyService)
 local GameConfig = require(ReplicatedStorage.Shared.Config.GameConfig)
 
+-- Studs between the character's root and the coin's surface still counted as a touch
+-- (character half-width plus latency slack).
+local MAX_TOUCH_DISTANCE = 6
+
 local function setup(instance: Instance, trove: any)
 	if not instance:IsA("BasePart") then
 		warn(`CoinPickup tag on {instance:GetFullName()} ignored: not a BasePart`)
@@ -25,7 +29,17 @@ local function setup(instance: Instance, trove: any)
 		end
 		local character = hit:FindFirstAncestorOfClass("Model")
 		local player = character and Players:GetPlayerFromCharacter(character)
-		if not player then
+		if not (character and player) then
+			return
+		end
+		-- Touches are detected by the player's own client, so exploits can fire them from
+		-- anywhere on the map. Confirm on the server that the character is really here.
+		local root = character:FindFirstChild("HumanoidRootPart")
+		if not root or not root:IsA("BasePart") then
+			return
+		end
+		local reach = part.Size.Magnitude / 2 + MAX_TOUCH_DISTANCE
+		if (root.Position - part.Position).Magnitude > reach then
 			return
 		end
 

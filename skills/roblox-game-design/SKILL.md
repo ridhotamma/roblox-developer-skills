@@ -89,7 +89,7 @@ Rank fixes by **(players affected × size of drop-off) ÷ effort**. Anything in 
 - Draw loops as small diagrams (Mermaid or ASCII arrows), first sessions as timelines, economies as tables with the formula.
 - Mark assumptions clearly ("Assuming 9–14 audience, mobile-first").
 - End with **what to prototype first** (the smallest build that tests whether the verb is fun) and **how to tell if it worked** (the metric or playtest observation).
-- When the user also wants it built, hand off structure decisions to the `roblox-project-structure` skill if installed, effects to `roblox-vfx`, and animations to `roblox-animation`.
+- When the user also wants it built, hand off structure decisions to the `roblox-project-structure` skill if installed, effects to `roblox-vfx`, animations to `roblox-animation`, and anything players could exploit (shops, trading, combat, rewards) to `roblox-security`.
 
 ## References
 
