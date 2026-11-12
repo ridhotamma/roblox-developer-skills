@@ -1,0 +1,905 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atmosphere Lab</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --text: #e6e8ee; --muted: #9aa1b2; --accent: #7cc4ff; --warn: #ffb35c; --ok: #7ee0a1;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f5f8; --panel: #ffffff; --panel2: #f0f2f6; --line: #d9dde5;
+      --text: #1a1d24; --muted: #5b6375; --accent: #1f6fd1; --warn: #b5650d; --ok: #1d8a4c;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f5f8; --panel: #ffffff; --panel2: #f0f2f6; --line: #d9dde5;
+    --text: #1a1d24; --muted: #5b6375; --accent: #1f6fd1; --warn: #b5650d; --ok: #1d8a4c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 14px 16px 6px; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; padding: 8px 16px 24px; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+  .stage { min-width: 0; }
+  canvas#view { width: 100%; aspect-ratio: 16 / 9; display: block; border-radius: 10px; background: #000; image-rendering: auto; }
+  .meta { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 2px; }
+  .mood { color: var(--muted); max-width: 70ch; }
+  .checks { display: flex; gap: 12px; font-size: 12px; flex-wrap: wrap; }
+  .checks span.bad { color: var(--warn); } .checks span.good { color: var(--ok); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); color: var(--text); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; cursor: pointer; }
+  .chip:hover { border-color: var(--accent); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  input[type=search], input[type=text], select { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px; }
+  button.btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: inherit; font-size: 13px; cursor: pointer; }
+  button.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  aside { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; max-height: calc(100vh - 90px); overflow: auto; }
+  @media (max-width: 900px) { aside { max-height: none; } }
+  details { border-bottom: 1px solid var(--line); padding: 6px 0; }
+  details:last-of-type { border-bottom: 0; }
+  summary { cursor: pointer; font-weight: 600; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; }
+  summary label { font-weight: 400; font-size: 12px; color: var(--muted); }
+  .ctl { display: grid; grid-template-columns: 150px minmax(0, 1fr) 52px; gap: 8px; align-items: center; margin: 4px 0; font-size: 12.5px; }
+  .ctl span.name { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ctl output { text-align: right; font-variant-numeric: tabular-nums; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+  .ctl input[type=color] { width: 100%; height: 24px; border: 1px solid var(--line); border-radius: 4px; background: none; padding: 0; }
+  .disabled { opacity: .45; pointer-events: none; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .note { color: var(--muted); font-size: 12px; margin: 6px 0 2px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Atmosphere Lab</h1>
+  <p>Pick a genre preset, tune Roblox Lighting by eye, copy Luau. The preview is an approximation of the Roblox renderer: judge mood and readability here, final values in Studio.</p>
+</header>
+<main>
+  <section class="stage">
+    <canvas id="view" width="480" height="270"></canvas>
+    <div class="meta">
+      <div class="mood" id="mood"></div>
+      <div class="checks" id="checks"></div>
+    </div>
+    <div class="row">
+      <select id="scene" title="Test scene">
+        <option value="outdoor">Outdoor</option><option value="street">Street</option><option value="corridor">Corridor</option>
+      </select>
+      <select id="ground" title="Ground material">
+        <option value="grass">Grass</option><option value="sand">Sand</option><option value="snow">Snow</option><option value="stone">Stone</option><option value="seabed">Seabed</option>
+      </select>
+      <select id="skybox" title="Skybox">
+        <option value="default">Default sky</option><option value="starfield">Starfield skybox</option>
+      </select>
+      <label><input type="checkbox" id="flashlight"> Flashlight</label>
+      <label><input type="checkbox" id="flicker"> Flicker</label>
+      <label><input type="checkbox" id="reduce"> Reduce flashing</label>
+      <label>Tension <input type="range" id="tension" min="0" max="1" step="0.01" value="0" style="width:90px;vertical-align:middle"></label>
+    </div>
+    <div class="row">
+      <input type="text" id="pname" placeholder="preset_name" style="width:170px" spellcheck="false">
+      <button class="btn primary" id="copyLuau">Copy Luau entry</button>
+      <button class="btn" id="copyCmd">Copy command-bar script</button>
+      <button class="btn" id="copyJson">Copy JSON</button>
+      <button class="btn" id="reset">Reset</button>
+    </div>
+    <input type="search" id="filter" placeholder="Filter by genre: horror, obby, sci-fi..." style="width:100%;max-width:360px">
+    <div class="presets" id="presets"></div>
+  </section>
+  <aside id="panel"></aside>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/*GEN:BEGIN*/
+// Turns an atmosphere preset (the JSON shape in assets/presets.json) into Luau.
+// Shared by presets.cjs (Node) and atmosphere-lab.html (the build copies this file into the
+// page between the GEN markers), so the lab's "Copy" buttons and the CLI always agree.
+(function (root) {
+  "use strict";
+
+  // Section -> the instance it drives. Names match the kit's Atmosphere.luau.
+  var SECTIONS = {
+    Lighting: { path: "Lighting" },
+    Atmosphere: { cls: "Atmosphere", name: "Atmosphere", parent: "Lighting" },
+    Grade: { cls: "ColorCorrectionEffect", name: "AtmosphereGrade", parent: "Lighting" },
+    Bloom: { cls: "BloomEffect", name: "AtmosphereBloom", parent: "Lighting" },
+    SunRays: { cls: "SunRaysEffect", name: "AtmosphereSunRays", parent: "Lighting" },
+    DepthOfField: { cls: "DepthOfFieldEffect", name: "AtmosphereDepthOfField", parent: "Lighting" },
+    Clouds: { cls: "Clouds", name: "Clouds", parent: "workspace.Terrain" },
+    Sky: { cls: "Sky", name: "Sky", parent: "Lighting" },
+  };
+  var SECTION_ORDER = ["Lighting", "Atmosphere", "Grade", "Bloom", "SunRays", "Clouds", "Sky", "DepthOfField"];
+  // What a missing (null) section tweens to: the effect fades out instead of popping.
+  var NEUTRAL = {
+    Grade: { Brightness: 0, Contrast: 0, Saturation: 0, TintColor: [255, 255, 255] },
+    Bloom: { Intensity: 0 },
+    SunRays: { Intensity: 0 },
+    Clouds: { Cover: 0, Density: 0 },
+    DepthOfField: { FarIntensity: 0, NearIntensity: 0 },
+  };
+
+  function num(n) {
+    var s = String(Math.round(n * 1000) / 1000);
+    return s === "-0" ? "0" : s;
+  }
+
+  function value(v) {
+    if (Array.isArray(v) && v.length === 3 && v.every(function (x) { return typeof x === "number"; })) {
+      return "Color3.fromRGB(" + v.map(function (x) { return Math.round(x); }).join(", ") + ")";
+    }
+    if (Array.isArray(v)) return "{ " + v.map(value).join(", ") + " }";
+    if (typeof v === "number") return num(v);
+    if (typeof v === "boolean") return v ? "true" : "false";
+    if (typeof v === "string") return JSON.stringify(v);
+    if (v && typeof v === "object") {
+      return "{ " + Object.keys(v).map(function (k) { return k + " = " + value(v[k]); }).join(", ") + " }";
+    }
+    return "nil";
+  }
+
+  // One preset as a Luau table constructor. `indent` is the indent of the closing brace.
+  function presetTable(p, indent) {
+    indent = indent || "";
+    var inner = indent + "\t";
+    var lines = ["{"];
+    ["Label", "Mood", "Genres", "Technology"].forEach(function (k) {
+      if (p[k] != null) lines.push(inner + k + " = " + value(p[k]) + ",");
+    });
+    SECTION_ORDER.forEach(function (k) {
+      if (p[k]) lines.push(inner + k + " = " + value(p[k]) + ",");
+    });
+    ["Accent", "Weather", "Ambience", "Reverb"].forEach(function (k) {
+      if (p[k] != null) lines.push(inner + k + " = " + value(p[k]) + ",");
+    });
+    lines.push(indent + "}");
+    return lines.join("\n");
+  }
+
+  function presetEntry(name, p, indent) {
+    indent = indent || "\t";
+    return indent + name + " = " + presetTable(p, indent) + ",";
+  }
+
+  function presetsModule(presets) {
+    var out = [
+      "--!strict",
+      "-- GENERATED from assets/presets.json by scripts/presets.cjs. Edit the JSON (or tune in",
+      "-- atmosphere-lab.html and paste the entry here) - every key maps 1:1 to a Roblox property:",
+      "--   Lighting     -> Lighting                  Atmosphere   -> Lighting.Atmosphere",
+      "--   Grade        -> ColorCorrectionEffect     Bloom/SunRays/DepthOfField -> the effect",
+      "--   Clouds       -> Terrain.Clouds            Sky          -> Lighting.Sky (no skybox ids)",
+      "-- A missing effect section fades that effect out. Technology is advice only: it can't be",
+      "-- changed by scripts at runtime, so set it in Studio (the command-bar script does).",
+      "-- Weather/Ambience/Reverb are read by the kit's Weather and Ambience modules.",
+      "",
+      "export type Preset = {",
+      "\tLabel: string,",
+      "\tMood: string?,",
+      "\tGenres: { string }?,",
+      "\tTechnology: string?,",
+      "\tLighting: { [string]: any },",
+      "\tAtmosphere: { [string]: any }?,",
+      "\tGrade: { [string]: any }?,",
+      "\tBloom: { [string]: any }?,",
+      "\tSunRays: { [string]: any }?,",
+      "\tClouds: { [string]: any }?,",
+      "\tSky: { [string]: any }?,",
+      "\tDepthOfField: { [string]: any }?,",
+      "\tAccent: Color3?,",
+      "\tWeather: { Type: string, Intensity: number }?,",
+      "\tAmbience: string?,",
+      "\tReverb: string?,",
+      "}",
+      "",
+      "local Presets: { [string]: Preset } = {",
+    ];
+    Object.keys(presets).forEach(function (name) {
+      out.push(presetEntry(name, presets[name], "\t"));
+    });
+    out.push("}", "", "return Presets", "");
+    return out.join("\n");
+  }
+
+  // A Studio command-bar script that applies a preset to the open place in edit mode, using
+  // the same instance names as the kit, with one undo waypoint.
+  function commandBar(name, p) {
+    var L = [];
+    L.push("-- Atmosphere preset '" + name + "' (" + (p.Label || name) + "). Paste into Studio's command bar.");
+    L.push("local Lighting, CH = game:GetService(\"Lighting\"), game:GetService(\"ChangeHistoryService\")");
+    L.push("CH:SetWaypoint(\"Before atmosphere " + name + "\")");
+    L.push("local function get(parent, cls, name)");
+    L.push("\tlocal i = parent:FindFirstChild(name)");
+    L.push("\tif not (i and i:IsA(cls)) then i = parent:FindFirstChildOfClass(cls) end");
+    L.push("\tif cls ~= \"Atmosphere\" and cls ~= \"Sky\" and cls ~= \"Clouds\" and i and i.Name ~= name then i = nil end");
+    L.push("\tif not i then i = Instance.new(cls); i.Name = name; i.Parent = parent end");
+    L.push("\treturn i");
+    L.push("end");
+    L.push("local function set(i, props) for k, v in props do i[k] = v end end");
+    if (p.Technology) {
+      L.push("if not pcall(function() Lighting.Technology = Enum.Technology." + p.Technology + " end) then");
+      L.push("\twarn(\"Set Lighting.Technology to " + p.Technology + " in the Properties window\")");
+      L.push("end");
+    }
+    SECTION_ORDER.forEach(function (k) {
+      var s = SECTIONS[k];
+      var props = p[k] || NEUTRAL[k];
+      if (!props) return;
+      if (k === "Lighting") {
+        L.push("set(Lighting, " + value(props) + ")");
+      } else {
+        L.push("set(get(" + s.parent + ", \"" + s.cls + "\", \"" + s.name + "\"), " + value(props) + ")");
+      }
+    });
+    if (p.Reverb) L.push("game:GetService(\"SoundService\").AmbientReverb = Enum.ReverbType." + p.Reverb);
+    L.push("CH:SetWaypoint(\"Atmosphere " + name + "\")");
+    L.push("print(\"Applied atmosphere '" + name + "'\")");
+    return L.join("\n");
+  }
+
+  var api = {
+    SECTIONS: SECTIONS,
+    SECTION_ORDER: SECTION_ORDER,
+    NEUTRAL: NEUTRAL,
+    value: value,
+    presetTable: presetTable,
+    presetEntry: presetEntry,
+    presetsModule: presetsModule,
+    commandBar: commandBar,
+  };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else root.LuauGen = api;
+})(this);
+/*GEN:END*/
+</script>
+<script>
+"use strict";
+const PRESETS = /*PRESETS:BEGIN*/{"horror_woods":{"Label":"Horror: night woods","Genres":["horror","survival","chase"],"Mood":"Moonlit dread. You see 30 studs, the treeline swallows the rest, and lantern light is the only warm thing.","Technology":"Future","Lighting":{"ClockTime":0.5,"Brightness":1,"Ambient":[14,14,20],"OutdoorAmbient":[38,42,58],"ColorShift_Top":[60,70,100],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.2,"EnvironmentSpecularScale":0.3,"ExposureCompensation":-0.3,"ShadowSoftness":0.4},"Atmosphere":{"Density":0.42,"Offset":0.1,"Color":[84,94,112],"Decay":[40,44,56],"Glare":0,"Haze":1.5},"Grade":{"Brightness":-0.02,"Contrast":0.18,"Saturation":-0.45,"TintColor":[205,215,235]},"Bloom":{"Intensity":0.4,"Size":24,"Threshold":1.6},"SunRays":null,"Clouds":{"Cover":0.7,"Density":0.5,"Color":[40,44,54]},"Sky":{"CelestialBodiesShown":true,"StarCount":800,"SunAngularSize":21,"MoonAngularSize":14},"DepthOfField":null,"Accent":[255,190,120],"Weather":null,"Ambience":"night_forest","Reverb":"Forest"},"horror_fog":{"Label":"Horror: fog town","Genres":["horror","psychological","mystery"],"Mood":"Grey, silent, washed out. Daylight that doesn't help. Shapes appear before details do.","Technology":"ShadowMap","Lighting":{"ClockTime":14,"Brightness":1.2,"Ambient":[70,70,72],"OutdoorAmbient":[110,110,112],"ColorShift_Top":[120,120,120],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.3,"EnvironmentSpecularScale":0.2,"ExposureCompensation":-0.2,"ShadowSoftness":1},"Atmosphere":{"Density":0.75,"Offset":0,"Color":[175,175,170],"Decay":[120,118,112],"Glare":0,"Haze":3},"Grade":{"Brightness":0,"Contrast":0.08,"Saturation":-0.6,"TintColor":[235,232,222]},"Bloom":{"Intensity":0.2,"Size":30,"Threshold":2},"SunRays":null,"Clouds":{"Cover":1,"Density":0.8,"Color":[180,180,180]},"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,236,200],"Weather":{"Type":"ash","Intensity":0.6},"Ambience":"fog_drone","Reverb":"City"},"horror_interior":{"Label":"Horror: dark interior","Genres":["horror","escape","hide-and-seek"],"Mood":"Abandoned house or hospital. Near-black without your flashlight, cold moonlight through windows.","Technology":"Future","Lighting":{"ClockTime":2,"Brightness":0.2,"Ambient":[6,6,8],"OutdoorAmbient":[12,12,18],"ColorShift_Top":[30,34,50],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.1,"EnvironmentSpecularScale":0.4,"ExposureCompensation":-0.3,"ShadowSoftness":0.3},"Atmosphere":{"Density":0.3,"Offset":0.2,"Color":[40,40,46],"Decay":[20,20,24],"Glare":0,"Haze":0.5},"Grade":{"Brightness":-0.02,"Contrast":0.25,"Saturation":-0.35,"TintColor":[220,225,240]},"Bloom":{"Intensity":0.6,"Size":18,"Threshold":1.2},"SunRays":null,"Clouds":null,"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,214,170],"Weather":null,"Ambience":"house_creaks","Reverb":"Hallway"},"liminal":{"Label":"Liminal: fluorescent rooms","Genres":["horror","exploration","liminal"],"Mood":"Empty, too-bright, humming. Yellowed light everywhere and nowhere, nothing to hide in.","Technology":"Future","Lighting":{"ClockTime":12,"Brightness":0,"Ambient":[120,112,70],"OutdoorAmbient":[120,112,70],"ColorShift_Top":[0,0,0],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0,"EnvironmentSpecularScale":0.1,"ExposureCompensation":0.2,"ShadowSoftness":0.6},"Atmosphere":{"Density":0.25,"Offset":0.3,"Color":[200,190,130],"Decay":[160,150,100],"Glare":0,"Haze":1},"Grade":{"Brightness":0.02,"Contrast":-0.05,"Saturation":-0.15,"TintColor":[255,248,215]},"Bloom":{"Intensity":0.5,"Size":30,"Threshold":1.4},"SunRays":null,"Clouds":null,"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,250,220],"Weather":null,"Ambience":"fluorescent_hum","Reverb":"CarpetedHallway"},"cozy_morning":{"Label":"Cozy: soft morning","Genres":["cozy","farming","pet sim","roleplay"],"Mood":"Warm, soft, safe. Gentle haze, long soft shadows, colours a little richer than real.","Technology":"Future","Lighting":{"ClockTime":8.5,"Brightness":2.6,"Ambient":[120,110,100],"OutdoorAmbient":[150,140,130],"ColorShift_Top":[255,225,190],"ColorShift_Bottom":[80,60,50],"EnvironmentDiffuseScale":1,"EnvironmentSpecularScale":0.6,"ExposureCompensation":0.15,"ShadowSoftness":0.6},"Atmosphere":{"Density":0.3,"Offset":0.25,"Color":[230,215,200],"Decay":[200,170,150],"Glare":0.4,"Haze":1.6},"Grade":{"Brightness":0.03,"Contrast":0.05,"Saturation":0.15,"TintColor":[255,245,232]},"Bloom":{"Intensity":0.5,"Size":28,"Threshold":1.6},"SunRays":{"Intensity":0.12,"Spread":0.6},"Clouds":{"Cover":0.45,"Density":0.4,"Color":[255,250,245]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":18,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,200,140],"Weather":null,"Ambience":"birds_meadow","Reverb":"Plain"},"cozy_night":{"Label":"Cozy: friendly night","Genres":["cozy","simulator","roleplay","day-night cycle"],"Mood":"Blue moonlit night that stays readable and safe. Warm windows and fireflies, not dread.","Technology":"Future","Lighting":{"ClockTime":22,"Brightness":1,"Ambient":[70,80,120],"OutdoorAmbient":[90,100,150],"ColorShift_Top":[150,170,255],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.7,"EnvironmentSpecularScale":0.6,"ExposureCompensation":0.3,"ShadowSoftness":0.5},"Atmosphere":{"Density":0.3,"Offset":0.15,"Color":[90,100,150],"Decay":[60,70,120],"Glare":0.2,"Haze":1.2},"Grade":{"Brightness":0.02,"Contrast":0.05,"Saturation":0.05,"TintColor":[230,235,255]},"Bloom":{"Intensity":0.7,"Size":32,"Threshold":1.2},"SunRays":null,"Clouds":{"Cover":0.4,"Density":0.4,"Color":[100,110,150]},"Sky":{"CelestialBodiesShown":true,"StarCount":3000,"SunAngularSize":21,"MoonAngularSize":16},"DepthOfField":null,"Accent":[255,200,120],"Weather":{"Type":"fireflies","Intensity":0.5},"Ambience":"crickets","Reverb":"Forest"},"cartoon_day":{"Label":"Cartoon: bright day","Genres":["obby","simulator","tycoon","minigames"],"Mood":"Clean, saturated, high-noon clarity. Everything readable, nothing moody. The Roblox front page look.","Technology":"ShadowMap","Lighting":{"ClockTime":13,"Brightness":3,"Ambient":[130,130,140],"OutdoorAmbient":[160,160,170],"ColorShift_Top":[255,247,235],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":1,"EnvironmentSpecularScale":0.5,"ExposureCompensation":0.1,"ShadowSoftness":0.3},"Atmosphere":{"Density":0.25,"Offset":0.2,"Color":[199,220,255],"Decay":[140,170,220],"Glare":0,"Haze":0.5},"Grade":{"Brightness":0.02,"Contrast":0.1,"Saturation":0.25,"TintColor":[255,255,255]},"Bloom":{"Intensity":0.3,"Size":24,"Threshold":2.2},"SunRays":{"Intensity":0.05,"Spread":0.4},"Clouds":{"Cover":0.5,"Density":0.5,"Color":[255,255,255]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,255,255],"Weather":null,"Ambience":"light_breeze","Reverb":"Plain"},"golden_hour":{"Label":"Adventure: golden hour","Genres":["adventure","open world","exploration","racing"],"Mood":"Low warm sun, long shadows, glowing haze. Makes any vista look like a trailer shot.","Technology":"Future","Lighting":{"ClockTime":17.6,"Brightness":2.4,"Ambient":[110,90,80],"OutdoorAmbient":[150,120,100],"ColorShift_Top":[255,180,110],"ColorShift_Bottom":[120,70,60],"EnvironmentDiffuseScale":0.9,"EnvironmentSpecularScale":0.7,"ExposureCompensation":0.1,"ShadowSoftness":0.25},"Atmosphere":{"Density":0.33,"Offset":0.15,"Color":[255,200,160],"Decay":[230,140,110],"Glare":1.2,"Haze":1.8},"Grade":{"Brightness":0.01,"Contrast":0.12,"Saturation":0.2,"TintColor":[255,235,215]},"Bloom":{"Intensity":0.6,"Size":36,"Threshold":1.4},"SunRays":{"Intensity":0.2,"Spread":0.8},"Clouds":{"Cover":0.4,"Density":0.45,"Color":[255,220,200]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":24,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,190,120],"Weather":null,"Ambience":"birds_meadow","Reverb":"Mountains"},"fantasy_forest":{"Label":"Fantasy: enchanted forest","Genres":["fantasy","RPG","adventure","anime"],"Mood":"Teal haze, god rays through canopy, glowing spores. Magical but safe to explore.","Technology":"Future","Lighting":{"ClockTime":15,"Brightness":1.8,"Ambient":[70,100,95],"OutdoorAmbient":[90,130,120],"ColorShift_Top":[200,255,220],"ColorShift_Bottom":[40,70,90],"EnvironmentDiffuseScale":0.8,"EnvironmentSpecularScale":0.6,"ExposureCompensation":0,"ShadowSoftness":0.5},"Atmosphere":{"Density":0.45,"Offset":0.1,"Color":[150,220,200],"Decay":[90,160,170],"Glare":0.6,"Haze":2.4},"Grade":{"Brightness":0.02,"Contrast":0.08,"Saturation":0.2,"TintColor":[235,255,245]},"Bloom":{"Intensity":0.8,"Size":40,"Threshold":1.2},"SunRays":{"Intensity":0.25,"Spread":0.9},"Clouds":{"Cover":0.55,"Density":0.4,"Color":[230,255,245]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[170,255,220],"Weather":{"Type":"spores","Intensity":0.7},"Ambience":"magic_forest","Reverb":"Forest"},"dungeon":{"Label":"Dungeon: torchlit cave","Genres":["dungeon crawler","RPG","roguelike","mining"],"Mood":"Pitch black stone, warm pools of torchlight, dust hanging in the air. Light means safety.","Technology":"Future","Lighting":{"ClockTime":0,"Brightness":0,"Ambient":[18,14,14],"OutdoorAmbient":[18,14,14],"ColorShift_Top":[0,0,0],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0,"EnvironmentSpecularScale":0.3,"ExposureCompensation":0.2,"ShadowSoftness":0.3},"Atmosphere":{"Density":0.38,"Offset":0.15,"Color":[60,45,38],"Decay":[30,20,18],"Glare":0,"Haze":0.8},"Grade":{"Brightness":0,"Contrast":0.15,"Saturation":-0.05,"TintColor":[255,238,220]},"Bloom":{"Intensity":0.7,"Size":24,"Threshold":1.1},"SunRays":null,"Clouds":null,"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,150,70],"Weather":{"Type":"dust","Intensity":0.4},"Ambience":"cave_drips","Reverb":"Cave"},"scifi_lab":{"Label":"Sci-fi: clean lab / station","Genres":["sci-fi","puzzle","space station","escape"],"Mood":"Cool white panels, glossy floors, cyan accents. Sterile and precise.","Technology":"Future","Lighting":{"ClockTime":12,"Brightness":0.5,"Ambient":[110,125,140],"OutdoorAmbient":[110,125,140],"ColorShift_Top":[200,230,255],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.4,"EnvironmentSpecularScale":1,"ExposureCompensation":0.1,"ShadowSoftness":0.2},"Atmosphere":{"Density":0.2,"Offset":0.4,"Color":[190,215,235],"Decay":[140,170,200],"Glare":0,"Haze":0.3},"Grade":{"Brightness":0.02,"Contrast":0.12,"Saturation":-0.1,"TintColor":[230,245,255]},"Bloom":{"Intensity":0.7,"Size":22,"Threshold":1.3},"SunRays":null,"Clouds":null,"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[120,220,255],"Weather":null,"Ambience":"station_hum","Reverb":"Hangar"},"cyberpunk_night":{"Label":"Cyberpunk: neon rain","Genres":["cyberpunk","city","heist","shooter"],"Mood":"Wet streets, magenta and cyan neon bleeding into purple haze. Dark, but full of colour.","Technology":"Future","Lighting":{"ClockTime":23,"Brightness":0.4,"Ambient":[30,20,45],"OutdoorAmbient":[40,30,70],"ColorShift_Top":[90,60,160],"ColorShift_Bottom":[0,40,60],"EnvironmentDiffuseScale":0.5,"EnvironmentSpecularScale":1,"ExposureCompensation":0,"ShadowSoftness":0.3},"Atmosphere":{"Density":0.4,"Offset":0.05,"Color":[90,60,130],"Decay":[200,60,160],"Glare":0.2,"Haze":2.2},"Grade":{"Brightness":0,"Contrast":0.2,"Saturation":0.25,"TintColor":[235,220,255]},"Bloom":{"Intensity":1,"Size":40,"Threshold":0.9},"SunRays":null,"Clouds":{"Cover":0.8,"Density":0.5,"Color":[40,30,60]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":8},"DepthOfField":null,"Accent":[255,50,200],"Weather":{"Type":"rain","Intensity":0.8},"Ambience":"city_rain","Reverb":"City"},"wasteland":{"Label":"Post-apocalyptic: dust haze","Genres":["post-apocalyptic","survival","zombie","looter"],"Mood":"Bleached orange dust, sun a smear in the haze, colour drained from everything.","Technology":"ShadowMap","Lighting":{"ClockTime":16,"Brightness":2.2,"Ambient":[110,90,70],"OutdoorAmbient":[140,115,85],"ColorShift_Top":[255,200,140],"ColorShift_Bottom":[90,60,40],"EnvironmentDiffuseScale":0.6,"EnvironmentSpecularScale":0.3,"ExposureCompensation":0.05,"ShadowSoftness":0.5},"Atmosphere":{"Density":0.5,"Offset":0.1,"Color":[200,160,110],"Decay":[160,110,70],"Glare":0.8,"Haze":3},"Grade":{"Brightness":0,"Contrast":0.15,"Saturation":-0.35,"TintColor":[255,235,205]},"Bloom":{"Intensity":0.3,"Size":28,"Threshold":1.8},"SunRays":{"Intensity":0.1,"Spread":0.5},"Clouds":{"Cover":0.6,"Density":0.6,"Color":[190,160,130]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":26,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,170,90],"Weather":{"Type":"dust","Intensity":1},"Ambience":"wind_desolate","Reverb":"Quarry"},"storm":{"Label":"Survival: daytime storm","Genres":["survival","disaster","naval","horror"],"Mood":"Heavy grey overcast, driving rain, lightning that lights the world for a frame.","Technology":"ShadowMap","Lighting":{"ClockTime":16,"Brightness":0.9,"Ambient":[60,66,75],"OutdoorAmbient":[80,88,100],"ColorShift_Top":[140,150,170],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.5,"EnvironmentSpecularScale":0.8,"ExposureCompensation":-0.2,"ShadowSoftness":1},"Atmosphere":{"Density":0.5,"Offset":0.05,"Color":[90,100,112],"Decay":[60,68,80],"Glare":0,"Haze":2.6},"Grade":{"Brightness":-0.02,"Contrast":0.15,"Saturation":-0.4,"TintColor":[225,235,245]},"Bloom":{"Intensity":0.3,"Size":24,"Threshold":1.8},"SunRays":null,"Clouds":{"Cover":1,"Density":1,"Color":[70,76,86]},"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,210,150],"Weather":{"Type":"storm","Intensity":1},"Ambience":"storm","Reverb":"Plain"},"desert_noon":{"Label":"Desert: harsh noon","Genres":["adventure","western","racing","survival"],"Mood":"Overexposed heat, hard short shadows, pale sky glare. The sun is an enemy.","Technology":"ShadowMap","Lighting":{"ClockTime":12.5,"Brightness":3.4,"Ambient":[150,130,105],"OutdoorAmbient":[175,155,125],"ColorShift_Top":[255,240,210],"ColorShift_Bottom":[110,80,50],"EnvironmentDiffuseScale":0.9,"EnvironmentSpecularScale":0.4,"ExposureCompensation":0.25,"ShadowSoftness":0.15},"Atmosphere":{"Density":0.3,"Offset":0,"Color":[235,215,180],"Decay":[200,170,120],"Glare":0.4,"Haze":1.6},"Grade":{"Brightness":0.03,"Contrast":0.1,"Saturation":0.05,"TintColor":[255,244,225]},"Bloom":{"Intensity":0.4,"Size":30,"Threshold":1.8},"SunRays":{"Intensity":0.08,"Spread":0.4},"Clouds":{"Cover":0.1,"Density":0.3,"Color":[255,255,255]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":26,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,220,160],"Weather":null,"Ambience":"wind_desolate","Reverb":"Plain"},"western_dusk":{"Label":"Western: red dusk","Genres":["western","duel","open world"],"Mood":"Sun on the horizon, red-orange sky, long silhouettes. Showdown lighting.","Technology":"Future","Lighting":{"ClockTime":18.1,"Brightness":2,"Ambient":[120,80,70],"OutdoorAmbient":[160,100,80],"ColorShift_Top":[255,150,80],"ColorShift_Bottom":[110,50,60],"EnvironmentDiffuseScale":0.8,"EnvironmentSpecularScale":0.4,"ExposureCompensation":0.05,"ShadowSoftness":0.3},"Atmosphere":{"Density":0.38,"Offset":0.05,"Color":[255,170,120],"Decay":[200,90,70],"Glare":1.6,"Haze":2},"Grade":{"Brightness":0.01,"Contrast":0.18,"Saturation":0.05,"TintColor":[255,225,190]},"Bloom":{"Intensity":0.5,"Size":36,"Threshold":1.3},"SunRays":{"Intensity":0.22,"Spread":0.7},"Clouds":{"Cover":0.35,"Density":0.45,"Color":[255,180,140]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":28,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,170,90],"Weather":{"Type":"dust","Intensity":0.4},"Ambience":"wind_desolate","Reverb":"Mountains"},"arctic_blizzard":{"Label":"Arctic: blizzard","Genres":["survival","expedition","climbing"],"Mood":"White-out. Cold blue, wind-driven snow, warmth only where you build a fire.","Technology":"ShadowMap","Lighting":{"ClockTime":11,"Brightness":1.6,"Ambient":[140,155,175],"OutdoorAmbient":[170,185,205],"ColorShift_Top":[220,235,255],"ColorShift_Bottom":[100,120,150],"EnvironmentDiffuseScale":0.8,"EnvironmentSpecularScale":0.6,"ExposureCompensation":0.2,"ShadowSoftness":0.8},"Atmosphere":{"Density":0.62,"Offset":0,"Color":[215,228,240],"Decay":[170,190,215],"Glare":0,"Haze":4},"Grade":{"Brightness":0.02,"Contrast":0.05,"Saturation":-0.25,"TintColor":[230,242,255]},"Bloom":{"Intensity":0.4,"Size":30,"Threshold":1.6},"SunRays":null,"Clouds":{"Cover":1,"Density":0.8,"Color":[225,232,240]},"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,180,110],"Weather":{"Type":"blizzard","Intensity":1},"Ambience":"blizzard","Reverb":"Mountains"},"winter_holiday":{"Label":"Event: winter holiday","Genres":["seasonal event","cozy","simulator"],"Mood":"Blue snowy evening, warm string lights glowing, gentle snowfall. Festive, never cold.","Technology":"Future","Lighting":{"ClockTime":18.8,"Brightness":1.4,"Ambient":[90,100,130],"OutdoorAmbient":[120,130,165],"ColorShift_Top":[200,215,255],"ColorShift_Bottom":[255,170,110],"EnvironmentDiffuseScale":0.8,"EnvironmentSpecularScale":0.7,"ExposureCompensation":0.15,"ShadowSoftness":0.6},"Atmosphere":{"Density":0.4,"Offset":0.1,"Color":[180,195,230],"Decay":[120,130,180],"Glare":0.3,"Haze":2},"Grade":{"Brightness":0.02,"Contrast":0.08,"Saturation":0.15,"TintColor":[240,240,255]},"Bloom":{"Intensity":0.8,"Size":36,"Threshold":1.1},"SunRays":null,"Clouds":{"Cover":0.7,"Density":0.5,"Color":[200,210,235]},"Sky":{"CelestialBodiesShown":true,"StarCount":1500,"SunAngularSize":21,"MoonAngularSize":14},"DepthOfField":null,"Accent":[255,190,110],"Weather":{"Type":"snow","Intensity":0.6},"Ambience":"snow_calm","Reverb":"Mountains"},"halloween_event":{"Label":"Event: spooky-cute Halloween","Genres":["seasonal event","simulator","obby"],"Mood":"Purple night, orange pumpkin glow, big friendly moon. Spooky for a 9-year-old, not scary.","Technology":"Future","Lighting":{"ClockTime":20.5,"Brightness":1,"Ambient":[70,40,90],"OutdoorAmbient":[90,55,120],"ColorShift_Top":[170,110,255],"ColorShift_Bottom":[255,120,40],"EnvironmentDiffuseScale":0.6,"EnvironmentSpecularScale":0.6,"ExposureCompensation":0.1,"ShadowSoftness":0.4},"Atmosphere":{"Density":0.4,"Offset":0.15,"Color":[120,70,150],"Decay":[255,120,60],"Glare":0.5,"Haze":2},"Grade":{"Brightness":0.02,"Contrast":0.12,"Saturation":0.3,"TintColor":[245,230,255]},"Bloom":{"Intensity":0.9,"Size":34,"Threshold":1.1},"SunRays":null,"Clouds":{"Cover":0.6,"Density":0.5,"Color":[90,60,110]},"Sky":{"CelestialBodiesShown":true,"StarCount":1500,"SunAngularSize":21,"MoonAngularSize":22},"DepthOfField":null,"Accent":[255,140,40],"Weather":{"Type":"fireflies","Intensity":0.6},"Ambience":"night_forest","Reverb":"Forest"},"underwater":{"Label":"Underwater: shallow reef","Genres":["ocean","exploration","fishing","survival"],"Mood":"Blue-green murk, caustic sun shafts from above, soft focus at distance, bubbles rising.","Technology":"Future","Lighting":{"ClockTime":13,"Brightness":1.4,"Ambient":[30,90,110],"OutdoorAmbient":[40,110,130],"ColorShift_Top":[120,230,255],"ColorShift_Bottom":[0,40,60],"EnvironmentDiffuseScale":0.5,"EnvironmentSpecularScale":0.3,"ExposureCompensation":0,"ShadowSoftness":0.7},"Atmosphere":{"Density":0.7,"Offset":0,"Color":[30,120,140],"Decay":[10,70,100],"Glare":0,"Haze":1.5},"Grade":{"Brightness":0,"Contrast":-0.05,"Saturation":0.1,"TintColor":[200,240,255]},"Bloom":{"Intensity":0.5,"Size":40,"Threshold":1.3},"SunRays":{"Intensity":0.3,"Spread":1},"Clouds":null,"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":{"FarIntensity":0.3,"FocusDistance":30,"InFocusRadius":25,"NearIntensity":0},"Accent":[120,255,230],"Weather":{"Type":"bubbles","Intensity":0.7},"Ambience":"underwater","Reverb":"UnderWater"},"tropical_beach":{"Label":"Tropical: beach day","Genres":["vacation","roleplay","simulator","surf"],"Mood":"Turquoise water, white sand, saturated greens and a light airy haze.","Technology":"Future","Lighting":{"ClockTime":11.5,"Brightness":3.2,"Ambient":[130,150,150],"OutdoorAmbient":[160,180,180],"ColorShift_Top":[255,245,225],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":1,"EnvironmentSpecularScale":0.7,"ExposureCompensation":0.15,"ShadowSoftness":0.3},"Atmosphere":{"Density":0.28,"Offset":0.2,"Color":[190,230,245],"Decay":[120,190,230],"Glare":0.3,"Haze":0.8},"Grade":{"Brightness":0.03,"Contrast":0.1,"Saturation":0.3,"TintColor":[250,255,250]},"Bloom":{"Intensity":0.4,"Size":28,"Threshold":1.8},"SunRays":{"Intensity":0.08,"Spread":0.5},"Clouds":{"Cover":0.35,"Density":0.45,"Color":[255,255,255]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,230,180],"Weather":null,"Ambience":"ocean_waves","Reverb":"Plain"},"space":{"Label":"Space: vacuum exterior","Genres":["space","sci-fi","zero-g"],"Mood":"No air, no haze: razor shadows, black fill, a blinding sun. Needs a starfield skybox.","Technology":"Future","Lighting":{"ClockTime":14,"Brightness":3,"Ambient":[20,22,30],"OutdoorAmbient":[25,28,40],"ColorShift_Top":[255,250,240],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.2,"EnvironmentSpecularScale":1,"ExposureCompensation":-0.2,"ShadowSoftness":0},"Atmosphere":{"Density":0,"Offset":0,"Color":[0,0,0],"Decay":[0,0,0],"Glare":0,"Haze":0},"Grade":{"Brightness":0,"Contrast":0.25,"Saturation":-0.05,"TintColor":[255,255,255]},"Bloom":{"Intensity":0.8,"Size":40,"Threshold":1.5},"SunRays":{"Intensity":0.15,"Spread":0.3},"Clouds":null,"Sky":{"CelestialBodiesShown":true,"StarCount":5000,"SunAngularSize":12,"MoonAngularSize":0},"DepthOfField":null,"Accent":[255,255,255],"Weather":null,"Ambience":"space_hum","Reverb":"NoReverb"},"arena_competitive":{"Label":"PvP: competitive arena","Genres":["battlegrounds","fighting","PvP","sports"],"Mood":"Neutral, high-contrast, low fog. Atmosphere stays out of the way so players read each other.","Technology":"ShadowMap","Lighting":{"ClockTime":14,"Brightness":2.8,"Ambient":[140,140,150],"OutdoorAmbient":[160,160,170],"ColorShift_Top":[255,250,240],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":1,"EnvironmentSpecularScale":0.5,"ExposureCompensation":0,"ShadowSoftness":0.2},"Atmosphere":{"Density":0.2,"Offset":0.1,"Color":[200,215,235],"Decay":[150,170,200],"Glare":0,"Haze":0.3},"Grade":{"Brightness":0,"Contrast":0.12,"Saturation":0.1,"TintColor":[255,255,255]},"Bloom":{"Intensity":0.25,"Size":20,"Threshold":2.4},"SunRays":null,"Clouds":{"Cover":0.35,"Density":0.4,"Color":[255,255,255]},"Sky":{"CelestialBodiesShown":true,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,255,255],"Weather":null,"Ambience":"light_breeze","Reverb":"Arena"},"tactical_overcast":{"Label":"Shooter: tactical overcast","Genres":["FPS","military","tactical","extraction"],"Mood":"Flat soft light, muted greys and greens. No glare to hide behind, silhouettes stay readable.","Technology":"ShadowMap","Lighting":{"ClockTime":10,"Brightness":1.8,"Ambient":[120,124,128],"OutdoorAmbient":[140,144,150],"ColorShift_Top":[220,225,235],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.8,"EnvironmentSpecularScale":0.5,"ExposureCompensation":0,"ShadowSoftness":0.8},"Atmosphere":{"Density":0.32,"Offset":0.05,"Color":[170,178,185],"Decay":[120,128,138],"Glare":0,"Haze":1.2},"Grade":{"Brightness":0,"Contrast":0.1,"Saturation":-0.15,"TintColor":[240,245,250]},"Bloom":{"Intensity":0.2,"Size":20,"Threshold":2.4},"SunRays":null,"Clouds":{"Cover":0.85,"Density":0.6,"Color":[190,195,200]},"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,230,190],"Weather":null,"Ambience":"light_breeze","Reverb":"City"},"noir_rain":{"Label":"Mystery: noir rain","Genres":["mystery","detective","murder mystery","heist"],"Mood":"Near black-and-white, hard contrast, wet reflections, a single warm streetlamp.","Technology":"Future","Lighting":{"ClockTime":21,"Brightness":0.6,"Ambient":[40,42,48],"OutdoorAmbient":[55,58,66],"ColorShift_Top":[160,170,190],"ColorShift_Bottom":[0,0,0],"EnvironmentDiffuseScale":0.4,"EnvironmentSpecularScale":1,"ExposureCompensation":-0.1,"ShadowSoftness":0.2},"Atmosphere":{"Density":0.42,"Offset":0.1,"Color":[80,85,95],"Decay":[50,55,65],"Glare":0,"Haze":2},"Grade":{"Brightness":-0.02,"Contrast":0.3,"Saturation":-0.85,"TintColor":[235,235,240]},"Bloom":{"Intensity":0.6,"Size":30,"Threshold":1},"SunRays":null,"Clouds":{"Cover":1,"Density":0.7,"Color":[60,62,70]},"Sky":{"CelestialBodiesShown":false,"StarCount":0,"SunAngularSize":21,"MoonAngularSize":11},"DepthOfField":null,"Accent":[255,215,150],"Weather":{"Type":"rain","Intensity":0.7},"Ambience":"city_rain","Reverb":"Alley"}}/*PRESETS:END*/;
+
+// Lab-only defaults per preset: which test scene shows it best. Not part of the preset.
+const LAB = {
+  horror_woods: { scene: "outdoor", ground: "grass", flashlight: true },
+  horror_fog: { scene: "street" },
+  horror_interior: { scene: "corridor", flashlight: true },
+  liminal: { scene: "corridor", flicker: true },
+  dungeon: { scene: "corridor", ground: "stone", flicker: true },
+  scifi_lab: { scene: "corridor" },
+  cyberpunk_night: { scene: "street" },
+  noir_rain: { scene: "street" },
+  desert_noon: { ground: "sand" }, wasteland: { ground: "sand" }, western_dusk: { ground: "sand" },
+  tropical_beach: { ground: "sand" }, arctic_blizzard: { ground: "snow" }, winter_holiday: { ground: "snow" },
+  underwater: { ground: "seabed" }, space: { ground: "stone", skybox: "starfield" },
+  tactical_overcast: { scene: "street" },
+};
+
+const SCHEMA = {
+  Lighting: { optional: false, props: [
+    ["ClockTime", 0, 24, 0.05], ["Brightness", 0, 10, 0.05], ["ExposureCompensation", -3, 3, 0.05],
+    ["Ambient", "color"], ["OutdoorAmbient", "color"], ["ColorShift_Top", "color"], ["ColorShift_Bottom", "color"],
+    ["EnvironmentDiffuseScale", 0, 1, 0.01], ["EnvironmentSpecularScale", 0, 1, 0.01], ["ShadowSoftness", 0, 1, 0.01]] },
+  Atmosphere: { optional: false, props: [["Density", 0, 1, 0.01], ["Offset", 0, 1, 0.01], ["Color", "color"], ["Decay", "color"], ["Glare", 0, 10, 0.05], ["Haze", 0, 10, 0.05]] },
+  Grade: { optional: true, label: "ColorCorrection (Grade)", def: { Brightness: 0, Contrast: 0, Saturation: 0, TintColor: [255, 255, 255] },
+    props: [["Brightness", -0.5, 0.5, 0.01], ["Contrast", -1, 1, 0.01], ["Saturation", -1, 1, 0.01], ["TintColor", "color"]] },
+  Bloom: { optional: true, def: { Intensity: 0.5, Size: 24, Threshold: 1.5 }, props: [["Intensity", 0, 1, 0.01], ["Size", 0, 56, 1], ["Threshold", 0, 4, 0.05]] },
+  SunRays: { optional: true, def: { Intensity: 0.15, Spread: 0.6 }, props: [["Intensity", 0, 1, 0.01], ["Spread", 0, 1, 0.01]] },
+  Clouds: { optional: true, def: { Cover: 0.5, Density: 0.5, Color: [255, 255, 255] }, props: [["Cover", 0, 1, 0.01], ["Density", 0, 1, 0.01], ["Color", "color"]] },
+  Sky: { optional: false, props: [["CelestialBodiesShown", "bool"], ["StarCount", 0, 5000, 50], ["SunAngularSize", 0, 60, 0.5], ["MoonAngularSize", 0, 60, 0.5]] },
+  DepthOfField: { optional: true, def: { FarIntensity: 0.3, FocusDistance: 30, InFocusRadius: 25, NearIntensity: 0 },
+    props: [["FarIntensity", 0, 1, 0.01], ["FocusDistance", 0, 200, 1], ["InFocusRadius", 0, 50, 1], ["NearIntensity", 0, 1, 0.01]] },
+};
+const WEATHER = ["none", "rain", "storm", "snow", "blizzard", "dust", "ash", "embers", "fireflies", "spores", "bubbles"];
+const REVERB = ["NoReverb", "GenericReverb", "PaddedCell", "Room", "Bathroom", "LivingRoom", "StoneRoom", "Auditorium", "ConcertHall", "Cave", "Arena", "Hangar", "CarpetedHallway", "Hallway", "StoneCorridor", "Alley", "Forest", "City", "Mountains", "Quarry", "Plain", "ParkingLot", "SewerPipe", "UnderWater"];
+const TECH = ["Future", "ShadowMap", "Voxel"];
+
+const $ = (id) => document.getElementById(id);
+let currentName = Object.keys(PRESETS)[0] || "";
+let P = null; // the preset being edited (deep copy)
+
+// ---------- colour helpers ----------
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+// Lighting maths runs in linear light; css() gamma-encodes on output, like the engine does.
+const L2 = (a) => [Math.pow(a[0], 2.2), Math.pow(a[1], 2.2), Math.pow(a[2], 2.2)];
+const c3 = (a) => L2([a[0] / 255, a[1] / 255, a[2] / 255]);
+const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (a, b) => [a[0] * b[0], a[1] * b[1], a[2] * b[2]];
+const scl = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const enc = (x) => (Math.pow(clamp(x, 0, 1), 1 / 2.2) * 255) | 0;
+const css = (c, alpha) => `rgba(${enc(c[0])},${enc(c[1])},${enc(c[2])},${alpha == null ? 1 : alpha})`;
+const hex = (a) => "#" + a.map((x) => x.toString(16).padStart(2, "0")).join("");
+const unhex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const lum = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+
+// deterministic random for scene layout
+function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+
+// ---------- renderer ----------
+const W = 480, H = 270, HOR = 135, F = 260, CAMH = 6;
+const view = $("view"), vctx = view.getContext("2d");
+const scene = document.createElement("canvas"); scene.width = W; scene.height = H;
+const ctx = scene.getContext("2d");
+const small = document.createElement("canvas"); small.width = 120; small.height = 68;
+const sctx = small.getContext("2d", { willReadFrequently: true });
+const tiny = document.createElement("canvas");
+const tctx = tiny.getContext("2d");
+const dof = document.createElement("canvas"); dof.width = W; dof.height = H;
+const dctx = dof.getContext("2d");
+
+const GROUND = { grass: [0.26, 0.36, 0.18], sand: [0.72, 0.6, 0.42], snow: [0.86, 0.9, 0.95], stone: [0.32, 0.3, 0.29], seabed: [0.55, 0.5, 0.38] };
+
+function environment(p, opts) {
+  const L = p.Lighting, A = p.Atmosphere || { Density: 0, Offset: 0, Color: [0, 0, 0], Decay: [0, 0, 0], Glare: 0, Haze: 0 };
+  const clock = L.ClockTime;
+  const elev = Math.sin(((clock - 6) / 12) * Math.PI);
+  const sunUp = Math.max(0, elev);
+  const warm = 1 - smooth(0, 0.45, elev);
+  const shiftTop = c3(L.ColorShift_Top || [0, 0, 0]);
+  let sun = add(mix([1, 0.97, 0.92], [1, 0.58, 0.32], warm), scl(shiftTop, 0.5));
+  const sunI = L.Brightness * 0.3 * smooth(-0.06, 0.2, elev);
+  const moon = add([0.55, 0.65, 1], scl(shiftTop, 0.4));
+  const moonI = L.Brightness * 0.3 * smooth(0, 0.25, -elev);
+  const exposure = Math.pow(2, L.ExposureCompensation || 0);
+  const day = smooth(-0.15, 0.3, elev);
+  let zenith = mix(L2([0.03, 0.04, 0.09]), scl(L2([0.3, 0.52, 0.9]), Math.min(1.2, 0.55 + L.Brightness * 0.18)), day);
+  let horizon = mix(L2([0.06, 0.07, 0.12]), L2([0.7, 0.82, 0.95]), day);
+  horizon = mix(horizon, L2([1, 0.55, 0.3]), warm * day * 0.8);
+  const envDiff = L.EnvironmentDiffuseScale || 0;
+  // Ambient is not linearised: Roblox's ambient terms read brighter than their sRGB value suggests.
+  const raw = (a) => [a[0] / 255, a[1] / 255, a[2] / 255];
+  const ambOut = add(raw(L.OutdoorAmbient), scl(zenith, envDiff * 0.35));
+  const ambIn = raw(L.Ambient);
+  const light = add(ambOut, add(scl(sun, sunI * 0.6), scl(moon, moonI * 0.6)));
+  let fog = mul(c3(A.Color), light);
+  fog = mix(fog, mul(c3(A.Decay), light), clamp(A.Haze / 8, 0, 0.6));
+  const skyHaze = clamp(A.Density * 1.15 + A.Haze * 0.04, 0, 1);
+  if (opts.skybox === "starfield") { zenith = [0.0005, 0.0006, 0.002]; horizon = [0.002, 0.0025, 0.006]; }
+  return {
+    p, L, A, clock, elev, sunUp, warm, sun, sunI, moon, moonI, exposure, ambOut, ambIn, fog,
+    zenith: mix(zenith, fog, skyHaze * 0.75), horizon: mix(horizon, fog, skyHaze),
+    accent: c3(p.Accent || [255, 220, 170]), starfield: opts.skybox === "starfield",
+    spec: L.EnvironmentSpecularScale || 0,
+  };
+}
+
+function fogAt(E, d) {
+  const k = Math.pow(E.A.Density, 1.6) * 0.016;
+  if (k <= 0) return 0;
+  return 1 - Math.exp(-k * Math.max(0, d - E.A.Offset * 30));
+}
+
+// Lit colour of a surface. facing: 0..1 how much it faces the sun/moon.
+function shade(E, albedo, facing, indoor) {
+  const amb = indoor ? E.ambIn : E.ambOut;
+  const direct = indoor ? [0, 0, 0] : add(scl(E.sun, E.sunI * facing), scl(E.moon, E.moonI * facing));
+  return scl(mul(L2(albedo), add(amb, direct)), E.exposure * 1.1);
+}
+const fogged = (E, col, d) => mix(col, scl(E.fog, E.exposure), fogAt(E, d));
+
+function sunScreen(E) {
+  const t = (E.clock - 6) / 12;
+  return { x: W * (0.12 + 0.76 * t), y: HOR - E.elev * H * 0.5 };
+}
+function moonScreen(E) {
+  const t = (((E.clock - 18) % 24) + 24) % 24 / 12;
+  return { x: W * (0.12 + 0.76 * t), y: HOR + E.elev * H * 0.45 };
+}
+
+function drawSky(E, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, HOR + 4);
+  g.addColorStop(0, css(scl(E.zenith, E.exposure)));
+  g.addColorStop(1, css(scl(E.horizon, E.exposure)));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, HOR + 4);
+  const sky = E.p.Sky || {};
+  const night = E.starfield ? 1 : smooth(0.0, 0.3, -E.elev);
+  if (sky.CelestialBodiesShown !== false && night > 0) {
+    const r = rng(7), n = Math.round((sky.StarCount || 0) / 18) + (E.starfield ? 120 : 0);
+    const vis = night * (1 - clamp(E.A.Density * 1.4, 0, 1)) * (E.starfield ? 1 : 0.9);
+    for (let i = 0; i < n; i++) {
+      const x = r() * W, y = r() * HOR * 0.95, b = 0.4 + r() * 0.6;
+      ctx.fillStyle = `rgba(255,255,255,${vis * b * (0.7 + 0.3 * Math.sin(t * 2 + i))})`;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  if (sky.CelestialBodiesShown !== false) {
+    const haze = clamp(E.A.Density * 1.3, 0, 0.95);
+    if (E.elev > -0.1) {
+      const s = sunScreen(E), rad = Math.max(1.5, (sky.SunAngularSize || 21) * 0.28);
+      const glow = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, rad * (4 + E.A.Glare * 2));
+      glow.addColorStop(0, css(E.sun, 0.55 * (1 - haze * 0.5)));
+      glow.addColorStop(1, css(E.sun, 0));
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, HOR + 4);
+      ctx.fillStyle = css(add(E.sun, [0.5, 0.5, 0.5]), 1 - haze * 0.85);
+      ctx.beginPath(); ctx.arc(s.x, s.y, rad, 0, 7); ctx.fill();
+    }
+    if (E.elev < 0.1 && (sky.MoonAngularSize || 0) > 0) {
+      const m = moonScreen(E), rad = Math.max(1.2, sky.MoonAngularSize * 0.28);
+      ctx.fillStyle = css([0.9, 0.92, 1], 0.95 - haze * 0.8);
+      ctx.beginPath(); ctx.arc(m.x, m.y, rad, 0, 7); ctx.fill();
+    }
+  }
+  const C = E.p.Clouds;
+  if (C && C.Cover > 0) {
+    const r = rng(11), n = Math.round(C.Cover * 16);
+    const col = scl(mul(c3(C.Color), add(E.ambOut, scl(E.sun, E.sunI * 0.9 + 0.1))), E.exposure);
+    for (let i = 0; i < n; i++) {
+      const y = 12 + r() * (HOR - 40), w = 50 + r() * 90 + C.Cover * 60;
+      const x = ((r() * (W + 200) + t * (3 + r() * 3)) % (W + 200)) - 100;
+      const depthFog = clamp((y / HOR) * E.A.Density * 1.2, 0, 1);
+      ctx.fillStyle = css(mix(col, scl(E.fog, E.exposure), depthFog), (0.25 + C.Density * 0.6) * (0.5 + C.Cover * 0.5));
+      for (let k = 0; k < 5; k++) {
+        ctx.beginPath(); ctx.ellipse(x + (k - 2) * w * 0.18, y + Math.sin(k * 2.1) * 3, w * 0.22, 5 + w * 0.05, 0, 0, 7); ctx.fill();
+      }
+    }
+    if (C.Cover > 0.85) { ctx.fillStyle = css(col, (C.Cover - 0.85) * 4 * C.Density); ctx.fillRect(0, 0, W, HOR); }
+  }
+}
+
+function silhouette(E, d, amp, albedo, seed, base) {
+  const r = rng(seed), y0 = HOR + (CAMH * F) / d + (base || 0);
+  const col = fogged(E, shade(E, albedo, 0.5 + 0.3 * E.warm, false), d);
+  ctx.fillStyle = css(col);
+  ctx.beginPath(); ctx.moveTo(0, y0 + 2);
+  let h = r() * amp;
+  for (let x = 0; x <= W; x += 12) { h = clamp(h + (r() - 0.5) * amp * 0.5, amp * 0.1, amp); ctx.lineTo(x, y0 - h); }
+  ctx.lineTo(W, y0 + 2); ctx.closePath(); ctx.fill();
+}
+
+function groundRows(E, albedo, indoor) {
+  for (let y = HOR + 1; y < H; y++) {
+    const d = (CAMH * F) / (y - HOR);
+    ctx.fillStyle = css(fogged(E, shade(E, albedo, E.sunUp * 0.9 + 0.1, indoor), d));
+    ctx.fillRect(0, y, W, 1);
+  }
+}
+
+function pine(E, x, d, h, albedo) {
+  const s = F / d, yb = HOR + CAMH * s;
+  ctx.fillStyle = css(fogged(E, shade(E, albedo, 0.5, false), d));
+  ctx.beginPath(); ctx.moveTo(x, yb - h * s); ctx.lineTo(x - h * 0.28 * s, yb); ctx.lineTo(x + h * 0.28 * s, yb); ctx.closePath(); ctx.fill();
+}
+
+function avatar(E, sx, d, indoor) {
+  const s = F / d, yb = HOR + CAMH * s, u = s;
+  const skin = fogged(E, shade(E, [0.85, 0.72, 0.58], 0.6, indoor), d);
+  const shirt = fogged(E, shade(E, [0.25, 0.42, 0.85], 0.6, indoor), d);
+  const pants = fogged(E, shade(E, [0.2, 0.22, 0.28], 0.6, indoor), d);
+  ctx.fillStyle = css(pants); ctx.fillRect(sx - u, yb - 2 * u, 0.95 * u, 2 * u); ctx.fillRect(sx + 0.05 * u, yb - 2 * u, 0.95 * u, 2 * u);
+  ctx.fillStyle = css(shirt); ctx.fillRect(sx - u, yb - 4 * u, 2 * u, 2 * u);
+  ctx.fillStyle = css(skin); ctx.fillRect(sx - 2 * u, yb - 4 * u, u, 2 * u); ctx.fillRect(sx + u, yb - 4 * u, u, 2 * u);
+  ctx.fillRect(sx - 0.6 * u, yb - 5.2 * u, 1.2 * u, 1.2 * u);
+  return { x0: sx - 2 * u, y0: yb - 5.2 * u, x1: sx + 2 * u, y1: yb };
+}
+
+function glowAt(x, y, r, col, a) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, css(col, a)); g.addColorStop(1, css(col, 0));
+  ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+}
+
+function darkness(E, indoor) { return 1 - clamp(lum(indoor ? E.ambIn : add(E.ambOut, scl(E.sun, E.sunI))) * E.exposure * 2.5, 0, 1); }
+
+function drawOutdoor(E, opts, t) {
+  drawSky(E, t);
+  const g = GROUND[opts.ground] || GROUND.grass;
+  const rock = opts.ground === "snow" ? [0.75, 0.78, 0.84] : opts.ground === "sand" ? [0.6, 0.45, 0.32] : [0.33, 0.36, 0.4];
+  silhouette(E, 1800, 46, rock, 3, -1);
+  silhouette(E, 600, 16, mix(g, rock, 0.5), 5);
+  groundRows(E, g, false);
+  const treeAlb = opts.ground === "grass" ? [0.1, 0.2, 0.1] : opts.ground === "snow" ? [0.2, 0.28, 0.24] : mix(rock, [0, 0, 0], 0.3);
+  const r = rng(21);
+  for (let x = -10; x < W + 10; x += 7 + r() * 9) pine(E, x, 180, 14 + r() * 12, treeAlb);
+  pine(E, W / 2 - (22 * F) / 40, 40, 26, treeAlb); pine(E, W / 2 - (34 * F) / 46, 46, 30, treeAlb);
+  pine(E, W / 2 + (28 * F) / 42, 42, 28, treeAlb);
+  // lamp post with its practical light
+  const ld = 30, ls = F / ld, lx = W / 2 + 8 * ls, lyb = HOR + CAMH * ls;
+  ctx.fillStyle = css(fogged(E, shade(E, [0.15, 0.15, 0.16], 0.5, false), ld)); ctx.fillRect(lx - 0.25 * ls, lyb - 11 * ls, 0.5 * ls, 11 * ls);
+  const dark = darkness(E, false);
+  ctx.globalCompositeOperation = "lighter";
+  glowAt(lx, lyb, 9 * ls, E.accent, 0.35 * dark * E.lampK);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = css(scl(E.accent, 1.2 * E.lampK + 0.15)); ctx.fillRect(lx - 0.6 * ls, lyb - 11.6 * ls, 1.2 * ls, 0.8 * ls);
+  E.emissive.push([lx, lyb - 11.2 * ls, 3 * ls]);
+  return avatar(E, W / 2 - 10, 22, false);
+}
+
+function project(x, y, z, camY) { return [W / 2 + (x * F) / z, HOR - ((y - camY) * F) / z]; }
+function quad(pts, col) { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < 4; i++) ctx.lineTo(pts[i][0], pts[i][1]); ctx.closePath(); ctx.fill(); }
+
+function drawStreet(E, opts, t) {
+  drawSky(E, t);
+  const camY = 6, segs = [];
+  for (let z = 400; z > 6; z -= 14) segs.push(z);
+  const g = GROUND[opts.ground] || GROUND.stone;
+  groundRows(E, mix(g, [0.18, 0.18, 0.2], 0.7), false);
+  const r = rng(33), reflections = [];
+  for (const z0 of segs) {
+    const z1 = z0 - 14;
+    for (const side of [-1, 1]) {
+      const x = side * 13, hgt = 20 + ((z0 * 7 + (side + 1) * 13) % 23);
+      const wall = fogged(E, shade(E, [0.36, 0.34, 0.33], 0.35 + 0.3 * E.warm * (side > 0 ? 1 : 0.3), false), z1);
+      quad([project(x, 0, z0, camY), project(x, hgt, z0, camY), project(x, hgt, z1, camY), project(x, 0, z1, camY)], css(wall));
+      // windows
+      for (let wy = 4; wy < hgt - 2; wy += 4) {
+        for (let wz = z0 - 3; wz > z1; wz -= 5) {
+          const lit = r() < 0.32;
+          const a = project(x * 0.999, wy, wz, camY), b = project(x * 0.999, wy + 2, wz - 2, camY);
+          const col = lit ? fogged(E, scl(mix([1, 0.85, 0.6], E.accent, 0.4), 0.9 * E.lampK + 0.1), wz) : fogged(E, shade(E, [0.08, 0.09, 0.1], 0.3, false), wz);
+          ctx.fillStyle = css(col); ctx.fillRect(Math.min(a[0], b[0]), b[1], Math.max(1, Math.abs(b[0] - a[0])), Math.max(1, a[1] - b[1]));
+        }
+      }
+      // neon sign every few segments
+      if (((z0 / 14) | 0) % 3 === (side > 0 ? 0 : 1) && z0 < 250) {
+        const a = project(x * 0.98, 8, z0 - 4, camY), b = project(x * 0.98, 14, z0 - 6, camY);
+        const neon = fogged(E, scl(E.accent, 1.4 * E.lampK + 0.1), z0 * 0.7);
+        ctx.fillStyle = css(neon); ctx.fillRect(Math.min(a[0], b[0]), b[1], Math.max(1.5, Math.abs(b[0] - a[0])), a[1] - b[1]);
+        E.emissive.push([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, Math.max(4, (a[1] - b[1]))]);
+        reflections.push([(a[0] + b[0]) / 2, HOR + (HOR - (a[1] + b[1]) / 2) * 0.35 + (CAMH * F) / z0 * 0.6, Math.max(2, Math.abs(b[0] - a[0])), (a[1] - b[1]) * 1.6, neon]);
+      }
+    }
+  }
+  // wet-ground reflections scale with EnvironmentSpecularScale
+  for (const [x, y, w, h, col] of reflections) { ctx.fillStyle = css(col, 0.35 * E.spec); ctx.fillRect(x - w / 2, y, w, h); }
+  // streetlamp
+  const ld = 24, ls = F / ld, lx = W / 2 - 9 * ls, lyb = HOR + camY * ls;
+  ctx.fillStyle = css(fogged(E, shade(E, [0.12, 0.12, 0.13], 0.5, false), ld)); ctx.fillRect(lx - 0.2 * ls, lyb - 10 * ls, 0.4 * ls, 10 * ls);
+  ctx.globalCompositeOperation = "lighter";
+  glowAt(lx, lyb, 8 * ls, [1, 0.82, 0.55], 0.35 * darkness(E, false) * E.lampK);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.fillStyle = css(scl([1, 0.85, 0.6], 1.2 * E.lampK + 0.15)); ctx.fillRect(lx - 0.5 * ls, lyb - 10.5 * ls, 1 * ls, 0.6 * ls);
+  E.emissive.push([lx, lyb - 10.2 * ls, 2.5 * ls]);
+  return avatar(E, W / 2 + 14, 20, false);
+}
+
+function drawCorridor(E, opts, t) {
+  const camY = 3.2, half = 5, ceil = 8, step = 6;
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  const g = GROUND[opts.ground] || GROUND.stone;
+  const wallAlb = opts.ground === "stone" ? [0.36, 0.33, 0.3] : [0.62, 0.62, 0.6];
+  const floorAlb = mix(g, [0.5, 0.5, 0.5], 0.3);
+  const lights = [];
+  for (let z = 120; z > 1; z -= step) {
+    const z0 = z, z1 = Math.max(1.2, z - step), zm = (z0 + z1) / 2;
+    // light reaching this segment from the ceiling panel in it (every second segment)
+    const idx = Math.round(z0 / step);
+    const panel = idx % 2 === 0;
+    const k = panel ? E.lampK * E.flick(idx) : 0;
+    const nearK = (idx % 2 === 0 ? k : E.lampK * E.flick(idx + 1) * 0.6);
+    const pl = scl(E.accent, (opts.flashlight ? 0.15 : 0.55) * nearK);
+    const lit = (alb) => fogged(E, scl(mul(L2(alb), add(E.ambIn, pl)), E.exposure * 1.1), zm);
+    quad([project(-half, 0, z0, camY), project(half, 0, z0, camY), project(half, 0, z1, camY), project(-half, 0, z1, camY)], css(lit(floorAlb)));
+    quad([project(-half, ceil, z0, camY), project(half, ceil, z0, camY), project(half, ceil, z1, camY), project(-half, ceil, z1, camY)], css(lit(scl(wallAlb, 0.8))));
+    quad([project(-half, 0, z0, camY), project(-half, ceil, z0, camY), project(-half, ceil, z1, camY), project(-half, 0, z1, camY)], css(lit(wallAlb)));
+    quad([project(half, 0, z0, camY), project(half, ceil, z0, camY), project(half, ceil, z1, camY), project(half, 0, z1, camY)], css(lit(scl(wallAlb, 0.92))));
+    if (panel && z0 < 110) {
+      const a = project(-1.2, ceil - 0.01, zm + 1.5, camY), b = project(1.2, ceil - 0.01, zm - 1.5, camY);
+      const col = fogged(E, scl(E.accent, 1.3 * k + 0.05), zm);
+      ctx.fillStyle = css(col); ctx.fillRect(a[0], a[1], b[0] - a[0], Math.max(1, b[1] - a[1]));
+      lights.push([(a[0] + b[0]) / 2, b[1], (b[0] - a[0]), k, zm]);
+    }
+  }
+  for (const [x, y, w, k, zm] of lights) E.emissive.push([x, y, w * 0.6 * k]);
+  ctx.globalCompositeOperation = "lighter";
+  for (const [x, y, w, k, zm] of lights) { const f = 1 - fogAt(E, zm); glowAt(x, y + w * 0.6, w * 1.6, E.accent, 0.12 * k * f); }
+  ctx.globalCompositeOperation = "source-over";
+  return avatar(E, W / 2 + 18, 16, true);
+}
+
+// ---------- weather ----------
+let parts = [];
+function weatherStep(E, w, t, dt) {
+  const type = w ? w.Type : "none", inten = w ? w.Intensity : 0;
+  const base = { rain: 220, storm: 380, snow: 140, blizzard: 320, dust: 22, ash: 90, embers: 30, fireflies: 16, spores: 30, bubbles: 40 }[type] || 0;
+  const want = Math.round(base * inten);
+  while (parts.length < want) parts.push({ x: Math.random() * W, y: Math.random() * H, s: 0.3 + Math.random() * 0.7, p: Math.random() * 7 });
+  if (parts.length > want) parts.length = want;
+  const litC = (alb) => shade(E, alb, 0.6, E.indoor);
+  for (const q of parts) {
+    let vx = 0, vy = 0;
+    if (type === "rain") { vx = 40; vy = 520; } else if (type === "storm") { vx = 120; vy = 600; }
+    else if (type === "snow") { vx = 10 + Math.sin(t + q.p) * 12; vy = 30; } else if (type === "blizzard") { vx = 340; vy = 70; }
+    else if (type === "dust") { vx = 14; vy = Math.sin(t * 0.3 + q.p) * 3; } else if (type === "ash") { vx = 6 + Math.sin(t + q.p) * 8; vy = 18; }
+    else if (type === "embers") { vx = Math.sin(t * 2 + q.p) * 10; vy = -30; } else if (type === "fireflies") { vx = Math.sin(t * 0.7 + q.p * 3) * 14; vy = Math.cos(t * 0.5 + q.p) * 10; }
+    else if (type === "spores") { vx = 4; vy = -6; } else if (type === "bubbles") { vx = Math.sin(t * 3 + q.p) * 6; vy = -40; }
+    q.x += vx * q.s * dt; q.y += vy * q.s * dt;
+    if (q.y > H + 10) { q.y = -10; q.x = Math.random() * W; } if (q.y < -12) { q.y = H + 8; q.x = Math.random() * W; }
+    if (q.x > W + 20) q.x = -20; if (q.x < -20) q.x = W + 20;
+    if (type === "rain" || type === "storm" || type === "blizzard") {
+      const len = (type === "blizzard" ? 10 : 9) * q.s;
+      const n = Math.hypot(vx, vy);
+      ctx.strokeStyle = css(mix(litC([0.75, 0.8, 0.88]), [0.6, 0.65, 0.7], 0.3), type === "blizzard" ? 0.55 : 0.3);
+      ctx.lineWidth = q.s * (type === "blizzard" ? 1.4 : 0.9);
+      ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x - (vx / n) * len, q.y - (vy / n) * len); ctx.stroke();
+    } else if (type === "snow" || type === "ash") {
+      ctx.fillStyle = css(type === "snow" ? litC([1, 1, 1]) : litC([0.55, 0.54, 0.52]), 0.85);
+      ctx.beginPath(); ctx.arc(q.x, q.y, 1.4 * q.s, 0, 7); ctx.fill();
+    } else if (type === "dust") {
+      glowAt(q.x, q.y, 40 * q.s, scl(E.fog, E.exposure * 1.2), 0.08);
+    } else if (type === "bubbles") {
+      ctx.strokeStyle = css(litC([0.85, 1, 1]), 0.5); ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.arc(q.x, q.y, 1.8 * q.s, 0, 7); ctx.stroke();
+    } else {
+      const col = type === "embers" ? [1, 0.55, 0.2] : type === "fireflies" ? [0.85, 1, 0.45] : [0.8, 1, 0.88];
+      const blink = type === "fireflies" ? Math.max(0, Math.sin(t * 2 + q.p * 5)) : 1;
+      ctx.fillStyle = css(col, blink); ctx.beginPath(); ctx.arc(q.x, q.y, 1.2 * q.s + 0.3, 0, 7); ctx.fill();
+      if (blink > 0.3) E.emissive.push([q.x, q.y, 3 * q.s]);
+    }
+  }
+}
+
+// ---------- post ----------
+function bloomPass(p) {
+  const B = p.Bloom; if (!B || B.Intensity <= 0) return;
+  sctx.clearRect(0, 0, 120, 68);
+  sctx.drawImage(scene, 0, 0, 120, 68);
+  const id = sctx.getImageData(0, 0, 120, 68), d = id.data;
+  const thr = clamp(0.42 + B.Threshold * 0.17, 0.3, 1.05);
+  for (let i = 0; i < d.length; i += 4) {
+    const l = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+    const k = l > thr ? clamp((l - thr) / (1 - thr + 0.05), 0, 1) : 0;
+    d[i] *= k; d[i + 1] *= k; d[i + 2] *= k;
+  }
+  sctx.putImageData(id, 0, 0);
+  const shrink = 1 + B.Size / 8;
+  tiny.width = Math.max(4, Math.round(120 / shrink)); tiny.height = Math.max(3, Math.round(68 / shrink));
+  tctx.imageSmoothingEnabled = true;
+  tctx.drawImage(small, 0, 0, tiny.width, tiny.height);
+  ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.imageSmoothingEnabled = true;
+  ctx.globalAlpha = clamp(B.Intensity * 1.3, 0, 1); ctx.drawImage(tiny, 0, 0, W, H);
+  ctx.globalAlpha = clamp(B.Intensity * 0.8, 0, 1); ctx.drawImage(small, 0, 0, W, H);
+  ctx.restore();
+}
+
+function sunRaysPass(E, sceneName) {
+  const S = E.p.SunRays; if (!S || S.Intensity <= 0 || sceneName === "corridor") return;
+  if (E.elev < -0.05 || (E.p.Sky && E.p.Sky.CelestialBodiesShown === false)) return;
+  const s = sunScreen(E), vis = (1 - clamp(E.A.Density * 0.9, 0, 0.9)) * smooth(-0.05, 0.1, E.elev);
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  const R = 60 + S.Spread * 260;
+  const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, R);
+  g.addColorStop(0, css(E.sun, 0.5 * S.Intensity * vis)); g.addColorStop(1, css(E.sun, 0));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const r = rng(5);
+  for (let i = 0; i < 14; i++) {
+    const a = Math.PI * (0.15 + r() * 0.7), w = 0.03 + r() * 0.05;
+    ctx.fillStyle = css(E.sun, 0.12 * S.Intensity * vis);
+    ctx.beginPath(); ctx.moveTo(s.x, s.y);
+    ctx.lineTo(s.x + Math.cos(a - w) * R * 1.4, s.y + Math.sin(a - w) * R * 1.4);
+    ctx.lineTo(s.x + Math.cos(a + w) * R * 1.4, s.y + Math.sin(a + w) * R * 1.4); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function dofPass(p) {
+  const D = p.DepthOfField; if (!D || D.FarIntensity <= 0) return;
+  dctx.clearRect(0, 0, W, H);
+  tiny.width = 96; tiny.height = 54; tctx.drawImage(scene, 0, 0, 96, 54);
+  dctx.globalCompositeOperation = "source-over"; dctx.drawImage(tiny, 0, 0, W, H);
+  // far = near the horizon: mask with a band centred on it, wider when the focus is close
+  const band = clamp(1 - (D.FocusDistance + D.InFocusRadius) / 150, 0.1, 0.9);
+  const m = dctx.createLinearGradient(0, 0, 0, H);
+  m.addColorStop(0, "rgba(0,0,0,0.6)"); m.addColorStop(0.5 - band * 0.1, "rgba(0,0,0,1)");
+  m.addColorStop(0.5 + band * 0.25, "rgba(0,0,0,0)"); m.addColorStop(1, "rgba(0,0,0,0)");
+  dctx.globalCompositeOperation = "destination-in"; dctx.fillStyle = m; dctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = D.FarIntensity; ctx.drawImage(dof, 0, 0); ctx.restore();
+}
+
+function gradePass(p, tension, flash, avatarBox) {
+  const id = ctx.getImageData(0, 0, W, H), d = id.data;
+  const G = p.Grade || { Brightness: 0, Contrast: 0, Saturation: 0, TintColor: [255, 255, 255] };
+  const tint = c3(G.TintColor), tz = tension * tension * (3 - 2 * tension);
+  const tSat = -0.5 * tz, tCon = 0.15 * tz, tTint = mix([1, 1, 1], [1, 0.8, 0.8], tz);
+  const br = G.Brightness + flash, con = 1 + G.Contrast, sat = 1 + G.Saturation;
+  let sum = 0, aIn = 0, nIn = 0, aOut = 0, nOut = 0;
+  const bx0 = avatarBox.x0 | 0, bx1 = avatarBox.x1 | 0, by0 = avatarBox.y0 | 0, by1 = avatarBox.y1 | 0;
+  const ax = (bx0 + bx1) / 2, ay = (by0 + by1) / 2;
+  for (let y = 0, i = 0; y < H; y++) {
+    const vy = (y - H / 2) / (H / 2);
+    for (let x = 0; x < W; x++, i += 4) {
+      let r = d[i] / 255 + br, g = d[i + 1] / 255 + br, b = d[i + 2] / 255 + br;
+      r = (r - 0.5) * con + 0.5; g = (g - 0.5) * con + 0.5; b = (b - 0.5) * con + 0.5;
+      let l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      r = l + (r - l) * sat; g = l + (g - l) * sat; b = l + (b - l) * sat;
+      r *= tint[0]; g *= tint[1]; b *= tint[2];
+      if (tz > 0) {
+        r = (r - 0.5) * (1 + tCon) + 0.5; g = (g - 0.5) * (1 + tCon) + 0.5; b = (b - 0.5) * (1 + tCon) + 0.5;
+        l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        r = (l + (r - l) * (1 + tSat)) * tTint[0]; g = (l + (g - l) * (1 + tSat)) * tTint[1]; b = (l + (b - l) * (1 + tSat)) * tTint[2];
+        const vx = (x - W / 2) / (W / 2), v = 1 - tz * 0.8 * clamp((vx * vx + vy * vy) * 0.6, 0, 1);
+        r *= v; g *= v; b *= v;
+      }
+      r = clamp(r, 0, 1); g = clamp(g, 0, 1); b = clamp(b, 0, 1);
+      d[i] = r * 255; d[i + 1] = g * 255; d[i + 2] = b * 255;
+      const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      sum += L;
+      if (x >= bx0 && x <= bx1 && y >= by0 && y <= by1) {
+        if (Math.abs(x - ax) < (bx1 - bx0) * 0.22) { aIn += L; nIn++; }
+      } else if (Math.abs(x - ax) < (bx1 - bx0) * 1.6 && y >= by0 - 6 && y <= by1 + 4) { aOut += L; nOut++; }
+    }
+  }
+  vctx.putImageData(id, 0, 0);
+  const lin = (v) => Math.pow(v, 2.2);
+  const a = lin(aIn / Math.max(1, nIn)), b2 = lin(aOut / Math.max(1, nOut));
+  return { mean: sum / (W * H), contrast: (Math.max(a, b2) + 0.05) / (Math.min(a, b2) + 0.05) };
+}
+
+// ---------- frame ----------
+let last = performance.now(), flashT = 0, nextFlash = 3, flickSeed = 0;
+function flickerFn(opts, t) {
+  if (!opts.flicker) return () => 1;
+  const gentle = opts.reduce;
+  return (i) => {
+    if (i % 5 !== 2) return 1;
+    const cyc = (t * 0.6 + i) % 4;
+    if (cyc > 0.7) return 1;
+    const on = Math.floor(t * (gentle ? 2 : 14) + i) % 2 === 0;
+    return gentle ? (on ? 1 : 0.6) : (on ? 1 : 0.05);
+  };
+}
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const t = now / 1000;
+  const opts = { scene: $("scene").value, ground: $("ground").value, skybox: $("skybox").value, flashlight: $("flashlight").checked, flicker: $("flicker").checked, reduce: $("reduce").checked };
+  const E = environment(P, opts);
+  E.emissive = []; E.indoor = opts.scene === "corridor";
+  E.lampK = 1; E.flick = flickerFn(opts, t);
+  ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+  const box = opts.scene === "street" ? drawStreet(E, opts, t) : opts.scene === "corridor" ? drawCorridor(E, opts, t) : drawOutdoor(E, opts, t);
+  // haze glare toward the sun over far geometry
+  if (opts.scene !== "corridor" && E.A.Glare > 0 && E.elev > -0.1) {
+    const s = sunScreen(E); ctx.save(); ctx.globalCompositeOperation = "lighter";
+    glowAt(s.x, Math.max(s.y, HOR - 20), 80 + E.A.Glare * 25, scl(E.sun, E.exposure), clamp(E.A.Glare * 0.06, 0, 0.5)); ctx.restore();
+  }
+  if (opts.flashlight) {
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    glowAt(W / 2 + 6, H * 0.6, 95, E.accent, 0.22); glowAt(W / 2 + 6, H * 0.6, 35, E.accent, 0.18); ctx.restore();
+  }
+  weatherStep(E, P.Weather, t, dt);
+  dofPass(P);
+  sunRaysPass(E, opts.scene);
+  bloomPass(P);
+  // storm lightning
+  let flash = 0;
+  if (P.Weather && P.Weather.Type === "storm") {
+    nextFlash -= dt;
+    if (nextFlash <= 0) { flashT = 0.0001; nextFlash = 5 + Math.random() * 7; }
+    if (flashT > 0) {
+      flashT += dt;
+      const peak = opts.reduce ? 0.08 : 0.4;
+      flash = opts.reduce ? peak * Math.max(0, 1 - flashT / 0.6) : peak * (Math.max(0, 1 - flashT / 0.25) + (flashT > 0.12 ? 0.7 * Math.max(0, 1 - (flashT - 0.12) / 0.35) : 0));
+      if (flashT > 0.8) flashT = 0;
+    }
+  }
+  const stats = gradePass(P, +$("tension").value, flash, box);
+  if (((now / 250) | 0) !== flickSeed) { flickSeed = (now / 250) | 0; showChecks(stats, opts); }
+  requestAnimationFrame(frame);
+}
+
+function showChecks(s, opts) {
+  const c = $("checks"); c.innerHTML = "";
+  const add2 = (txt, good, title) => { const el = document.createElement("span"); el.textContent = txt; el.className = good ? "good" : "bad"; el.title = title; c.appendChild(el); };
+  add2(`Avatar contrast ${s.contrast.toFixed(1)}:1`, s.contrast >= 1.6, "Luminance contrast between the avatar and what's behind it. Below ~1.6:1 players lose each other (fine on purpose in horror, bad in PvP).");
+  add2(`Mean brightness ${(s.mean * 100).toFixed(0)}%`, s.mean >= 0.07, "Below ~7% the scene is unreadable on a phone in daylight unless lights or a flashlight carry it.");
+}
+
+// ---------- UI ----------
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+function buildPresetChips() {
+  const box = $("presets"), f = $("filter").value.trim().toLowerCase();
+  box.innerHTML = "";
+  for (const [name, p] of Object.entries(PRESETS)) {
+    const hay = (name + " " + p.Label + " " + (p.Genres || []).join(" ")).toLowerCase();
+    if (f && !hay.includes(f)) continue;
+    const b = document.createElement("button");
+    b.className = "chip" + (name === currentName ? " on" : ""); b.textContent = p.Label; b.title = (p.Genres || []).join(", ");
+    b.onclick = () => load(name); box.appendChild(b);
+  }
+}
+
+function control(section, prop, spec, obj) {
+  const row = document.createElement("div"); row.className = "ctl";
+  const name = document.createElement("span"); name.className = "name"; name.textContent = prop; name.title = prop; row.appendChild(name);
+  if (spec[0] === "color") {
+    const inp = document.createElement("input"); inp.type = "color"; inp.value = hex(obj[prop]);
+    const out = document.createElement("output"); out.textContent = obj[prop].join(",");
+    out.style.fontSize = "10px";
+    inp.oninput = () => { obj[prop] = unhex(inp.value); out.textContent = obj[prop].join(","); };
+    row.appendChild(inp); row.appendChild(out);
+  } else if (spec[0] === "bool") {
+    const inp = document.createElement("input"); inp.type = "checkbox"; inp.checked = obj[prop] !== false;
+    inp.onchange = () => { obj[prop] = inp.checked; };
+    row.appendChild(inp); row.appendChild(document.createElement("span"));
+  } else {
+    const [min, max, step] = spec;
+    const inp = document.createElement("input"); inp.type = "range"; inp.min = min; inp.max = max; inp.step = step; inp.value = obj[prop] ?? 0;
+    const out = document.createElement("output"); out.textContent = (+inp.value).toString();
+    inp.oninput = () => { obj[prop] = +inp.value; out.textContent = inp.value; };
+    row.appendChild(inp); row.appendChild(out);
+  }
+  return row;
+}
+
+function buildPanel() {
+  const panel = $("panel"); panel.innerHTML = "";
+  for (const [section, def] of Object.entries(SCHEMA)) {
+    const det = document.createElement("details"); det.open = section === "Lighting" || section === "Atmosphere" || section === "Grade";
+    const sum = document.createElement("summary"); sum.textContent = def.label || section;
+    const body = document.createElement("div");
+    if (def.optional) {
+      const lab = document.createElement("label"); const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = !!P[section];
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(" on")); lab.onclick = (e) => e.stopPropagation();
+      cb.onchange = () => { P[section] = cb.checked ? clone(def.def) : null; buildPanel(); };
+      sum.appendChild(lab);
+    }
+    det.appendChild(sum);
+    const obj = P[section] || (def.optional ? null : (P[section] = {}));
+    if (obj) for (const [prop, ...spec] of def.props) { if (obj[prop] === undefined && spec[0] !== "bool") obj[prop] = spec[0] === "color" ? [0, 0, 0] : 0; body.appendChild(control(section, prop, spec, obj)); }
+    else body.className = "disabled";
+    det.appendChild(body); panel.appendChild(det);
+  }
+  // world + audio
+  const det = document.createElement("details"); det.open = true;
+  const sum = document.createElement("summary"); sum.textContent = "Weather, accent, audio"; det.appendChild(sum);
+  const sel = (label, options, value, onchange) => {
+    const row = document.createElement("div"); row.className = "ctl";
+    const n = document.createElement("span"); n.className = "name"; n.textContent = label; row.appendChild(n);
+    const s = document.createElement("select"); for (const o of options) { const op = document.createElement("option"); op.value = op.textContent = o; s.appendChild(op); }
+    s.value = value; s.onchange = () => onchange(s.value); row.appendChild(s); row.appendChild(document.createElement("span")); return row;
+  };
+  det.appendChild(sel("Weather", WEATHER, P.Weather ? P.Weather.Type : "none", (v) => { P.Weather = v === "none" ? null : { Type: v, Intensity: P.Weather ? P.Weather.Intensity : 0.8 }; buildPanel(); }));
+  if (P.Weather) det.appendChild(control("Weather", "Intensity", [0, 2, 0.05], P.Weather));
+  if (!P.Accent) P.Accent = [255, 220, 170];
+  det.appendChild(control("", "Accent", ["color"], P));
+  det.appendChild(sel("Technology", TECH, P.Technology || "Future", (v) => { P.Technology = v; }));
+  det.appendChild(sel("Reverb", REVERB, P.Reverb || "NoReverb", (v) => { P.Reverb = v; }));
+  const row = document.createElement("div"); row.className = "ctl";
+  const n = document.createElement("span"); n.className = "name"; n.textContent = "Ambience"; row.appendChild(n);
+  const inp = document.createElement("input"); inp.type = "text"; inp.value = P.Ambience || ""; inp.oninput = () => { P.Ambience = inp.value || null; };
+  row.appendChild(inp); row.appendChild(document.createElement("span")); det.appendChild(row);
+  const note = document.createElement("p"); note.className = "note";
+  note.textContent = "Accent = the colour of practical lights (lamps, torches, neon). The kit tints lights tagged AtmosphereAccent with it. Ambience must match a key in AtmosphereConfig.Ambiences.";
+  det.appendChild(note);
+  panel.appendChild(det);
+}
+
+function applyLabDefaults(name) {
+  const d = Object.assign({ scene: "outdoor", ground: "grass", skybox: "default", flashlight: false, flicker: false }, LAB[name] || {});
+  $("scene").value = d.scene; $("ground").value = d.ground; $("skybox").value = d.skybox;
+  $("flashlight").checked = d.flashlight; $("flicker").checked = d.flicker;
+}
+
+function load(name) {
+  currentName = name; P = clone(PRESETS[name]); $("pname").value = name;
+  $("mood").textContent = P.Mood ? `${P.Label}: ${P.Mood}` : P.Label;
+  applyLabDefaults(name); parts = []; buildPanel(); buildPresetChips();
+}
+
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("show"); setTimeout(() => t.classList.remove("show"), 1400); }
+async function copy(text, what) {
+  try { await navigator.clipboard.writeText(text); toast(`Copied ${what}`); }
+  catch (e) { const ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); toast(`Copied ${what}`); } catch (_) { toast("Copy failed"); } ta.remove(); }
+}
+function cleanName() { return ($("pname").value.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "custom"); }
+function cleaned() { const p = clone(P); for (const k of Object.keys(p)) if (p[k] === null) delete p[k]; return p; }
+
+$("copyLuau").onclick = () => copy(LuauGen.presetEntry(cleanName(), cleaned(), "\t"), "Luau entry for AtmospherePresets.luau");
+$("copyCmd").onclick = () => copy(LuauGen.commandBar(cleanName(), cleaned()), "command-bar script");
+$("copyJson").onclick = () => copy(JSON.stringify({ [cleanName()]: P }, null, 2), "JSON for presets.json");
+$("reset").onclick = () => load(currentName);
+$("filter").oninput = buildPresetChips;
+
+if (currentName) { load(currentName); requestAnimationFrame(frame); }
+else { $("mood").textContent = "No presets embedded: run node scripts/presets.cjs build"; }
+</script>
+</body>
+</html>
