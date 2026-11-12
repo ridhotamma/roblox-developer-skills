@@ -83,7 +83,7 @@ By default the engine lowers or raises the root every frame so the lowest point 
 
 ### Markers and props
 
-- `markers` become `KeyframeMarker`s, read in game with `track:GetMarkerReachedSignal("Hit")`. Put one on every frame gameplay cares about: hit windows, ball contact or release, footsteps, sound cues.
+- `markers` become `KeyframeMarker`s, read in game with `track:GetMarkerReachedSignal("Hit")` (the `roblox-combat` skill, if installed, hangs hitstop, flash, knockback and shake off the `Hit` marker). Put one on every frame gameplay cares about: hit windows, ball contact or release, footsteps, sound cues.
 - `props` are **preview only** (they are not exported) and exist so the motion can be judged against the thing it interacts with. `type: "ball"` with `radius`, or any other type for a box with `size: [x, y, z]` (a sword is a long thin box). `at` is either a part name (the prop follows that part; `offset: [right, up, fwd]` in the part's own axes) or a fixed point `[right, up, fwd]` in studs from the floor point under the character. With several `keys` the prop moves between anchors; `arc` adds a parabolic rise to the segment leaving that key (a shot or a pass). See `examples/jump_shot.json` and `examples/soccer_kick.json`.
 
 ## What good looks like

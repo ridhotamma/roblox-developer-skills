@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Combat Feel Lab</title>
+<style>
+:root {
+  --bg: #f4f2ee; --panel: #ffffff; --ink: #1d1f24; --muted: #6b7078; --line: #e2dfd8;
+  --accent: #e2572c; --accent-ink: #ffffff; --stage: #232733; --stage-floor: #343a4a;
+  --player: #4f8cff; --dummy: #d9c7a3; --hurt: #ff4b4b; --chip: #efece6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161b; --panel: #1c1f26; --ink: #eceef2; --muted: #9aa0aa; --line: #2c313b;
+    --accent: #ff7a4d; --accent-ink: #14161b; --stage: #0f1117; --stage-floor: #222733; --chip: #252a33;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14161b; --panel: #1c1f26; --ink: #eceef2; --muted: #9aa0aa; --line: #2c313b;
+  --accent: #ff7a4d; --accent-ink: #14161b; --stage: #0f1117; --stage-floor: #222733; --chip: #252a33;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 20px; margin: 4px 0 2px; }
+.sub { color: var(--muted); margin: 0 0 12px; }
+.grid { display: grid; grid-template-columns: 1fr 340px; gap: 16px; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+.stage { position: relative; border-radius: 12px; overflow: hidden; background: var(--stage); touch-action: manipulation; }
+canvas { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; cursor: pointer; }
+.hint { position: absolute; left: 12px; top: 10px; color: #c9cede; font-size: 12px; pointer-events: none; }
+@media (max-width: 600px) { .hint { display: none; } }
+.combo { position: absolute; right: 12px; top: 10px; color: #fff; font-weight: 700; font-size: 13px; pointer-events: none; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+button { font: inherit; border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px; padding: 8px 12px; cursor: pointer; min-height: 40px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 650; }
+button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 8px; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.tabs button { padding: 6px 10px; min-height: 34px; }
+.row { display: grid; grid-template-columns: 112px 1fr 56px; gap: 8px; align-items: center; margin: 6px 0; }
+.row label { color: var(--muted); font-size: 13px; }
+.row output { text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+.layers { display: flex; flex-wrap: wrap; gap: 6px; }
+.layers label { display: inline-flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 999px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+.section { margin-top: 14px; }
+textarea { width: 100%; height: 160px; font: 12px/1.4 ui-monospace, Menlo, monospace; background: var(--chip); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
+.note { color: var(--muted); font-size: 12px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Combat Feel Lab</h1>
+  <p class="sub">Hit the dummy, toggle each feedback layer, tune the numbers, then copy them into <code>CombatConfig.luau</code>.</p>
+  <div class="grid">
+    <section>
+      <div class="stage" id="stage">
+        <canvas id="c" width="960" height="540" aria-label="Combat sandbox"></canvas>
+        <div class="hint">Space / click / tap = attack · E = enemy attacks you</div>
+        <div class="combo" id="comboLabel"></div>
+      </div>
+      <div class="actions">
+        <button class="primary" id="attackBtn">Attack</button>
+        <button id="enemyBtn">Enemy attacks</button>
+        <button id="resetBtn">Reset dummy</button>
+        <button id="presetFloaty">Preset: no feedback</button>
+        <button id="presetDefault">Preset: default</button>
+        <button id="presetPunchy">Preset: punchy</button>
+      </div>
+      <div class="panel">
+        <h2>Layers</h2>
+        <div class="layers" id="layers"></div>
+        <p class="note">Turn everything off, hit a few times, then turn layers on one at a time: sound → hitstop → flash → knockback → shake. That order is roughly how much each adds. Slow-mo here is real time-scaling; in Roblox it's faked locally (animations, sound, color, FOV).</p>
+      </div>
+    </section>
+    <aside class="panel">
+      <h2>Hit weight</h2>
+      <div class="tabs" id="tabs"></div>
+      <div id="sliders"></div>
+      <div class="section">
+        <h2>Export</h2>
+        <button class="primary" id="copyBtn">Copy Luau</button>
+        <textarea id="out" readonly aria-label="Luau HitWeights"></textarea>
+      </div>
+    </aside>
+  </div>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const FLOOR = 430, PX = 12; // 1 stud = 12 px
+
+  // ---------------------------------------------------------------- tuning data
+  const FIELDS = [
+    ['Damage', 'Damage', 1, 60, 1, ''],
+    ['Hitstop', 'Hitstop', 0, 0.3, 0.005, 's'],
+    ['Flash', 'Flash', 0, 0.3, 0.01, 's'],
+    ['Knockback', 'Knockback', 0, 120, 1, ''],
+    ['KnockUp', 'Knock up', 0, 60, 1, ''],
+    ['KnockTime', 'Knock time', 0, 0.5, 0.01, 's'],
+    ['Shake', 'Shake', 0, 1, 0.05, ''],
+    ['FovPunch', 'FOV punch', 0, 10, 0.5, '°'],
+    ['SlowMo', 'Slow-mo', 0, 0.6, 0.05, 's'],
+    ['Poise', 'Poise dmg', 0, 8, 1, ''],
+    ['SoundPitch', 'Sound pitch', 0.5, 1.6, 0.05, '×'],
+    ['NumberScale', 'Number size', 0.5, 2, 0.05, '×'],
+  ];
+  const DEFAULTS = {
+    Light:    { Damage: 8,  Hitstop: 0.05, Flash: 0.08, Knockback: 18, KnockUp: 4,  KnockTime: 0.12, Shake: 0.25, FovPunch: 0, SlowMo: 0,   Poise: 1, SoundPitch: 1.15, NumberScale: 1 },
+    Medium:   { Damage: 14, Hitstop: 0.08, Flash: 0.10, Knockback: 30, KnockUp: 8,  KnockTime: 0.15, Shake: 0.4,  FovPunch: 2, SlowMo: 0,   Poise: 2, SoundPitch: 1.0,  NumberScale: 1.15 },
+    Heavy:    { Damage: 22, Hitstop: 0.12, Flash: 0.12, Knockback: 55, KnockUp: 18, KnockTime: 0.20, Shake: 0.65, FovPunch: 4, SlowMo: 0,   Poise: 3, SoundPitch: 0.9,  NumberScale: 1.3 },
+    Finisher: { Damage: 30, Hitstop: 0.16, Flash: 0.15, Knockback: 80, KnockUp: 30, KnockTime: 0.25, Shake: 0.9,  FovPunch: 6, SlowMo: 0.3, Poise: 5, SoundPitch: 0.8,  NumberScale: 1.5 },
+  };
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+  let weights = clone(DEFAULTS);
+  let combo = ['Light', 'Light', 'Medium', 'Finisher'];
+  let activeTab = 'Light';
+  const LAYERS = { sound: 'Sound', hitstop: 'Hitstop', flash: 'Flash', knockback: 'Knockback', shake: 'Shake', zoom: 'FOV punch', slowmo: 'Slow-mo', sparks: 'Sparks', numbers: 'Damage numbers', react: 'Hit reaction' };
+  const on = Object.fromEntries(Object.keys(LAYERS).map((k) => [k, true]));
+
+  // ---------------------------------------------------------------- audio
+  let audio = null;
+  const ac = () => (audio ||= new (window.AudioContext || window.webkitAudioContext)());
+  function noiseBuffer(a, seconds) {
+    const b = a.createBuffer(1, Math.floor(a.sampleRate * seconds), a.sampleRate);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length) ** 2;
+    return b;
+  }
+  function impact(pitch, heavy) {
+    if (!on.sound) return;
+    const a = ac(), t = a.currentTime, p = pitch * (1 + (Math.random() - 0.5) * 0.12);
+    const n = a.createBufferSource(); n.buffer = noiseBuffer(a, 0.12 + heavy * 0.1);
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800 * p; f.Q.value = 0.8;
+    const g = a.createGain(); g.gain.setValueAtTime(0.9, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15 + heavy * 0.1);
+    n.connect(f).connect(g).connect(a.destination); n.start(t);
+    const o = a.createOscillator(); o.type = 'sine';
+    o.frequency.setValueAtTime(170 * p, t); o.frequency.exponentialRampToValueAtTime(45 * p, t + 0.18 + heavy * 0.15);
+    const og = a.createGain(); og.gain.setValueAtTime(0.8 + heavy * 0.4, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.22 + heavy * 0.2);
+    o.connect(og).connect(a.destination); o.start(t); o.stop(t + 0.5);
+  }
+  function whoosh(step) {
+    if (!on.sound) return;
+    const a = ac(), t = a.currentTime;
+    const n = a.createBufferSource(); n.buffer = noiseBuffer(a, 0.16);
+    const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 2;
+    f.frequency.setValueAtTime(500, t); f.frequency.exponentialRampToValueAtTime(2200 + step * 300, t + 0.12);
+    const g = a.createGain(); g.gain.value = 0.25;
+    n.connect(f).connect(g).connect(a.destination); n.start(t);
+  }
+
+  // ---------------------------------------------------------------- world state
+  const player = { x: 330, y: FLOOR, vx: 0, vy: 0, swing: -1, swingStep: 0, flashUntil: 0, iUntil: 0, freezeUntil: 0, knockUntil: 0 };
+  const dummy = { x: 450, y: FLOOR, vx: 0, vy: 0, flashUntil: 0, freezeUntil: 0, react: 0, knockUntil: 0, pendingKnock: null, telegraph: -1, hp: 400 };
+  let clock = 0;            // game time (scaled by slow-mo)
+  let trauma = 0, fovPunch = 0, slowUntil = 0, slowScale = 1;
+  let step = 0, lastSwing = -99, nextSwing = 0, buffered = false;
+  const particles = [], numbers = [], timers = [];
+  const after = (seconds, fn) => timers.push({ at: clock + seconds, fn });
+  const real = () => performance.now() / 1000;
+
+  const MELEE = { cooldown: 0.32, reset: 0.9, active: 0.12, lead: 0.08, reach: 7 * PX };
+
+  function attack() {
+    if (clock < nextSwing) {
+      if (!buffered && nextSwing - clock <= 0.2) { buffered = true; after(nextSwing - clock, () => { buffered = false; attack(); }); }
+      return;
+    }
+    step = clock - lastSwing <= MELEE.reset ? (step % combo.length) + 1 : 1;
+    lastSwing = clock; nextSwing = clock + MELEE.cooldown;
+    const name = combo[step - 1], w = weights[name];
+    player.swing = clock; player.swingStep = step;
+    player.vx = 60; // small lunge
+    whoosh(step);
+    document.getElementById('comboLabel').textContent = `${step}/${combo.length} · ${name}`;
+    if (w.SlowMo > 0 && on.slowmo) {
+      after(Math.max(0, MELEE.active - MELEE.lead), () => {
+        if (inReach()) { slowUntil = real() + w.SlowMo; slowScale = 0.3; }
+      });
+    }
+    after(MELEE.active, () => { if (inReach()) hit(player, dummy, name, 1); });
+  }
+  const inReach = () => Math.abs(dummy.x - player.x) <= MELEE.reach + 24;
+
+  function hit(attacker, victim, name, dir) {
+    const w = weights[name];
+    const now = real();
+    const heavy = Math.min(1, w.Shake);
+    if (on.hitstop && w.Hitstop > 0) { attacker.freezeUntil = now + w.Hitstop; victim.freezeUntil = now + w.Hitstop; }
+    if (on.flash) victim.flashUntil = now + w.Flash;
+    impact(w.SoundPitch, heavy);
+    if (on.shake) trauma = Math.min(1, trauma + w.Shake * (victim === player ? 1.5 : 1));
+    if (on.zoom) fovPunch = Math.max(fovPunch, w.FovPunch);
+    if (on.react) victim.react = 1;
+    const hx = victim.x - dir * 14, hy = victim.y - 70;
+    if (on.sparks) for (let i = 0; i < 6 + heavy * 14; i++) {
+      const a = (Math.random() - 0.5) * 1.6 + (dir > 0 ? 0 : Math.PI);
+      const s = 200 + Math.random() * 400 * (0.5 + heavy);
+      particles.push({ x: hx, y: hy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 80, life: 0.18 + Math.random() * 0.2, age: 0, hot: Math.random() < 0.6 });
+    }
+    if (on.numbers && victim === dummy) numbers.push({ x: hx + (Math.random() - 0.5) * 30, y: hy - 20, text: String(w.Damage), scale: w.NumberScale, age: 0, kill: name === 'Finisher' });
+    if (on.knockback && (w.Knockback > 0 || w.KnockUp > 0)) {
+      victim.pendingKnock = { at: now + (on.hitstop ? w.Hitstop : 0), vx: dir * w.Knockback * PX, vy: -w.KnockUp * PX, time: w.KnockTime };
+    }
+    if (victim === player) player.iUntil = now + 0.5;
+  }
+
+  function enemyAttack() {
+    if (dummy.telegraph >= 0) return;
+    dummy.telegraph = clock;
+    after(0.6, () => {
+      dummy.telegraph = -1;
+      // Reach (12 studs) is longer than the distance the dummy stops at (110 px ≈ 9 studs).
+      if (Math.abs(dummy.x - player.x) <= 12 * PX && real() > player.iUntil) hit(dummy, player, 'Heavy', -1);
+    });
+  }
+
+  function reset() {
+    Object.assign(dummy, { x: 450, y: FLOOR, vx: 0, vy: 0, react: 0, pendingKnock: null, knockUntil: 0, telegraph: -1 });
+    Object.assign(player, { x: 330, y: FLOOR, vx: 0, vy: 0 });
+  }
+
+  // ---------------------------------------------------------------- simulation
+  function physics(body, dt, now) {
+    if (now < body.freezeUntil) return;
+    if (body.pendingKnock && now >= body.pendingKnock.at) {
+      const k = body.pendingKnock; body.pendingKnock = null;
+      body.vx = k.vx; body.vy = k.vy; body.knockUntil = clock + k.time;
+    }
+    const knocked = clock < body.knockUntil;
+    body.vy += 196.2 * PX * 0.5 * dt;          // gentler gravity than Roblox so arcs read on screen
+    body.x += body.vx * dt; body.y += body.vy * dt;
+    if (body.y >= FLOOR) { body.y = FLOOR; body.vy = 0; }
+    const friction = knocked ? 0.5 : (body.y >= FLOOR ? 12 : 1);
+    body.vx *= Math.exp(-friction * dt);
+    body.x = Math.max(60, Math.min(W - 60, body.x));
+  }
+
+  function update(realDt) {
+    const now = real();
+    const scale = now < slowUntil ? slowScale : 1;
+    const dt = Math.min(realDt, 1 / 20) * scale;
+    clock += dt;
+    for (let i = timers.length - 1; i >= 0; i--) if (clock >= timers[i].at) { const t = timers.splice(i, 1)[0]; t.fn(); }
+
+    physics(player, dt, now); physics(dummy, dt, now);
+    // The dummy walks back toward the player so combos can continue.
+    if (now >= dummy.freezeUntil && clock >= dummy.knockUntil && dummy.y >= FLOOR && dummy.telegraph < 0) {
+      const gap = dummy.x - player.x;
+      if (Math.abs(gap) > 110) dummy.x -= Math.sign(gap) * 140 * dt;
+    }
+    if (now >= dummy.freezeUntil) dummy.react = Math.max(0, dummy.react - dt * 4);
+    if (now >= player.freezeUntil) player.react = Math.max(0, (player.react || 0) - dt * 4);
+
+    trauma = Math.max(0, trauma - 1.6 * realDt);
+    fovPunch *= Math.exp(-14 * realDt);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i]; p.age += dt; p.vy += 1400 * dt; p.vx *= Math.exp(-4 * dt); p.vy *= Math.exp(-2 * dt);
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      if (p.age >= p.life) particles.splice(i, 1);
+    }
+    for (let i = numbers.length - 1; i >= 0; i--) { const n = numbers[i]; n.age += realDt; n.y -= 60 * realDt; if (n.age > 0.75) numbers.splice(i, 1); }
+  }
+
+  // ---------------------------------------------------------------- drawing
+  function drawFighter(b, color, facing, swingT, now) {
+    const blink = now < b.iUntil && Math.floor(now / 0.07) % 2 === 0;
+    if (blink) ctx.globalAlpha = 0.35;
+    const lean = (b.react || 0) * 0.35 * -facing;
+    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(lean);
+    const flash = now < b.flashUntil;
+    const body = flash ? (b === player ? '#ff8a8a' : '#ffffff') : color;
+    // legs
+    ctx.fillStyle = flash ? body : shade(color, -30);
+    ctx.fillRect(-16, -34, 12, 34); ctx.fillRect(4, -34, 12, 34);
+    // torso + head
+    ctx.fillStyle = body; roundRect(-22, -86, 44, 54, 8); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -104, 17, 0, Math.PI * 2); ctx.fill();
+    // arm: wind-up, strike, recover
+    let reach = 0.2;
+    if (swingT >= 0) {
+      const t = swingT;
+      reach = t < MELEE.active ? 0.2 - 0.5 * (t / MELEE.active) : t < MELEE.active + 0.06 ? 1 : Math.max(0.2, 1 - (t - MELEE.active - 0.06) * 3);
+    }
+    ctx.strokeStyle = body; ctx.lineWidth = 12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(0, -74); ctx.lineTo(facing * (18 + 46 * Math.max(0, reach)), -72 + (reach < 0 ? 12 : 0)); ctx.stroke();
+    ctx.restore(); ctx.globalAlpha = 1;
+  }
+  function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function shade(hex, amt) { const n = parseInt(hex.slice(1), 16); const c = (v) => Math.max(0, Math.min(255, v + amt)); return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`; }
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function draw() {
+    const now = real();
+    const stage = css('--stage'), floor = css('--stage-floor');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = stage; ctx.fillRect(0, 0, W, H);
+    // camera: shake (trauma²) + FOV punch (zoom toward the action)
+    const s = trauma * trauma, t = now * 18;
+    const ox = Math.sin(t * 1.3) * 14 * s, oy = Math.cos(t * 1.7) * 10 * s, rot = Math.sin(t * 2.1) * 0.03 * s;
+    const zoom = 1 + fovPunch * 0.012;
+    const cx = (player.x + dummy.x) / 2, cy = FLOOR - 80;
+    ctx.translate(cx + ox, cy + oy); ctx.rotate(rot); ctx.scale(zoom, zoom); ctx.translate(-cx, -cy);
+    if (now < slowUntil) { ctx.fillStyle = 'rgba(70,90,140,0.18)'; ctx.fillRect(-100, -100, W + 200, H + 200); }
+    ctx.fillStyle = floor; ctx.fillRect(-100, FLOOR, W + 200, H);
+    for (let x = 0; x < W; x += PX * 4) { ctx.fillStyle = 'rgba(255,255,255,0.04)'; ctx.fillRect(x, FLOOR, 1, H); }
+
+    // telegraph
+    if (dummy.telegraph >= 0) {
+      const k = Math.min(1, (clock - dummy.telegraph) / 0.6);
+      ctx.fillStyle = `rgba(255,60,60,${0.12 + 0.35 * k})`;
+      ctx.fillRect(dummy.x - 12 * PX, FLOOR - 4, 12 * PX, 8);
+      ctx.fillStyle = '#ff4b4b'; ctx.font = 'bold 34px system-ui'; ctx.textAlign = 'center'; ctx.fillText('!', dummy.x, FLOOR - 140);
+    }
+    const tint = dummy.telegraph >= 0 ? '#e88a7a' : css('--dummy');
+    drawFighter(dummy, tint, -1, -1, now);
+    const swingT = player.swing >= 0 && clock - player.swing < 0.6 ? clock - player.swing : -1;
+    drawFighter(player, css('--player'), 1, swingT, now);
+
+    for (const p of particles) {
+      const a = 1 - p.age / p.life;
+      ctx.strokeStyle = p.hot ? `rgba(255,${200 + 55 * a | 0},${120 * a | 0},${a})` : `rgba(255,255,255,${a})`;
+      ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x - p.vx * 0.02, p.y - p.vy * 0.02); ctx.stroke();
+    }
+    ctx.textAlign = 'center';
+    for (const n of numbers) {
+      const a = n.age < 0.4 ? 1 : 1 - (n.age - 0.4) / 0.35;
+      ctx.globalAlpha = Math.max(0, a);
+      ctx.font = `900 ${Math.round(26 * n.scale)}px system-ui`;
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.strokeText(n.text, n.x, n.y);
+      ctx.fillStyle = n.kill ? '#ff6a6a' : '#ffffff'; ctx.fillText(n.text, n.x, n.y);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  let last = real();
+  function frame() {
+    const now = real(); update(now - last); last = now; draw();
+    requestAnimationFrame(frame);
+  }
+
+  // ---------------------------------------------------------------- UI
+  const tabs = document.getElementById('tabs'), sliders = document.getElementById('sliders'), out = document.getElementById('out');
+  function renderTabs() {
+    tabs.innerHTML = '';
+    for (const name of Object.keys(weights)) {
+      const b = document.createElement('button'); b.textContent = name; b.setAttribute('aria-pressed', String(name === activeTab));
+      b.onclick = () => { activeTab = name; renderTabs(); renderSliders(); };
+      tabs.appendChild(b);
+    }
+  }
+  function renderSliders() {
+    sliders.innerHTML = '';
+    const w = weights[activeTab];
+    for (const [key, label, min, max, stepv, unit] of FIELDS) {
+      const row = document.createElement('div'); row.className = 'row';
+      const id = `f_${key}`;
+      row.innerHTML = `<label for="${id}">${label}</label><input id="${id}" type="range" min="${min}" max="${max}" step="${stepv}" value="${w[key]}"><output>${w[key]}${unit}</output>`;
+      const input = row.querySelector('input'), o = row.querySelector('output');
+      input.oninput = () => { w[key] = Number(input.value); o.textContent = `${w[key]}${unit}`; exportLuau(); };
+      sliders.appendChild(row);
+    }
+  }
+  function renderLayers() {
+    const box = document.getElementById('layers'); box.innerHTML = '';
+    for (const [key, label] of Object.entries(LAYERS)) {
+      const l = document.createElement('label');
+      l.innerHTML = `<input type="checkbox" ${on[key] ? 'checked' : ''}> ${label}`;
+      l.querySelector('input').onchange = (e) => { on[key] = e.target.checked; };
+      box.appendChild(l);
+    }
+  }
+  const fmt = (v) => (Number.isInteger(v) ? String(v) : String(Math.round(v * 1000) / 1000));
+  function exportLuau() {
+    const keys = ['Damage', 'Hitstop', 'Flash', 'Shake', 'FovPunch', 'Knockback', 'KnockUp', 'KnockTime', 'SlowMo', 'Poise', 'SoundPitch', 'NumberScale'];
+    let s = '-- Paste over the Light/Medium/Heavy/Finisher entries in CombatConfig.HitWeights\n';
+    for (const [name, w] of Object.entries(weights)) {
+      s += `\t${name} = weight({\n` + keys.map((k) => `\t\t${k} = ${fmt(w[k])},`).join('\n') + '\n\t}),\n';
+    }
+    out.value = s;
+  }
+  function preset(kind) {
+    weights = clone(DEFAULTS);
+    for (const k of Object.keys(on)) on[k] = kind !== 'floaty' || k === 'numbers';
+    if (kind === 'floaty') for (const k of Object.keys(on)) on[k] = false;
+    if (kind === 'punchy') for (const w of Object.values(weights)) {
+      w.Hitstop = Math.round(w.Hitstop * 1.4 * 1000) / 1000; w.Shake = Math.min(1, Math.round(w.Shake * 1.3 * 100) / 100);
+      w.Knockback = Math.round(w.Knockback * 1.3); w.FovPunch = Math.round(w.FovPunch * 1.5 * 2) / 2;
+    }
+    renderLayers(); renderSliders(); exportLuau();
+  }
+
+  canvas.addEventListener('pointerdown', (e) => { e.preventDefault(); attack(); });
+  document.getElementById('attackBtn').onclick = attack;
+  document.getElementById('enemyBtn').onclick = enemyAttack;
+  document.getElementById('resetBtn').onclick = reset;
+  document.getElementById('presetFloaty').onclick = () => preset('floaty');
+  document.getElementById('presetDefault').onclick = () => preset('default');
+  document.getElementById('presetPunchy').onclick = () => preset('punchy');
+  document.getElementById('copyBtn').onclick = async () => {
+    exportLuau();
+    try { await navigator.clipboard.writeText(out.value); document.getElementById('copyBtn').textContent = 'Copied'; }
+    catch { out.select(); document.getElementById('copyBtn').textContent = 'Select + copy'; }
+    setTimeout(() => (document.getElementById('copyBtn').textContent = 'Copy Luau'), 1500);
+  };
+  window.addEventListener('keydown', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    if (e.code === 'Space') { e.preventDefault(); attack(); }
+    if (e.code === 'KeyE') enemyAttack();
+  });
+
+  renderTabs(); renderSliders(); renderLayers(); exportLuau();
+  requestAnimationFrame(frame);
+  window.__lab = { attack, enemyAttack, weights: () => weights, state: () => ({ player, dummy, trauma, fovPunch, particles: particles.length, numbers: numbers.length, clock }) };
+})();
+</script>
+</body>
+</html>

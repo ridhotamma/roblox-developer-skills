@@ -42,7 +42,7 @@ Each playbook: **fantasy · core loop · first 60 s · what keeps them · pitfal
 - **Core loop**: pick a moveset → fight → learn combos → win → unlock characters/moves.
 - **First 60 s**: a safe training dummy or bot zone next to spawn, 3–4 moves with clear inputs on screen (and big touch buttons), first knockout vs a dummy in 30 s.
 - **Keeps them**: move mastery, character variety, kill streaks, ranks, cosmetics (auras, emotes).
-- **Pitfalls**: veterans farming newcomers (spawn protection, safe zones, level-based servers), unreadable combat (clear wind-ups, hit feedback; see the roblox-vfx and roblox-animation skills), latency unfairness (server-validated hits with client-side feel, lag compensation within limits).
+- **Pitfalls**: veterans farming newcomers (spawn protection, safe zones, level-based servers), unreadable combat (clear wind-ups, hit feedback; see the roblox-combat, roblox-vfx and roblox-animation skills), latency unfairness (server-validated hits with client-side feel, lag compensation within limits).
 
 ## Tower defense
 

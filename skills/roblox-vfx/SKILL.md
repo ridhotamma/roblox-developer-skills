@@ -74,7 +74,7 @@ All positions and vectors are `[right, up, forward]` in studs relative to the ef
 
 ### Markers
 
-`markers` are named moments passed to `options.onMarker(name, model)` when the effect plays: the damage frame, sound cues, camera shake. Put one on every moment gameplay cares about, and line them up with the animation's markers when the effect accompanies one.
+`markers` are named moments passed to `options.onMarker(name, model)` when the effect plays: the damage frame, sound cues, camera shake (the `roblox-combat` skill, if installed, has the camera shake, hitstop and sound side of hits). Put one on every moment gameplay cares about, and line them up with the animation's markers when the effect accompanies one.
 
 ## What good looks like
 

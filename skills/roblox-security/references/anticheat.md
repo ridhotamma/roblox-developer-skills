@@ -59,6 +59,8 @@ Rule: **launch in observe mode** (log only), collect flags from real players for
 
 ## 4. Combat validation
 
+The `roblox-combat` skill's kit implements the melee and hitscan/projectile patterns below (server hitboxes, rate and ammo checks, origin checks) together with the client-side feel.
+
 The client can aim and time its own attacks; the server decides whether they land.
 
 **Melee**: client sends "I swung" (and optionally the target it thinks it hit). Server checks: weapon equipped (server-tracked), cooldown on server clock, target alive and not on the same team, distance from attacker's root to target's root ≤ range + latency margin (3–5 studs), optional facing check (`attackerLook:Dot(toTarget.Unit) > 0.3`) and line of sight raycast. Or the server runs its own hitbox query at swing time (`workspace:GetPartBoundsInBox` in front of the attacker); this is the most secure but feels laggy to high-ping players.
