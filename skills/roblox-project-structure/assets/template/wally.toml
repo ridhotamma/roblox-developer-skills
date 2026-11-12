@@ -1,0 +1,15 @@
+[package]
+name = "{{SCOPE}}/{{SLUG}}"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+private = true
+
+# Shared realm -> Packages/ -> ReplicatedStorage.Packages (server and client)
+[dependencies]
+Signal = "sleitnick/signal@2.0.3"
+Trove = "sleitnick/trove@1.8.0"
+
+# Server realm -> ServerPackages/ -> ServerStorage.ServerPackages (never sent to clients)
+[server-dependencies]
+ProfileStore = "lm-loleris/profilestore@1.0.3"

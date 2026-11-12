@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs Rokit, then the exact tool versions pinned in rokit.toml.
+      # If Rokit's install instructions change, see https://github.com/rojo-rbx/rokit
+      - name: Install toolchain
+        run: |
+          curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+          echo "$HOME/.rokit/bin" >> "$GITHUB_PATH"
+      - name: Install tools
+        run: rokit install --no-trust-check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Format
+        run: stylua --check src
+
+      - name: Lint
+        run: selene src
+
+      - name: Packages
+        run: sh scripts/install-packages.sh
+
+      - name: Build place
+        run: rojo build default.project.json --output build/game.rbxl

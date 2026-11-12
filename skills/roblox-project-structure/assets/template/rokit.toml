@@ -1,0 +1,8 @@
+# Pinned toolchain. `rokit install` gives every machine (and CI) the same versions.
+# Bump deliberately, in its own commit.
+[tools]
+rojo = "rojo-rbx/rojo@7.7.1"
+wally = "UpliftGames/wally@0.3.2"
+wally-package-types = "JohnnyMorganz/wally-package-types@1.7.0"
+selene = "Kampfkarren/selene@0.32.0"
+stylua = "JohnnyMorganz/StyLua@2.6.0"

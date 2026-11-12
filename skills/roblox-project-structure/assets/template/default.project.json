@@ -1,0 +1,21 @@
+{
+	"name": "{{SLUG}}",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"Shared": { "$path": "src/shared" },
+			"Packages": { "$path": "Packages" }
+		},
+		"ServerStorage": {
+			"ServerPackages": { "$path": "ServerPackages" }
+		},
+		"ServerScriptService": {
+			"Server": { "$path": "src/server" }
+		},
+		"StarterPlayer": {
+			"StarterPlayerScripts": {
+				"Client": { "$path": "src/client" }
+			}
+		}
+	}
+}

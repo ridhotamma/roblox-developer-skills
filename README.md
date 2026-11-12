@@ -1,11 +1,13 @@
 # Roblox Developer Skills
 
-Claude skills that turn a plain-language description into Roblox Studio assets, with a 3D browser preview.
+Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, and design games players stick with.
 
 | Skill | Makes |
 |---|---|
 | [roblox-animation](skills/roblox-animation/) | R6 / R15 character animations, exported as a `KeyframeSequence` |
 | [roblox-vfx](skills/roblox-vfx/) | Particle, beam and light effects, exported as a `ModuleScript` plus textures |
+| [roblox-project-structure](skills/roblox-project-structure/) | A studio-style codebase: Rojo / Wally / Rokit project scaffold, architecture guidance and audits of existing games |
+| [roblox-game-design](skills/roblox-game-design/) | Game design docs, hooks and onboarding, core loops, progression, level design and playtest plans |
 
 ## Install
 
@@ -23,7 +25,7 @@ npx skills add ridhotamma/roblox-developer-skills --skill roblox-animation
 
 For the Claude apps, upload the packaged `.skill` file from [`dist/`](dist/) in Claude's skills settings.
 
-Then ask for what you want, for example "make an R15 uppercut animation".
+Then ask for what you want, for example "make an R15 uppercut animation", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
 
 ## Layout
 
