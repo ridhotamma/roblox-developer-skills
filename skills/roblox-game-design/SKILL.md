@@ -29,7 +29,7 @@ The one-sentence pitch combines them: **"In [game], you [verb] to [short goal] s
 | Better onboarding / players leave early | First-session script (second by second), the onboarding funnel steps to instrument, and the specific changes. Read `references/hook-and-onboarding.md`. |
 | A map, level, obby course or lobby | Blockout spec: purpose, critical path, landmarks, beats with timings, dimensions in studs using `references/level-design.md` metrics, and a playtest checklist. |
 | Progression, economy, upgrades, shop | Loop diagram + tuning table (costs, rewards, time per step) with the formula behind it. Read `references/loops-and-progression.md`. |
-| A genre game (obby, tycoon, simulator, tower defense, battlegrounds, horror...) | Start from that genre's playbook in `references/genre-playbooks.md`, then make it specific. Name what will make *this* one different. |
+| A genre game (obby, tycoon, simulator, tower defense, battlegrounds, horror...) | Start from that genre's playbook in `references/genre-playbooks.md`, then make it specific. Name what will make *this* one different. If the user wants to know what's working on Roblox right now, the `roblox-game-research` skill (if installed) pulls live chart data and tears down the leaders first. |
 | A review of an existing game | Scorecard (below) + top 5 fixes ranked by expected impact on the first session. Ask for the game link, a video, or a description of the first 2 minutes. |
 | Measuring / playtesting | Playtest plan and analytics funnel from `references/playtesting-and-metrics.md`. |
 

@@ -1,6 +1,6 @@
 # Roblox Developer Skills
 
-Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, design games players stick with, and protect them from exploiters.
+Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, design games players stick with, and protect them from exploiters.
 
 | Skill | Makes |
 |---|---|
@@ -8,6 +8,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | [roblox-vfx](skills/roblox-vfx/) | Particle, beam and light effects, exported as a `ModuleScript` plus textures |
 | [roblox-project-structure](skills/roblox-project-structure/) | A studio-style codebase: Rojo / Wally / Rokit project scaffold, architecture guidance and audits of existing games |
 | [roblox-game-design](skills/roblox-game-design/) | Game design docs, hooks and onboarding, core loops, progression, level design and playtest plans |
+| [roblox-game-research](skills/roblox-game-research/) | Live Roblox chart and game data, teardowns of viral and top-earning games, and an original game brief with a monetization plan |
 | [roblox-security](skills/roblox-security/) | Anti-exploit and anti-cheat: secure remotes, a server-side anti-cheat kit, and a scanner for backdoors and exploitable code |
 
 ## Install
