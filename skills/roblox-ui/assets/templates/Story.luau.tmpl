@@ -1,0 +1,30 @@
+--!strict
+-- {{NAME}} on every device (Devices.Matrix). Controls: Device ("All" or part of a name), Palette.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local React = require(ReplicatedStorage.Packages.React)
+local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
+{{IMPORTS}}local Devices = require(script.Parent.Devices)
+local {{NAME}} = require(script.Parent.Parent.{{FOLDER}}.{{NAME}})
+
+local e = React.createElement
+
+return {
+	react = React,
+	reactRoblox = ReactRoblox,
+	controls = {
+		Device = "All",
+		Palette = "Dark",
+	},
+	story = function(props: any)
+		local controls = props.controls
+		return e(Devices.Matrix, {
+			device = controls.Device,
+			palette = controls.Palette,
+			render = function()
+				return {{RENDER}}
+			end,
+		})
+	end,
+}

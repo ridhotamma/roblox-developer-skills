@@ -83,7 +83,7 @@ Instances that are content rather than code (maps, models, VFX templates, sounds
 node <skill>/scripts/scaffold.cjs --name "My Game" --out ./my-game
 ```
 
-Options: `--scope <wally-scope>` (default `studio`), `--no-ci` (skip the GitHub workflow), `--force` (write into a non-empty folder). Needs only Node. The HUD is built from plain Instances so the slice has no UI-library opinion; `references/architecture.md` covers choosing React, Fusion or Vide.
+Options: `--scope <wally-scope>` (default `studio`), `--no-ci` (skip the GitHub workflow), `--force` (write into a non-empty folder). Needs only Node. The HUD is built from plain Instances so the slice has no UI-library opinion; `references/architecture.md` covers choosing React, Fusion or Vide, and the `roblox-ui` skill (if installed) installs a responsive React UI kit over this layout.
 
 The scaffold is a small but complete vertical slice, not empty folders: a Loader with the Init/Start lifecycle, a declared Net layer with rate limiting, `DataService` wrapping ProfileStore (session-locked saves), `CurrencyService` (coins via Player attributes), a `CoinPickup` tag component, a `DailyRewardService` reached through a validated remote, a `HudController` that shows coins and toasts, and a config folder. Running `rojo serve` and pressing Play gives a working game loop the team can extend by copying the shape.
 

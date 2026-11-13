@@ -1,0 +1,55 @@
+--!strict
+-- {{NAME}}: TODO one line on what this menu is for.
+--
+-- A Modal, so it is a full-screen sheet on phones and a centred window elsewhere, closes with B
+-- on a gamepad and moves gamepad selection inside when it opens. Mount it in App.luau with an
+-- "open" atom in AppState; it gets data and callbacks as props, never remotes.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local React = require(ReplicatedStorage.Packages.React)
+local Button = require(script.Parent.Parent.Primitives.Button)
+local Modal = require(script.Parent.Parent.Components.Modal)
+local Stack = require(script.Parent.Parent.Primitives.Stack)
+local Text = require(script.Parent.Parent.Primitives.Text)
+local Tokens = require(script.Parent.Parent.Theme.Tokens)
+
+local e = React.createElement
+
+export type Props = {
+	open: boolean,
+	onClose: () -> (),
+}
+
+local function {{NAME}}(props: Props)
+	return e(Modal, {
+		open = props.open,
+		title = "{{TITLE}}",
+		onClose = props.onClose,
+		width = 560,
+		height = 480,
+		footer = e(Stack, {
+			direction = "Row",
+			justify = "End",
+			size = UDim2.fromScale(1, 0),
+			automaticSize = Enum.AutomaticSize.Y,
+		}, {
+			Done = e(Button, { text = "Done", onActivate = props.onClose, hint = Enum.KeyCode.ButtonA }),
+		}),
+	}, {
+		Content = e(Stack, {
+			size = UDim2.fromScale(1, 0),
+			automaticSize = Enum.AutomaticSize.Y,
+			gap = Tokens.Space.M,
+		}, {
+			Intro = e(Text, {
+				text = "TODO: what the player can do here.",
+				width = UDim.new(1, 0),
+				muted = true,
+				layoutOrder = 1,
+			}),
+		}),
+	})
+end
+
+return {{NAME}}

@@ -90,7 +90,7 @@ Shared state:
 
 UI rules regardless of library: scale-based sizing with min/max constraints, 44 px minimum touch targets, nothing important under the top bar or the mobile thumbstick/jump zones, and test on the phone emulator (most players are on mobile).
 
-**Default:** React for teams that will build a lot of UI; plain Instances or Studio-authored UI for small HUDs. Pick one per project.
+**Default:** React for teams that will build a lot of UI; plain Instances or Studio-authored UI for small HUDs. Pick one per project. For a React component kit with design tokens, responsive layout across phone / tablet / desktop / console, gamepad navigation and stories, use the `roblox-ui` skill if installed.
 
 ## 6. Signals, cleanup, async
 

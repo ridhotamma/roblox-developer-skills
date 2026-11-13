@@ -1,6 +1,6 @@
 # Roblox Developer Skills
 
-Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, give them a mood that fits the genre, design games players stick with, keep them running smoothly on every device, and protect them from exploiters.
+Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, give them a mood that fits the genre, build UI that works on phones, desktops and consoles, design games players stick with, keep them running smoothly on every device, and protect them from exploiters.
 
 | Skill | Makes |
 |---|---|
@@ -8,6 +8,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | [roblox-vfx](skills/roblox-vfx/) | Particle, beam and light effects, exported as a `ModuleScript` plus textures |
 | [roblox-atmosphere](skills/roblox-atmosphere/) | Genre atmospheres (horror, cozy, sci-fi, cyberpunk and 20 more): lighting, fog, grading, weather and ambience presets, a Luau kit with zones and day/night, and a browser preview lab |
 | [roblox-combat](skills/roblox-combat/) | Combat feel and fairness: hitstop, knockback, flash, shake, slow-mo, guns (recoil, muzzle flash, tracers, impacts), enemy AI, a server-authoritative Luau kit and a browser feel lab |
+| [roblox-ui](skills/roblox-ui/) | Responsive React (react-lua) UI: design tokens, a modular component kit (layers, stacks, auto-column grids, buttons, modals, tabs, toasts), a HUD and shop that adapt to phone, tablet, desktop and console, gamepad navigation, device-matrix stories, a component generator and a UI code scanner |
 | [roblox-project-structure](skills/roblox-project-structure/) | A studio-style codebase: Rojo / Wally / Rokit project scaffold, architecture guidance and audits of existing games |
 | [roblox-game-design](skills/roblox-game-design/) | Game design docs, hooks and onboarding, core loops, progression, level design and playtest plans |
 | [roblox-game-research](skills/roblox-game-research/) | Live Roblox chart and game data, teardowns of viral and top-earning games, and an original game brief with a monetization plan |

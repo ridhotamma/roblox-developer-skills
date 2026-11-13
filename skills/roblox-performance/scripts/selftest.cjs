@@ -261,7 +261,7 @@ check('light place has no findings', lightScan.findings.length === 0, lightScan.
 const kit = scanPath(path.join(SKILL, 'assets'));
 const kitBad = kit.findings.filter((f) => f.severity !== 'info');
 check(`own kit scans clean (${kit.scripts} files)`, kitBad.length === 0, kitBad.map((f) => `${f.rule} ${f.where}:${f.line}`).join(', '));
-for (const sibling of ['roblox-project-structure', 'roblox-combat', 'roblox-vehicles', 'roblox-atmosphere', 'roblox-security']) {
+for (const sibling of ['roblox-project-structure', 'roblox-combat', 'roblox-vehicles', 'roblox-atmosphere', 'roblox-security', 'roblox-ui']) {
   const p = path.join(SKILL, '..', sibling, 'assets');
   if (!fs.existsSync(p)) continue;
   const r = scanPath(p);
