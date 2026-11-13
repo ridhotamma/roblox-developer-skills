@@ -1,6 +1,6 @@
 # Roblox Developer Skills
 
-Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, give them a mood that fits the genre, build UI that works on phones, desktops and consoles, design games players stick with, keep them running smoothly on every device, and protect them from exploiters.
+Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, give them a mood that fits the genre, build UI that works on phones, desktops and consoles, replace the default backpack with the inventory your genre needs, design games players stick with, keep them running smoothly on every device, and protect them from exploiters.
 
 | Skill | Makes |
 |---|---|
@@ -10,6 +10,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | [roblox-ragdoll](skills/roblox-ragdoll/) | Ragdoll physics and procedural hit reactions: knockdowns from any animation (cars, falls, finishers, death) with a blended get-up, flinches by body part, limping and limb injuries, and a server-authoritative Luau kit that plugs into the combat and vehicles kits |
 | [roblox-combat](skills/roblox-combat/) | Combat feel and fairness: hitstop, knockback, flash, shake, slow-mo, guns (recoil, muzzle flash, tracers, impacts), enemy AI, a server-authoritative Luau kit and a browser feel lab |
 | [roblox-ui](skills/roblox-ui/) | Responsive React (react-lua) UI: a theme config (palettes, corner roundness, per-component styles, live switching, contrast check), a modular component kit (layers, stacks, auto-column grids, buttons, modals, tabs, toasts), a HUD and shop that adapt to phone, tablet, desktop and console, gamepad navigation, device-matrix stories, a component generator and a UI code scanner |
+| [roblox-inventory](skills/roblox-inventory/) | Custom inventories that replace the built-in backpack: attache-case grid with shaped items, eight-slot survival horror with an item box, weapon wheel, hotbar and backpack, weight-limited list, extraction loadout; a server-authoritative Luau kit (Tools still equip, saved with ProfileStore, pickups, chests, stash, drag and drop on mouse, touch and gamepad), an installer and an item-sheet builder |
 | [roblox-project-structure](skills/roblox-project-structure/) | A studio-style codebase: Rojo / Wally / Rokit project scaffold, architecture guidance and audits of existing games |
 | [roblox-game-design](skills/roblox-game-design/) | Game design docs, hooks and onboarding, core loops, progression, level design and playtest plans |
 | [roblox-game-research](skills/roblox-game-research/) | Live Roblox chart and game data, teardowns of viral and top-earning games, and an original game brief with a monetization plan |

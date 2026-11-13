@@ -1,0 +1,14 @@
+{
+  "Items": {
+    "Knife": { "Name": "Combat Knife", "Category": "Weapon", "Description": "Quiet and never runs dry.", "Size": [1, 2], "Weight": 0.5, "Tool": "Knife", "WheelGroup": "Melee", "Color": "#969eaa" },
+    "Pistol": { "Name": "9mm Pistol", "Category": "Weapon", "Description": "Reliable sidearm. Uses pistol rounds.", "Size": [2, 2], "Weight": 1.2, "Tool": "Pistol", "WheelGroup": "Pistols", "Ammo": "PistolAmmo", "Color": "#788caa" },
+    "PistolAmmo": { "Name": "Pistol Rounds", "Category": "Ammo", "Description": "9mm rounds.", "MaxStack": 50, "Size": [2, 1], "Weight": 0.02, "Color": "#bea050" },
+    "GreenHerb": { "Name": "Green Herb", "Category": "Healing", "Description": "Restores a little health. Stronger when mixed.", "MaxStack": 3, "Weight": 0.1, "Use": "Heal", "Heal": 25, "Color": "#5aaa5a" },
+    "RedHerb": { "Name": "Red Herb", "Category": "Healing", "Description": "Useless alone. Mix it with a green herb.", "MaxStack": 3, "Weight": 0.1, "Color": "#be4646" },
+    "MixedHerb": { "Name": "Mixed Herbs", "Category": "Healing", "Description": "Restores all health.", "MaxStack": 2, "Weight": 0.2, "Use": "Heal", "Heal": 100, "Color": "#be9646" },
+    "RustyKey": { "Name": "Rusty Key", "Category": "Key", "Description": "Opens a door somewhere in the basement.", "Droppable": false, "Color": [170, 130, 80] }
+  },
+  "Recipes": [
+    { "A": "GreenHerb", "B": "RedHerb", "Result": "MixedHerb", "Count": 1 }
+  ]
+}
