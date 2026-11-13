@@ -25,10 +25,13 @@ export type HitOptions = {
 	Headshot: boolean?,
 	Kind: string?, -- "Melee" | "Gun" | "Enemy" ...
 	Position: Vector3?, -- where the hit landed (defaults to the victim's root)
+	Part: BasePart?, -- the body part that was hit, when known (guns); drives hit reactions by zone
 }
 
 local CombatService = {
-	-- Fires (victim: Model, attacker: Model?, weightName: string, damage: number, killed: boolean)
+	-- Fires (victim: Model, attacker: Model?, weightName: string, damage: number, killed: boolean,
+	--        info: { Position: Vector3, Direction: Vector3, Part: BasePart?, Headshot: boolean, Kind: string })
+	-- `info` is what the roblox-ragdoll kit uses for flinches, limb injuries and death pushes.
 	Damaged = Signal.new(),
 }
 
@@ -119,7 +122,13 @@ function CombatService:Hit(
 		end)
 	end
 
-	CombatService.Damaged:Fire(victim, attacker, weightName, damage, killed)
+	CombatService.Damaged:Fire(victim, attacker, weightName, damage, killed, {
+		Position = opts.Position or root.Position,
+		Direction = direction,
+		Part = opts.Part,
+		Headshot = opts.Headshot == true,
+		Kind = opts.Kind or "Melee",
+	})
 	hitEvent:FireAllClients({
 		Attacker = attacker,
 		Victim = victim,

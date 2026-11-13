@@ -36,7 +36,7 @@ Good combat is two things at once: **it feels powerful** (every hit lands with s
 | `shared/Combat/Hitbox.luau` | both | Box query in front of a root part, unique living character models. |
 | `shared/Combat/Knockback.luau` | both | `LinearVelocity` push for a set time, with caps. |
 | `shared/Combat/Ballistics.luau` | both | Spread cone, damage falloff, projectile stepping with gravity and raycasts. |
-| `server/Services/CombatService.luau` | server | The one place damage happens: i-frames, damage, poise, delayed knockback, broadcast; melee `Swing` handler with server combo and hitbox. |
+| `server/Services/CombatService.luau` | server | The one place damage happens: i-frames, damage, poise, delayed knockback, broadcast, `Damaged` signal (with hit position, direction and body part); melee `Swing` handler with server combo and hitbox. |
 | `server/Services/WeaponService.luau` | server | `Fire`/`Reload` handlers: rate, ammo, origin and direction validation, hitscan or simulated projectiles, headshots, falloff, shot broadcast. |
 | `server/Services/EnemyService.luau` | server | Enemy state machine (Idle, Chase, Hover, Telegraph, Attack, Recover, Stagger, Dead), attack tokens, server network ownership, respawn, `Defeated` signal. |
 | `client/Combat/HitFeedback.luau` | client | Hitstop, flash, sound, shake, FOV punch, faked slow-mo, i-frame blink, damage numbers; dedupes predicted hits. |
@@ -53,6 +53,7 @@ Install steps to give the user:
 4. Guns: a Tool with a `Handle`, an `Attachment` named `Muzzle` at the barrel tip, and attribute `Weapon` = a name from `CombatConfig.Weapons` (`Pistol`, `Rifle`, `Shotgun`, `Bow`).
 5. Sounds: paste audio asset ids into `CombatConfig.Sounds` (empty ids are skipped, so everything works silently until then). Animations: optional ids in the config; until then the timings in the config drive everything.
 6. If `roblox-security` is installed, the services call `AntiCheatService:Grant` around knockback automatically.
+   If `roblox-ragdoll` is installed, every hit also becomes a flinch and a limb injury by body zone, finishers knock down and deaths ragdoll (it listens to `CombatService.Damaged`; guns pass the exact part they hit).
 7. Play, hit, tune values in `CombatConfig` (or in the feel lab first).
 
 When writing new combat code for a project, follow the same split: input and cosmetics in Controllers and `client/Combat`, validation and damage only through `CombatService:Hit`, tuning only in `CombatConfig`.
@@ -66,6 +67,7 @@ When writing new combat code for a project, follow the same split: input and cos
 - Roblox has no global time scale: slow motion is local and cosmetic (animations, sound, color, FOV); physics and other players keep normal speed.
 - The kit's Luau is a reviewed starting point, not battle-tested in a live game: test in Studio with two players (Test → Clients and Servers) and with emulated latency (Studio's network simulation settings) before shipping.
 - Lag compensation, viewmodels, pathfinding, ranged enemies and bosses are documented in the references but not implemented in the kit.
+- Ragdolls, flinches by body part and limping are the `roblox-ragdoll` skill's job; this kit only pushes and staggers.
 
 ## References
 

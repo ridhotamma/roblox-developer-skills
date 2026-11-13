@@ -48,6 +48,7 @@ Never ship a vehicle with these turned off for free-roam driving, with collision
 | Arcade vs simulation feel | `references/tuning-guide.md` §4 lists the dials (grip, steering speed, slip curve, anti-roll, roll centre, assists). |
 | Drifting / a drift game | `references/drifting.md`: setup from `specs/drift_car.json`, assists per device, server-side scoring, smoke and skids. |
 | "My car keeps getting stuck" | `references/anti-stuck.md`: protections, prohibited patterns, map rules, the test course. |
+| Cars that knock over players and pedestrians | The `roblox-ragdoll` skill: its `ImpactService` sweeps every model tagged `Vehicle` (this kit's cars already are) and ragdolls anyone on foot hit above a closing speed, with launch and optional damage. |
 
 ## Specs and the report
 

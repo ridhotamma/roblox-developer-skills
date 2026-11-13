@@ -91,6 +91,7 @@ local function applyHit(shooter: Model, weapon: any, result: RaycastResult, orig
 		Headshot = headshot,
 		Kind = "Gun",
 		Position = result.Position,
+		Part = if result.Instance:IsA("BasePart") then result.Instance else nil,
 	})
 end
 
