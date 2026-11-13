@@ -124,6 +124,7 @@ UI rules regardless of library: scale-based sizing with min/max constraints, 44 
 - Don't create and destroy hundreds of Instances per second; pool them.
 - Profile with the MicroProfiler (Ctrl+F6) and Developer Console (F9: memory, network, scripts) before optimising.
 - Parallel Luau (Actors) for heavy, independent computation (pathfinding batches, procedural generation); not a default.
+- For profiling, device budgets, rendering and memory, and a scanner and kit for all of this, use the `roblox-performance` skill if installed.
 
 ## 10. Monorepo / multi-place games
 

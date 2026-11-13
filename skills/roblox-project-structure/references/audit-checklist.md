@@ -45,6 +45,8 @@ Severity: **Critical** (players lose data/items, or exploiters can grant themsel
 | StreamingEnabled off on a large map; or on, with client code assuming everything exists | Workspace property; `workspace.Map.X.Y` on client without WaitForChild | High | Turn on, use components/WaitForChild with timeouts. |
 | Remote spam (FireAllClients every frame) | Network tab in F9 console | High | Batch, throttle, replicate state instead. |
 
+For a full performance audit (measured budgets, rendering, memory, a source and place scanner), use the `roblox-performance` skill if installed.
+
 ### Tooling
 | Smell | Severity | Fix |
 |---|---|---|
