@@ -13,8 +13,10 @@ local React = require(ReplicatedStorage.Packages.React)
 local ReactRoblox = require(ReplicatedStorage.Packages.ReactRoblox)
 local App = require(script.Parent.Parent.UI.App)
 local AppState = require(script.Parent.Parent.UI.AppState)
+local GameTheme = require(script.Parent.Parent.UI.Theme.GameTheme)
 local ItemTile = require(script.Parent.Parent.UI.Components.ItemTile)
 local Net = require(ReplicatedStorage.Shared.Net)
+local Theme = require(script.Parent.Parent.UI.Theme.Theme)
 local Toasts = require(script.Parent.Parent.UI.Components.Toasts)
 
 local COINS_ATTRIBUTE = "Coins" -- set by CurrencyService
@@ -27,7 +29,7 @@ local state: AppState.State
 local root: any = nil
 
 function UiController:Init()
-	state = AppState.create()
+	state = AppState.create({ theme = GameTheme })
 end
 
 function UiController:Start()
@@ -107,6 +109,17 @@ end
 
 function UiController:SetItems(items: { ItemTile.Item })
 	state.items:set(items)
+end
+
+-- Restyle the whole UI live: a seasonal theme, a preset, or a theme built from a settings menu.
+--   UiController:SetTheme(Theme.create({ palettes = { Dark = { Accent = orange } } }, GameTheme))
+function UiController:SetTheme(theme: Theme.Theme?)
+	state.theme:set(theme or GameTheme)
+end
+
+-- Switch palette within the theme ("HighContrast" from an accessibility toggle); nil = default.
+function UiController:SetPalette(name: string?)
+	state.palette:set(name)
 end
 
 -- For tests and hot-reload tools: tears the whole UI down cleanly.

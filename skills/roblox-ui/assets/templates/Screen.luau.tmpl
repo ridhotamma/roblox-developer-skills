@@ -3,7 +3,8 @@
 --
 -- A Modal, so it is a full-screen sheet on phones and a centred window elsewhere, closes with B
 -- on a gamepad and moves gamepad selection inside when it opens. Mount it in App.luau with an
--- "open" atom in AppState; it gets data and callbacks as props, never remotes.
+-- "open" atom in AppState; it gets data and callbacks as props, never remotes. Its look comes
+-- from the theme (Modal, Button, Card entries in GameTheme.luau).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -12,7 +13,6 @@ local Button = require(script.Parent.Parent.Primitives.Button)
 local Modal = require(script.Parent.Parent.Components.Modal)
 local Stack = require(script.Parent.Parent.Primitives.Stack)
 local Text = require(script.Parent.Parent.Primitives.Text)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
 
 local e = React.createElement
 
@@ -40,7 +40,7 @@ local function {{NAME}}(props: Props)
 		Content = e(Stack, {
 			size = UDim2.fromScale(1, 0),
 			automaticSize = Enum.AutomaticSize.Y,
-			gap = Tokens.Space.M,
+			gap = "M",
 		}, {
 			Intro = e(Text, {
 				text = "TODO: what the player can do here.",

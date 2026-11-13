@@ -1,7 +1,7 @@
 --!strict
 -- The HUD on every device, with the Roblox top bar and the touch thumbstick / jump zones drawn
 -- on top. Nothing interactive should sit under those overlays.
--- Controls: Device, Palette, Coins (change it to see the count animate), DailyReady.
+-- Controls: Device, Theme, Palette, Coins (change it to see the count animate), DailyReady.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -17,7 +17,8 @@ return {
 	reactRoblox = ReactRoblox,
 	controls = {
 		Device = "All",
-		Palette = "Dark",
+		Theme = "Game", -- Game, Default, Sharp, Soft, Arcade
+		Palette = "", -- empty = the theme's default; or Dark, HighContrast, a palette your theme adds
 		Coins = 12500,
 		DailyReady = true,
 	},
@@ -25,6 +26,7 @@ return {
 		local controls = props.controls
 		return e(Devices.Matrix, {
 			device = controls.Device,
+			theme = controls.Theme,
 			palette = controls.Palette,
 			render = function()
 				return e(HudScreen, {

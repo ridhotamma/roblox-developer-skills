@@ -1,29 +1,35 @@
 --!strict
 -- Shared style props -> the UI* modifier children Roblox needs (UICorner, UIStroke, UIPadding,
--- size constraints, UIFlexItem). Every primitive uses this, so `radius = Tokens.Radius.M` or
--- `padding = Tokens.Space.L` means the same thing on a Box, a Stack, a Grid or a Scroller.
--- All sizes are design units; this is where they become pixels.
+-- size constraints, UIFlexItem). Every primitive uses this, so `radius = "M"` or `padding = "L"`
+-- means the same thing on a Box, a Stack, a Grid or a Scroller.
+--
+-- Style props take theme references, Tailwind style:
+--   color = "Surface"            a palette key (or a rarity, or a Color3)
+--   radius = "L" | "Full" | 12   a radius step (scaled by theme roundness), a pill, or design units
+--   padding = "L" | 16 | { x = "L", y = "S" }
+--   stroke = { color = "Border", thickness = "Thin" }
+-- so a theme change reaches every component built from these primitives.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
+local Theme = require(script.Parent.Parent.Theme.Theme)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
 
-export type Padding = number | {
-	x: number?,
-	y: number?,
-	top: number?,
-	bottom: number?,
-	left: number?,
-	right: number?,
+export type Padding = Theme.SpaceRef | {
+	x: Theme.SpaceRef?,
+	y: Theme.SpaceRef?,
+	top: Theme.SpaceRef?,
+	bottom: Theme.SpaceRef?,
+	left: Theme.SpaceRef?,
+	right: Theme.SpaceRef?,
 }
 
 export type Stroke = {
-	color: Color3?,
-	thickness: number?, -- design units; default Tokens.Stroke.Thin
+	color: Theme.ColorRef?, -- default "Border"
+	thickness: Theme.StrokeRef?, -- default "Thin"
 	transparency: number?,
 }
 
@@ -37,10 +43,10 @@ export type StyleProps = {
 	zIndex: number?,
 	visible: any?, -- boolean or Binding<boolean>
 	-- surface
-	color: Color3?, -- background; nil = no background
+	color: Theme.ColorRef?, -- background; nil = no background
 	transparency: any?, -- number or Binding<number>; adjusted for the player's preference
-	radius: (number | "Full")?,
-	stroke: Stroke?,
+	radius: Theme.RadiusRef?,
+	stroke: (Stroke | false)?,
 	padding: Padding?,
 	clip: boolean?,
 	-- constraints (design units)
@@ -60,23 +66,24 @@ local FLEX_MODES = {
 	Shrink = Enum.UIFlexMode.Shrink,
 }
 
-type Sides = { top: number, bottom: number, left: number, right: number }
+export type Sides = { top: number, bottom: number, left: number, right: number }
 
 local Decorate = {}
 
--- Padding in design units, resolved per side (`x`/`y` set both sides of an axis).
-function Decorate.sides(padding: Padding?): Sides
+-- Padding resolved per side, in pixels (`x` / `y` set both sides of an axis).
+function Decorate.sides(padding: Padding?, ui: UiContext.Ui): Sides
 	if padding == nil then
 		return { top = 0, bottom = 0, left = 0, right = 0 }
-	elseif type(padding) == "number" then
-		return { top = padding, bottom = padding, left = padding, right = padding }
+	elseif type(padding) ~= "table" then
+		local all = ui.space(padding :: Theme.SpaceRef)
+		return { top = all, bottom = all, left = all, right = all }
 	end
 	local p = padding :: any
 	return {
-		top = p.top or p.y or 0,
-		bottom = p.bottom or p.y or 0,
-		left = p.left or p.x or 0,
-		right = p.right or p.x or 0,
+		top = ui.space(p.top or p.y or 0),
+		bottom = ui.space(p.bottom or p.y or 0),
+		left = ui.space(p.left or p.x or 0),
+		right = ui.space(p.right or p.x or 0),
 	}
 end
 
@@ -97,30 +104,27 @@ end
 function Decorate.children(props: StyleProps, ui: UiContext.Ui): { [string]: any }
 	local children: { [string]: any } = {}
 
-	local radius = props.radius
-	if radius ~= nil then
-		children.Corner = e("UICorner", {
-			CornerRadius = if radius == "Full" then UDim.new(0.5, 0) else UDim.new(0, ui.px(radius :: number)),
-		})
+	if props.radius ~= nil then
+		children.Corner = e("UICorner", { CornerRadius = ui.corner(props.radius) })
 	end
 
 	local stroke = props.stroke
 	if stroke then
 		children.Stroke = e("UIStroke", {
-			Color = stroke.color or ui.palette.Border,
-			Thickness = math.max(1, ui.px(stroke.thickness or Tokens.Stroke.Thin)),
+			Color = ui.color(stroke.color or "Border"),
+			Thickness = ui.stroke(stroke.thickness or "Thin"),
 			Transparency = stroke.transparency or 0,
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 		})
 	end
 
 	if props.padding ~= nil then
-		local sides = Decorate.sides(props.padding)
+		local sides = Decorate.sides(props.padding, ui)
 		children.Padding = e("UIPadding", {
-			PaddingTop = UDim.new(0, ui.px(sides.top)),
-			PaddingBottom = UDim.new(0, ui.px(sides.bottom)),
-			PaddingLeft = UDim.new(0, ui.px(sides.left)),
-			PaddingRight = UDim.new(0, ui.px(sides.right)),
+			PaddingTop = UDim.new(0, sides.top),
+			PaddingBottom = UDim.new(0, sides.bottom),
+			PaddingLeft = UDim.new(0, sides.left),
+			PaddingRight = UDim.new(0, sides.right),
 		})
 	end
 
@@ -156,7 +160,7 @@ function Decorate.hostProps(props: StyleProps, ui: UiContext.Ui): { [any]: any }
 		LayoutOrder = props.layoutOrder,
 		ZIndex = props.zIndex,
 		Visible = props.visible,
-		BackgroundColor3 = props.color or Color3.new(),
+		BackgroundColor3 = if props.color then ui.color(props.color) else nil,
 		BackgroundTransparency = Decorate.surfaceTransparency(props, ui),
 		BorderSizePixel = 0,
 		ClipsDescendants = props.clip,

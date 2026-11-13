@@ -38,7 +38,7 @@ local function HudScreen(props: Props)
 	Navigation.useShortcut({ Enum.KeyCode.ButtonY }, props.onOpenShop, shortcuts)
 	Navigation.useShortcut({ Enum.KeyCode.ButtonX }, props.onClaimDaily, shortcuts)
 
-	local margin = Tokens.Space.M
+	local margin = ui.space("M")
 	local portrait = ui.orientation == "Portrait"
 	local menuSize = Responsive.pick(ui.sizeClass, { Compact = "Medium", Expanded = "Large" } :: any)
 
@@ -67,17 +67,17 @@ local function HudScreen(props: Props)
 		-- Phone held upright: a row under the balance, clear of both thumb zones.
 		menu = e(Stack, {
 			direction = "Row",
-			gap = Tokens.Space.S,
+			gap = "S",
 			automaticSize = Enum.AutomaticSize.XY,
-			position = UDim2.fromOffset(ui.px(margin), ui.px(margin + Tokens.Control.Medium + Tokens.Space.S)),
+			position = UDim2.fromOffset(margin, margin + ui.px(ui.theme.control.Medium) + ui.space("S")),
 		}, menuButtons)
 	else
 		menu = e(Stack, {
-			gap = Tokens.Space.S,
+			gap = "S",
 			align = "Stretch",
 			automaticSize = Enum.AutomaticSize.XY,
 			anchor = Vector2.new(0, 0.5),
-			position = UDim2.new(0, ui.px(margin), 0.5, 0),
+			position = UDim2.new(0, margin, 0.5, 0),
 		}, menuButtons)
 	end
 
@@ -85,7 +85,7 @@ local function HudScreen(props: Props)
 		Balance = e(CurrencyPill, {
 			amount = props.coins,
 			onAdd = props.onOpenShop,
-			position = UDim2.fromOffset(ui.px(margin), ui.px(margin)),
+			position = UDim2.fromOffset(margin, margin),
 		}),
 		Menu = menu,
 	})

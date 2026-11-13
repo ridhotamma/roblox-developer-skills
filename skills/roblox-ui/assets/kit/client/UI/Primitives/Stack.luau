@@ -2,7 +2,7 @@
 -- A Box that lays its children out in a row or a column with a gap: the layout primitive for
 -- almost everything. Wraps UIListLayout, including its flex features (wrap, space-between, fill).
 --
---   e(Stack, { direction = "Row", gap = Tokens.Space.S, align = "Center", automaticSize = Enum.AutomaticSize.XY }, {
+--   e(Stack, { direction = "Row", gap = "S", align = "Center", automaticSize = Enum.AutomaticSize.XY }, {
 --       Icon = e(Icon, { image = ..., layoutOrder = 1 }),
 --       Label = e(Text, { text = "Coins", layoutOrder = 2 }),
 --   })
@@ -16,6 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Box = require(script.Parent.Box)
 local Decorate = require(script.Parent.Decorate)
+local Theme = require(script.Parent.Parent.Theme.Theme)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
@@ -25,7 +26,7 @@ export type Justify = "Start" | "Center" | "End" | "SpaceBetween" | "SpaceAround
 
 export type Props = Decorate.StyleProps & {
 	direction: ("Row" | "Column")?, -- default Column
-	gap: number?, -- design units
+	gap: Theme.SpaceRef?, -- space step ("S") or design units
 	align: Align?, -- cross axis; default Start
 	justify: Justify?, -- main axis; default Start
 	wrap: boolean?, -- rows of items that flow onto the next line
@@ -60,7 +61,7 @@ local Stack = React.forwardRef(function(props: Props, ref: any)
 	local layout: { [string]: any } = {
 		FillDirection = if row then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical,
 		SortOrder = Enum.SortOrder.LayoutOrder,
-		Padding = UDim.new(0, ui.px(props.gap or 0)),
+		Padding = UDim.new(0, ui.space(props.gap or 0)),
 		Wraps = props.wrap == true,
 		ItemLineAlignment = if align == "Stretch" then Enum.ItemLineAlignment.Stretch else Enum.ItemLineAlignment.Automatic,
 	}

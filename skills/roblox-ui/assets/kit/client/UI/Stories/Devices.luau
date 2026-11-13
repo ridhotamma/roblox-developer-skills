@@ -2,7 +2,7 @@
 -- Device previews for stories: render any UI as it would look on a phone, a tablet, a laptop,
 -- a monitor and a TV, side by side, each scaled down to fit the story canvas.
 --
---   Devices.Matrix { device = "All", render = function() return e(ShopScreen, ...) end }
+--   Devices.Matrix { device = "All", theme = "Game", render = function() return e(ShopScreen, ...) end }
 --
 -- Each preview runs a simulated UiProvider (size class, scale, input mode, insets), so the
 -- components lay out exactly as on the device. Overlays mark the Roblox top bar and, on touch
@@ -14,6 +14,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
+local Presets = require(script.Parent.Parent.Theme.Presets)
 local Responsive = require(script.Parent.Parent.Foundation.Responsive)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 local UiProvider = require(script.Parent.Parent.Foundation.UiProvider)
@@ -84,7 +85,15 @@ local function zone(name: string, center: Vector2, diameter: number)
 end
 
 -- One device, drawn at its real pixel size and shrunk with a UIScale to fit `box`.
-function Devices.Preview(props: { device: Device, box: Vector2, palette: string?, render: () -> any, layoutOrder: number? })
+-- `theme` is a theme name: "Game" (your GameTheme), "Default", or a preset ("Sharp", "Soft", "Arcade").
+function Devices.Preview(props: {
+	device: Device,
+	box: Vector2,
+	theme: string?,
+	palette: string?,
+	render: () -> any,
+	layoutOrder: number?,
+})
 	local device = props.device
 	local fit = math.min(props.box.X / device.size.X, (props.box.Y - 20) / device.size.Y, 1)
 	local i = device.insets
@@ -132,7 +141,8 @@ function Devices.Preview(props: { device: Device, box: Vector2, palette: string?
 				then zone("jump", Vector2.new(device.size.X - i.Right - 90, device.size.Y - i.Bottom - 90), 96)
 				else nil,
 			Ui = e(UiProvider, {
-				palette = props.palette,
+				theme = Presets.get(props.theme),
+				palette = if props.palette == "" then nil else props.palette,
 				simulate = {
 					size = device.size,
 					input = device.input,
@@ -147,7 +157,7 @@ function Devices.Preview(props: { device: Device, box: Vector2, palette: string?
 end
 
 -- Every matching device in a wrapping row. Measures the canvas so previews fill it.
-function Devices.Matrix(props: { device: string?, palette: string?, render: () -> any })
+function Devices.Matrix(props: { device: string?, theme: string?, palette: string?, render: () -> any })
 	local canvas, setCanvas = React.useState(Vector2.new(1200, 800))
 	local devices = Devices.find(props.device or "All")
 	local single = #devices == 1
@@ -161,6 +171,7 @@ function Devices.Matrix(props: { device: string?, palette: string?, render: () -
 		previews[device.name] = e(Devices.Preview, {
 			device = device,
 			box = box,
+			theme = props.theme,
 			palette = props.palette,
 			render = props.render,
 			layoutOrder = index,

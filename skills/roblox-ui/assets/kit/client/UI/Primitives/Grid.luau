@@ -3,7 +3,7 @@
 -- The same shop grid shows 2 columns on a phone, 4 on a tablet and 6 on a monitor without any
 -- per-device code. Put it inside a Scroller; it grows downward with its content.
 --
---   e(Grid, { minItemWidth = 132, aspectRatio = 0.8, gap = Tokens.Space.S }, tiles)
+--   e(Grid, { minItemWidth = 132, aspectRatio = 0.8, gap = "S" }, tiles)
 --
 -- The grid needs its width from its parent (Size X as scale or offset, not AutomaticSize X).
 -- Children are ordered by layoutOrder.
@@ -14,7 +14,7 @@ local React = require(ReplicatedStorage.Packages.React)
 local Box = require(script.Parent.Box)
 local Decorate = require(script.Parent.Decorate)
 local Responsive = require(script.Parent.Parent.Foundation.Responsive)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
+local Theme = require(script.Parent.Parent.Theme.Theme)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
@@ -23,7 +23,7 @@ export type Props = Decorate.StyleProps & {
 	minItemWidth: number, -- design units
 	aspectRatio: number?, -- cell width / height; default 1 (square). Ignored with itemHeight.
 	itemHeight: number?, -- design units; fixed row height instead of an aspect ratio
-	gap: number?, -- design units; default Tokens.Space.S
+	gap: Theme.SpaceRef?, -- default "S"
 	maxColumns: number?,
 	align: ("Start" | "Center")?, -- where a short last row sits; default Start
 }
@@ -32,10 +32,10 @@ local Grid = React.forwardRef(function(props: Props, ref: any)
 	local ui = UiContext.useUi()
 	local width, setWidth = React.useState(0)
 
-	local sides = Decorate.sides(props.padding)
-	local gap = ui.px(props.gap or Tokens.Space.S)
+	local sides = Decorate.sides(props.padding, ui)
+	local gap = ui.space(props.gap or "S")
 	-- AbsoluteSize includes any UIScale above the UI (story previews), offsets don't: undo it.
-	local available = width / ui.previewScale - ui.px(sides.left) - ui.px(sides.right)
+	local available = width / ui.previewScale - sides.left - sides.right
 	local columns = Responsive.columns(available, ui.px(props.minItemWidth), gap, props.maxColumns)
 	local cellWidth = math.max(0, math.floor((available - gap * (columns - 1)) / columns))
 	local cellHeight = if props.itemHeight

@@ -30,11 +30,12 @@ Severity: **high** breaks for many players or costs performance every frame; **m
 | `gui-inset-math` | low | Offsetting by `GetGuiInset()` breaks when the top bar changes and ignores notches. | ScreenInsets = CoreUISafeInsets (kit Layer `"Safe"`). |
 | `ignore-gui-inset` | low | `IgnoreGuiInset = true` lets content slide under the top bar and notches. | Set `ScreenInsets` explicitly; full-screen only for backdrops. |
 | `zindex-global` | low | Global ZIndex makes every element in the ScreenGui compete in one number space; components break each other. | `ZIndexBehavior.Sibling`, layers by DisplayOrder. |
+| `hardcoded-style` | low | A `Color3` literal (other than pure black / white), `Font.new` or a literal `CornerRadius` inside a UI component never follows the theme: re-theming, high contrast and seasonal palettes skip it. | Theme references (`color = "Accent"`, `radius = "M"`, Text variants); a new knob goes in the component's theme entry (`references/theming.md`). |
 | `hover-only` | low | A file that reacts to `MouseEnter` with no tap or selection path hides that information from touch and gamepad players. | Tap-to-reveal or show on selection (`Activated`, `SelectionGained`). |
 | `missing-sort-order` | info | Without `SortOrder = LayoutOrder`, order can fall back to names; keyed React children are named by key. | Explicit SortOrder and `layoutOrder` on children. |
 | `screen-insets-none` | info | A full-screen layer: correct for backdrops, wrong for content. | Check that only backdrops live in it. |
 | `canvasgroup` | info | CanvasGroups render to a texture: memory, and a redraw whenever anything inside changes. | Small fades only; animate a few elements' transparency for big panels. |
-| `legacy-font` | info | Gotham and Arial are deprecated. | `FontFace` with Builder Sans (`Tokens.FontFamily`). |
+| `legacy-font` | info | Gotham and Arial are deprecated. | `FontFace` with Builder Sans (the theme's `font`, used by the Text primitive). |
 | `legacy-roact` | info | Roact is unmaintained. | react-lua; `roact-compat` to migrate gradually (`references/react-lua.md`). |
 | `waitforchild-chain` | info | Deep `PlayerGui:WaitForChild(...):WaitForChild(...)` chains into Studio-made UI break silently on a rename and hang forever. | Code-built UI, or one module that resolves the authored UI once with clear errors. |
 
@@ -69,5 +70,5 @@ Each stage ships on its own and leaves the game working.
 2. **Foundation (a day).** Install the kit beside the old UI (`uikit.cjs install`), mount `App` with only the Toasts host, route existing notifications through `Toasts.push`. Verify: toasts on all devices.
 3. **HUD.** Rebuild the HUD as a screen (the kit's HudScreen is the starting point), driven by atoms from a controller; delete the old HUD ScreenGui. Verify: device matrix story, thumb zones clear, controller shortcuts.
 4. **One menu per release**, most used first (usually the shop). Keep the controller API the same (`ShopController:Open()`), swap the implementation to an atom + React screen, delete the old ScreenGui. Verify each with its story and a real phone.
-5. **Tokens everywhere.** Replace remaining hard-coded colours and sizes with tokens; add the HighContrast palette toggle to settings.
+5. **Theme everywhere.** Move remaining hard-coded colours, corners and fonts into `GameTheme.luau` (the `hardcoded-style` findings list them), run `uikit.cjs contrast`, and add the HighContrast palette toggle to settings.
 6. **Guard it.** Run `uiscan.cjs --fail-on medium` in CI next to Selene and StyLua so the same mistakes don't come back.

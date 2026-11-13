@@ -1,6 +1,7 @@
 --!strict
--- The root of the UI: the provider, then every screen and layer. Screens read atoms here and get
--- plain props, so each screen stays a pure function of its props (easy to preview and test).
+-- The root of the UI: the provider (with the active theme and palette), then every screen and
+-- layer. Screens read atoms here and get plain props, so each screen stays a pure function of
+-- its props (easy to preview and test). Setting the theme or palette atom restyles everything.
 --
 -- To add a screen: write it in Screens/, give it an atom for "is it open" in AppState if it is a
 -- menu, and mount it here. Only App knows about AppState; screens don't.
@@ -20,7 +21,6 @@ local e = React.createElement
 export type Props = {
 	state: AppState.State,
 	actions: AppState.Actions,
-	palette: string?,
 	simulate: UiProvider.Simulation?,
 }
 
@@ -60,7 +60,9 @@ local function Screens(props: Props)
 end
 
 local function App(props: Props)
-	return e(UiProvider, { palette = props.palette, simulate = props.simulate }, {
+	local theme = Atom.use(props.state.theme)
+	local palette = Atom.use(props.state.palette)
+	return e(UiProvider, { theme = theme, palette = palette, simulate = props.simulate }, {
 		Screens = e(Screens, props),
 	})
 end

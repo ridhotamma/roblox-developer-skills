@@ -5,10 +5,11 @@
 -- so every screen can be previewed and tested without a server.
 --
 -- State here is a *view* of server truth (coins, owned items) plus purely local UI state (which
--- menu is open). The server never trusts any of it.
+-- menu is open, the active theme and palette). The server never trusts any of it.
 
 local Atom = require(script.Parent.Foundation.Atom)
 local ItemTile = require(script.Parent.Components.ItemTile)
+local Theme = require(script.Parent.Theme.Theme)
 
 export type State = {
 	coins: Atom.Atom<number>,
@@ -16,11 +17,20 @@ export type State = {
 	shopOpen: Atom.Atom<boolean>,
 	owned: Atom.Atom<{ [string]: boolean }>,
 	items: Atom.Atom<{ ItemTile.Item }>,
+	-- Look: switch live from a settings menu or an event (UiController:SetTheme / SetPalette).
+	theme: Atom.Atom<Theme.Theme>,
+	palette: Atom.Atom<string?>, -- nil = the theme's default palette
 }
 
 export type Actions = {
 	buy: (itemId: string) -> (),
 	claimDaily: () -> (),
+}
+
+export type Options = {
+	items: { ItemTile.Item }?,
+	theme: Theme.Theme?,
+	palette: string?,
 }
 
 local AppState = {}
@@ -38,13 +48,16 @@ AppState.SAMPLE_ITEMS = table.freeze({
 	{ id = "rainbow_trail", name = "Rainbow Trail", price = 9000, rarity = "Epic", category = "Trails", description = "Every colour, all the time." },
 } :: { ItemTile.Item })
 
-function AppState.create(items: { ItemTile.Item }?): State
+function AppState.create(options: Options?): State
+	local opts: Options = options or {}
 	return {
 		coins = Atom.new(0),
 		dailyReady = Atom.new(true),
 		shopOpen = Atom.new(false),
 		owned = Atom.new({} :: { [string]: boolean }),
-		items = Atom.new(items or AppState.SAMPLE_ITEMS),
+		items = Atom.new(opts.items or AppState.SAMPLE_ITEMS),
+		theme = Atom.new(opts.theme or Theme.default),
+		palette = Atom.new(opts.palette :: string?),
 	}
 end
 

@@ -37,7 +37,7 @@ Landscape phone and desktop zones (safe area):
 - **Doesn't**: secondary currencies, stats, settings, social features, ads for the shop. Move them into menus or show them only when they change.
 - **World interactions** use `ProximityPrompt`: it handles touch, keyboard and gamepad, shows the right key, and needs no HUD space.
 - **Menu buttons** get an icon and a short label: icons alone are ambiguous to new players and labels translate.
-- **Readability over the world**: dark backing chips (`Tokens.Transparency.Hud`) and outlined text; test over the brightest and darkest parts of the map.
+- **Readability over the world**: dark backing chips (the theme's `Pill` style, `transparency.Hud`) and outlined text; test over the brightest and darkest parts of the map.
 - **Portrait phones**: top row for status and menu buttons; the bottom third belongs to the thumbs.
 
 ## 3. Menus and navigation
@@ -107,11 +107,11 @@ Merge repeats ("+5 coins" ten times becomes "+50 coins"), cap visible toasts (th
 
 ## 10. Settings
 
-The essentials: separate music and sound-effect volumes, a high-contrast palette toggle (`UiProvider palette`), a reduced-motion override on top of the Roblox setting, camera sensitivity if the game has a custom camera, and a controls reference per input. Save settings through the server's data layer, apply them through atoms. An optional extra UI size slider can multiply the kit's scale (pass a multiplier into UiProvider and apply it in `Responsive.scaleFor`).
+The essentials: separate music and sound-effect volumes, a high-contrast palette toggle (`UiController:SetPalette("HighContrast")`), a reduced-motion override on top of the Roblox setting, camera sensitivity if the game has a custom camera, and a controls reference per input. Save settings through the server's data layer, apply them through atoms. An optional extra UI size slider can multiply the kit's scale (pass a multiplier into UiProvider and apply it in `Responsive.scaleFor`).
 
 ## 11. Accessibility
 
-- **Contrast**: 4.5:1 for body text on its background, 3:1 for large text and icons. The kit's palettes meet it on their surfaces; over the 3D world use backing chips and outlines.
+- **Contrast**: 4.5:1 for body text on its background, 3:1 for large text and icons. The kit's palettes and presets meet it (`uikit.cjs contrast` checks every theme); over the 3D world use backing chips and outlines.
 - **Text size**: TextSize-based text grows with the player's Text Size setting (`GuiService.PreferredTextSize`); layouts must grow with it (AutomaticSize, wrapping). TextScaled ignores it.
 - **Background transparency**: multiply UI background transparency by `GuiService.PreferredTransparency` (the kit's surfaces do).
 - **Reduced motion**: `GuiService.ReducedMotionEnabled` means fewer or no movement effects (the kit's springs jump to the end).

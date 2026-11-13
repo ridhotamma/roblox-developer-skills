@@ -6,6 +6,8 @@
 //  4. generated components / screens / stories are balanced, strict and reference real modules
 //  5. the device table in references/responsive-layout.md matches what the kit computes
 //  6. docs reference files that exist, mention every kit file, and list every rule id
+//  7. theming: components read only keys the theme defines, overrides use known keys, styles
+//     come from the theme (not Tokens), palettes pass WCAG contrast, GameTheme survives installs
 // Run: node scripts/selftest.cjs
 'use strict';
 
@@ -13,7 +15,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { RULES, scanSource, scanPath, strip, parseFunctions } = require('./uiscan.cjs');
-const { readTokens, readDevices, measure, install, generate, addWallyDependencies } = require('./uikit.cjs');
+const {
+  readTokens, readDevices, measure, install, generate, addWallyDependencies, readThemes, checkThemes, contrastRatio,
+} = require('./uikit.cjs');
 
 const SKILL = path.resolve(__dirname, '..');
 let failed = 0;
@@ -85,7 +89,7 @@ local function Hud(props)
 	React.useEffect(function()
 		print(coins)
 	end)
-	return e("ScreenGui", { ScreenInsets = Enum.ScreenInsets.None }, {
+	return e("ScreenGui", { ScreenInsets = Enum.ScreenInsets.None, BackgroundColor3 = Color3.fromRGB(30, 30, 30) }, {
 		Fade = e("CanvasGroup", {}),
 		Close = e("TextButton", { Size = UDim2.fromOffset(24, 24), Text = "x" }),
 		List = e("UIListLayout", { Padding = UDim.new(0, 4) }),
@@ -137,6 +141,10 @@ return Meter
 `;
 const goodFindings = scanSource(GOOD);
 check('clean fixture has no findings', goodFindings.length === 0, goodFindings.map((f) => `${f.rule}:${f.line}`).join(', '));
+
+const tints = scanSource('local React = require(x)\nlocal e = React.createElement\nlocal function A()\n\treturn e("Frame", { BackgroundColor3 = Color3.new(1, 1, 1) })\nend\n');
+check('pure white / black tints are not hard-coded style', !tints.some((f) => f.rule === 'hardcoded-style'));
+check('theme files may define colours', !scanSource(BAD, 'UI/Theme/GameTheme.luau').some((f) => f.rule === 'hardcoded-style'));
 
 const suppressed = scanSource('local touch = UserInputService.TouchEnabled -- ui:ignore ismobile-check\n');
 check('ui:ignore suppresses a finding', suppressed.length === 0, suppressed.map((f) => f.rule).join(', '));
@@ -227,8 +235,12 @@ check('install adds React to [dependencies]', /\[dependencies\]\nSignal[^\n]*\nT
 check('install keeps server-dependencies separate', /\[server-dependencies\]\nProfileStore/.test(wallyText));
 check('install flags missing PurchaseItem remote', report.notes.some((n) => n.includes('PurchaseItem')));
 check('install flags old HudController', report.notes.some((n) => n.includes('HudController')));
+const gameThemePath = path.join(project, 'src', 'client', 'UI', 'Theme', 'GameTheme.luau');
+fs.appendFileSync(gameThemePath, '\n-- my edits\n');
+const forced = install({ project, force: true });
+check('install --force never overwrites GameTheme.luau', fs.readFileSync(gameThemePath, 'utf8').includes('-- my edits') && forced.owned.length === 1);
 const again = install({ project });
-check('install is idempotent (keeps files, no duplicate deps)', again.written.length === 0 && again.wally.length === 0, JSON.stringify({ w: again.written.length, d: again.wally }));
+check('install is idempotent (keeps files, no duplicate deps)', again.written.length === 0 && again.wally.length === 0 && again.owned.length === 1, JSON.stringify({ w: again.written.length, d: again.wally }));
 check('wally edit adds a [dependencies] table when missing', /\[dependencies\]\nReact = /.test(addWallyDependencies('[package]\nname = "a/b"\n').text));
 check('installed project scans clean', scanPath(path.join(project, 'src')).findings.every((f) => f.severity === 'info'));
 
@@ -314,6 +326,149 @@ for (const doc of fs.readdirSync(path.join(SKILL, 'references'))) {
   for (const m of text.matchAll(/`((?:assets|scripts)\/[^`\s]+)`/g)) {
     check(`${doc} reference exists: ${m[1]}`, fs.existsSync(path.join(SKILL, m[1])));
   }
+}
+
+// --- 7. theming ------------------------------------------------------------------------
+
+const UI = path.join(KIT, 'client', 'UI');
+const themeSrc = strip(fs.readFileSync(path.join(UI, 'Theme', 'Theme.luau'), 'utf8'));
+
+// Top-level keys of a table body (depth-aware), from stripped source.
+function topLevelKeys(body) {
+  const keys = [];
+  let depth = 0;
+  const re = /[{}()]|\b([A-Za-z_]\w*)\s*=(?!=)/g;
+  let m;
+  while ((m = re.exec(body))) {
+    if (m[0] === '{' || m[0] === '(') depth++;
+    else if (m[0] === '}' || m[0] === ')') depth--;
+    else if (depth === 0) keys.push(m[1]);
+  }
+  return keys;
+}
+function tableBody(text, pattern, from = 0) {
+  const re = new RegExp(pattern, 'g');
+  re.lastIndex = from;
+  const m = re.exec(text);
+  if (!m) return null;
+  const open = text.indexOf('{', m.index + m[0].length - 1);
+  let depth = 0;
+  for (let i = open; i < text.length; i++) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}' && --depth === 0) return text.slice(open + 1, i);
+  }
+  return null;
+}
+function entries(body) {
+  // name -> body for each `Name = { ... }` at the top level of `body`
+  const out = {};
+  let depth = 0;
+  for (let i = 0; i < body.length; i++) {
+    const c = body[i];
+    if (c === '{') depth++;
+    else if (c === '}') depth--;
+    else if (depth === 0) {
+      const m = /^([A-Za-z_]\w*)\s*=\s*\{/.exec(body.slice(i));
+      if (m && (i === 0 || /[\s,{]/.test(body[i - 1]))) {
+        const inner = tableBody(body.slice(i), '\\{');
+        out[m[1]] = inner;
+        i += m[0].length - 1 + inner.length + 1;
+      }
+    }
+  }
+  return out;
+}
+
+const defaultsBody = tableBody(themeSrc, 'local DEFAULTS\\s*=\\s*\\{');
+const defaultTopKeys = new Set(topLevelKeys(defaultsBody));
+const componentDefaults = {};
+for (const [name, body] of Object.entries(entries(tableBody(defaultsBody, '\\bcomponents\\s*=\\s*\\{')))) {
+  componentDefaults[name] = new Set(topLevelKeys(body));
+}
+check('theme defines styles for the kit components', ['Button', 'Card', 'Modal', 'Tile', 'Toast', 'Pill', 'ProgressBar', 'Tabs', 'Text', 'Scroller'].every((c) => componentDefaults[c]), Object.keys(componentDefaults).join(', '));
+const themeTypeBody = tableBody(themeSrc, 'export type Theme\\s*=\\s*\\{');
+const themeFields = new Set(topLevelKeys(themeTypeBody.replace(/:/g, ' =')));
+
+const STYLE_TOKENS = /\bTokens\.(Palettes|Rarity|Space|Radius|Stroke|Type|Control|IconSize|Motion|Transparency|FontFamily)\b/;
+for (const f of kitFiles) {
+  const rel = path.relative(UI, f);
+  const src = strip(fs.readFileSync(f, 'utf8'));
+  if (/^(Primitives|Components|Screens|Foundation)[\\/]/.test(rel) || rel === 'App.luau') {
+    check(`styles come from the theme, not Tokens: ${rel}`, !STYLE_TOKENS.test(src), (src.match(STYLE_TOKENS) || [])[0]);
+  }
+  const vars = {};
+  for (const m of src.matchAll(/local\s+(\w+)\s*=\s*ui\.theme\.components\.(\w+)\b(?!\.)/g)) vars[m[1]] = m[2];
+  for (const [v, component] of Object.entries(vars)) {
+    for (const m of src.matchAll(new RegExp(`\\b${v}\\.(\\w+)`, 'g'))) {
+      check(`${rel}: theme.components.${component}.${m[1]} has a default`, componentDefaults[component] && componentDefaults[component].has(m[1]));
+    }
+  }
+  for (const m of src.matchAll(/ui\.theme\.components\.(\w+)\.(\w+)/g)) {
+    check(`${rel}: theme.components.${m[1]}.${m[2]} has a default`, componentDefaults[m[1]] && componentDefaults[m[1]].has(m[2]));
+  }
+  for (const m of src.matchAll(/ui\.theme\.(\w+)/g)) {
+    check(`${rel}: theme.${m[1]} is a theme field`, themeFields.has(m[1]), [...themeFields].join(','));
+  }
+}
+
+// Overrides in GameTheme and the presets only use keys the defaults have.
+for (const file of ['GameTheme.luau', 'Presets.luau']) {
+  const src = strip(fs.readFileSync(path.join(UI, 'Theme', file), 'utf8'));
+  const re = /Theme\.create\(\s*\{/g;
+  let m;
+  let calls = 0;
+  while ((m = re.exec(src))) {
+    calls++;
+    const body = tableBody(src, 'Theme\\.create\\(\\s*\\{', m.index);
+    for (const key of topLevelKeys(body)) check(`${file}: override key "${key}" exists`, defaultTopKeys.has(key));
+    const comps = tableBody(body, '\\bcomponents\\s*=\\s*\\{');
+    if (comps) {
+      for (const [component, cbody] of Object.entries(entries(comps))) {
+        for (const key of topLevelKeys(cbody)) {
+          check(`${file}: components.${component}.${key} exists`, componentDefaults[component] && componentDefaults[component].has(key));
+        }
+      }
+    }
+  }
+  check(`${file} creates a theme`, calls >= 1);
+}
+
+// Contrast: every palette of every theme, and GameTheme's examples once uncommented.
+const contrast = checkThemes(readThemes(UI));
+check('themes parsed for contrast (Default, Game, presets)', contrast.length >= 10, contrast.length);
+for (const r of contrast) {
+  const bad = r.checks.filter((c) => !c.ok);
+  check(`contrast: ${r.theme} / ${r.palette}`, bad.length === 0, bad.map((c) => `${c.fg} on ${c.bg} ${c.ratio.toFixed(2)}`).join(', '));
+}
+const exampleUi = path.join(dir, 'examples', 'UI');
+fs.mkdirSync(path.join(exampleUi, 'Theme'), { recursive: true });
+fs.copyFileSync(path.join(UI, 'Theme', 'Tokens.luau'), path.join(exampleUi, 'Theme', 'Tokens.luau'));
+const uncommented = fs.readFileSync(path.join(UI, 'Theme', 'GameTheme.luau'), 'utf8')
+  .split('\n')
+  .map((l) => l.replace(/^\t-- (    |palettes|components|roundness|font|\})/, '\t$1').replace(/^\t--     /, '\t    '))
+  .join('\n');
+fs.writeFileSync(path.join(exampleUi, 'Theme', 'GameTheme.luau'), uncommented);
+const exampleThemes = readThemes(exampleUi);
+const game = exampleThemes.find((t) => t.name === 'Game');
+check('GameTheme examples parse when uncommented', game && game.palettes.Halloween && game.palettes.Dark.Accent[0] !== exampleThemes[0].palettes.Dark.Accent[0]);
+for (const r of checkThemes(exampleThemes)) {
+  const bad = r.checks.filter((c) => !c.ok);
+  check(`contrast of GameTheme examples: ${r.theme} / ${r.palette}`, bad.length === 0, bad.map((c) => `${c.fg} on ${c.bg} ${c.ratio.toFixed(2)}`).join(', '));
+}
+check('contrast maths: black on white is 21:1', Math.abs(contrastRatio([0, 0, 0], [255, 255, 255]) - 21) < 0.01);
+
+// Stories expose the theme switch; the theming reference documents every component key.
+for (const f of luauFiles(path.join(UI, 'Stories'), /\.story\.luau$/)) {
+  check(`story has a Theme control: ${path.basename(f)}`, /Theme\s*=\s*"Game"/.test(fs.readFileSync(f, 'utf8')));
+}
+const themingDoc = fs.readFileSync(path.join(SKILL, 'references', 'theming.md'), 'utf8');
+for (const [component, keys] of Object.entries(componentDefaults)) {
+  const section = (themingDoc.split(new RegExp(`^### ${component}\\b`, 'm'))[1] || '').split(/^### /m)[0];
+  check(`theming.md documents ${component}`, section.length > 0);
+  for (const key of keys) check(`theming.md documents ${component}.${key}`, section.includes(`\`${key}\``));
+}
+for (const key of defaultTopKeys) {
+  if (key !== 'components') check(`theming.md documents theme.${key}`, themingDoc.includes(`\`${key}\``));
 }
 
 fs.rmSync(dir, { recursive: true, force: true });

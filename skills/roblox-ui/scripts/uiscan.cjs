@@ -87,6 +87,11 @@ const RULES = {
     title: 'ZIndexBehavior.Global: one ZIndex space for the whole ScreenGui, so components fight over numbers',
     fix: 'ZIndexBehavior.Sibling and order with layers (DisplayOrder) and sibling ZIndex.',
   },
+  'hardcoded-style': {
+    severity: 'low',
+    title: 'Style hard-coded in a UI component: theme changes (palette, corners, fonts) never reach it',
+    fix: 'Use theme references: color = "Accent" or ui.color(ref), radius = "M" or ui.corner(ref), Text variants for fonts. For a new knob, add a components.<Name> entry to your theme and read ui.theme.components.<Name>.',
+  },
   'hover-only': {
     severity: 'low',
     title: 'Hover-only interaction: touch and gamepad players can never trigger it',
@@ -378,6 +383,15 @@ function scanSource(src, file = '<source>') {
   each(/\bRoact\.createElement\b|require\([^)\n]*\bRoact\b\s*\)/, 'legacy-roact');
   each(/"CanvasGroup"/, 'canvasgroup', src);
   each(/PlayerGui[^\n]*?(?::WaitForChild\([^)\n]*\)){3,}/, 'waitforchild-chain', src);
+
+  // Hard-coded colours, fonts and corner sizes in components (theme and story files are exempt;
+  // pure black / white are allowed for tint maths).
+  const themeOrStory = /(^|[\/\\])(Theme|Tokens|GameTheme|Presets)\.luau?$|\.story\.luau?$|(^|[\/\\])Stories[\/\\]/.test(file);
+  if (usesReact && !themeOrStory) {
+    each(/\bColor3\.(?:fromRGB|fromHex|fromHSV)\s*\(|\bColor3\.new\(\s*(?!\)|0\s*,\s*0\s*,\s*0\s*\)|1\s*,\s*1\s*,\s*1\s*\))/, 'hardcoded-style');
+    each(/\bFont\.(?:new|fromEnum|fromName|fromId)\s*\(/, 'hardcoded-style');
+    each(/\bCornerRadius\s*=\s*UDim\.new\(\s*0\s*,\s*\d/, 'hardcoded-style');
+  }
 
   if (/\bMouseEnter\b/.test(code) && !/\b(?:Activated|SelectionGained|TouchTap|InputBegan)\b/.test(code)) {
     add('hover-only', code.search(/\bMouseEnter\b/));

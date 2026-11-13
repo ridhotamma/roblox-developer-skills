@@ -4,15 +4,16 @@
 --   e({{NAME}}, { title = "Daily quests", layoutOrder = 2 })
 --
 -- Pure view: everything it shows comes in through props, every change goes out through a
--- callback prop. Sizes from Tokens through ui.px, colours from ui.palette.
+-- callback prop. Its look comes from the theme: a Card for the surface, theme references
+-- ("Accent", "L", "M") for anything else. To make this component themeable on its own, add a
+-- `components.{{NAME}}` entry to GameTheme.luau and read it with `ui.theme.components.{{NAME}}`.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
+local Card = require(script.Parent.Parent.Components.Card)
 local Responsive = require(script.Parent.Parent.Foundation.Responsive)
-local Stack = require(script.Parent.Parent.Primitives.Stack)
 local Text = require(script.Parent.Parent.Primitives.Text)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
@@ -24,16 +25,12 @@ export type Props = {
 
 local function {{NAME}}(props: Props)
 	local ui = UiContext.useUi()
-	local padding = Responsive.pick(ui.sizeClass, { Compact = Tokens.Space.M, Expanded = Tokens.Space.L })
 
-	return e(Stack, {
+	return e(Card, {
 		size = UDim2.fromScale(1, 0),
 		automaticSize = Enum.AutomaticSize.Y,
-		gap = Tokens.Space.S,
-		padding = padding,
-		color = ui.palette.Surface,
-		transparency = Tokens.Transparency.Surface,
-		radius = Tokens.Radius.L,
+		-- Tighter on phones; otherwise the theme's Card padding.
+		padding = Responsive.pick(ui.sizeClass, { Compact = "M", Expanded = ui.theme.components.Card.padding }),
 		layoutOrder = props.layoutOrder,
 	}, {
 		Title = e(Text, { text = props.title, variant = "Heading", layoutOrder = 1 }),

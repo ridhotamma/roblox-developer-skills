@@ -1,7 +1,7 @@
 --!strict
 -- The shop on every device: full-screen sheet with a pinned Buy bar on phones, grid + details
 -- column on tablets, desktops and the TV. Tiles are interactive in the preview.
--- Controls: Device, Palette, Open, Coins.
+-- Controls: Device, Theme, Palette, Open, Coins.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -20,7 +20,8 @@ return {
 	reactRoblox = ReactRoblox,
 	controls = {
 		Device = "All",
-		Palette = "Dark",
+		Theme = "Game", -- Game, Default, Sharp, Soft, Arcade
+		Palette = "", -- empty = the theme's default; or Dark, HighContrast, a palette your theme adds
 		Open = true,
 		Coins = 2400,
 	},
@@ -28,6 +29,7 @@ return {
 		local controls = props.controls
 		return e(Devices.Matrix, {
 			device = controls.Device,
+			theme = controls.Theme,
 			palette = controls.Palette,
 			render = function()
 				return e(ShopScreen, {

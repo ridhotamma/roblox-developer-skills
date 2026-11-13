@@ -52,10 +52,16 @@ function Motion.step(motor: Motor, target: number, spring: Tokens.Spring, dt: nu
 	return false
 end
 
+-- `spring` is a theme spring name ("Snappy", "Bouncy", "Gentle", or one your theme adds) or a
+-- { Frequency, Damping } table; default "Snappy". Names follow the theme, so a theme can make
+-- the whole UI springier or snappier.
 -- `initial` (optional) is where the value starts on mount: useSpring(1, nil, 0) animates in.
-function Motion.useSpring(target: number, spring: Tokens.Spring?, initial: number?): React.Binding<number>
+function Motion.useSpring(target: number, spring: (Tokens.Spring | string)?, initial: number?): React.Binding<number>
 	local ui = UiContext.useUi()
-	local config = spring or Tokens.Motion.Springs.Snappy
+	local springs = ui.theme.springs
+	local config: Tokens.Spring = if type(spring) == "table"
+		then spring
+		else springs[(spring :: string?) or "Snappy"] or springs.Snappy
 	local start = if initial ~= nil then initial else target
 	local binding, setBinding = React.useBinding(start)
 	local motorRef = React.useRef({ value = start, velocity = 0 } :: Motor)

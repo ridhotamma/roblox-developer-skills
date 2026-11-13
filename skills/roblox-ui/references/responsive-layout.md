@@ -142,7 +142,7 @@ So on touch: keep the bottom-left and bottom-right corners free of HUD, put freq
 local ui = UiContext.useUi()
 local columns = Responsive.pick(ui.sizeClass, { Compact = 1, Expanded = 2 })
 local direction = if columns == 1 then "Column" else "Row"
-return e(Stack, { direction = direction, gap = Tokens.Space.L, align = "Stretch" }, {
+return e(Stack, { direction = direction, gap = "L", align = "Stretch" }, {
 	Stats = e(StatsPanel, { layoutOrder = 1, flex = if columns == 2 then "Fill" else nil }),
 	Upgrades = e(UpgradeList, { layoutOrder = 2, flex = if columns == 2 then "Fill" else nil }),
 })
@@ -152,7 +152,7 @@ Keep the number of layout variants small: usually Compact and "everything else",
 
 ## 9. Text
 
-- Sizes come from the type scale (`Tokens.Type`) through `ui.px`, so every Body label is the same size on a screen. Captions (12 units) are the floor for anything the player must read.
+- Sizes come from the theme's type scale (`ui.theme.type`) through `ui.px`, so every Body label is the same size on a screen. Captions (12 units) are the floor for anything the player must read.
 - Long text: `width = UDim.new(1, 0)` on the kit's Text wraps and grows downward; `truncate = true` for single-line names in tight spaces (with the full name in the details view).
 - `GuiService.PreferredTextSize` (Settings → Accessibility → Text Size) enlarges TextSize-based text automatically; AutomaticSize containers grow with it. `TextScaled` text ignores it, and a `UITextSizeConstraint` caps it.
 - Measure text before layout only when necessary (`TextService:GetTextBoundsAsync`); AutomaticSize usually does it for you.

@@ -2,7 +2,7 @@
 
 How the kit is organised so a UI can grow from one HUD to forty screens without turning into copy-pasted frames: the layers, the API conventions every component follows, composition, theming, where state lives, and how to add to it.
 
-Contents: 1 Layers and folders · 2 Component API conventions · 3 Composition patterns · 4 Theming and tokens · 5 State placement and data flow · 6 Adding a component · 7 Stories and tests · 8 Large UIs · 9 Anti-patterns
+Contents: 1 Layers and folders · 2 Component API conventions · 3 Composition patterns · 4 Theming · 5 State placement and data flow · 6 Adding a component · 7 Stories and tests · 8 Large UIs · 9 Anti-patterns
 
 ---
 
@@ -14,7 +14,7 @@ src/client/
 └─ UI/
    ├─ App.luau                     root: provider, reads atoms, mounts screens and layers
    ├─ AppState.luau                atoms + the actions screens may request
-   ├─ Theme/Tokens.luau            design tokens (data only)
+   ├─ Theme/                       Tokens (defaults), Theme (schema, create), GameTheme (yours), Presets
    ├─ Foundation/                  UiProvider, UiContext, Responsive, Atom, Motion, Navigation, NumberFormat
    ├─ Primitives/                  Layer, Box, Stack, Grid, Text, Icon, Button, Scroller (+ Decorate)
    ├─ Components/                  Modal, Tabs, Toasts, ProgressBar, ItemTile, CurrencyPill ...
@@ -26,11 +26,11 @@ Dependencies point down only:
 
 | Layer | May use | Must not |
 |---|---|---|
-| Tokens | nothing | contain logic or Instances |
-| Foundation | Tokens, React | render game-specific UI |
-| Primitives | Foundation, Tokens | know about the game (items, coins) |
-| Components | Primitives, Foundation, Tokens | talk to remotes, read atoms directly (take props) |
-| Screens | Components, Primitives, Foundation, Tokens | talk to remotes, read player attributes |
+| Theme (Tokens, Theme, GameTheme, Presets) | nothing but each other | contain logic beyond merging and resolving, or Instances |
+| Foundation | Theme, React | render game-specific UI |
+| Primitives | Foundation | know about the game (items, coins); hard-code colours, corners or fonts |
+| Components | Primitives, Foundation | talk to remotes, read atoms directly (take props) |
+| Screens | Components, Primitives, Foundation | talk to remotes, read player attributes |
 | App | Screens, AppState, Foundation | contain layout beyond mounting screens |
 | UiController | App, AppState, Net, services | contain layout |
 
@@ -44,7 +44,8 @@ Every kit component follows the same rules, so using a new one needs no reading:
 - **Header comment**: what it is for, a usage example, and any rule a caller must know (e.g. "needs its width from its parent").
 - **`export type Props`** with a comment on every non-obvious field. Optional props end in `?` and have a stated default.
 - **camelCase props** for kit components; PascalCase only on host Instances. Common names mean the same everywhere: `size`, `position`, `anchor`, `layoutOrder`, `zIndex`, `visible`, `color`, `transparency`, `radius`, `stroke`, `padding`, `flex`, `width`, `disabled`.
-- **Design units** in props (`gap = Tokens.Space.S`, `width = 640`), converted with `ui.px` inside. Callers never multiply by scale.
+- **Theme references and design units** in props (`gap = "S"`, `color = "Surface"`, `radius = "L"`, `width = 640`), resolved inside with `ui.space`, `ui.color`, `ui.corner`, `ui.px`. Callers never multiply by scale or pick raw colours.
+- **Look from the theme**: a component's defaults come from `ui.theme.components.<Name>` and props override them per instance, so a game restyles the component without editing it.
 - **Variants and sizes are string unions** (`variant: "Primary" | "Secondary" | ...`, `size: "Small" | "Medium" | "Large"`), not booleans (`isPrimary`, `big`), so they're exclusive and extendable.
 - **Callbacks are `onX`** and carry ids, not Instances: `onSelect(itemId)`, `onActivate()`.
 - **`layoutOrder`** on everything that can sit in a Stack or Grid.
@@ -63,12 +64,12 @@ Every kit component follows the same rules, so using a new one needs no reading:
 
 ## 4. Theming and tokens
 
-- `Theme/Tokens.luau` is the single source of colours, spacing, radii, strokes, type, control sizes, motion, layers, breakpoints and scale. Change a value there and the whole UI follows.
-- Colours are read from `ui.palette` (the active palette), never from `Tokens.Palettes.Dark` directly, so palettes swap at runtime: `UiProvider { palette = "HighContrast" }` from a settings toggle.
-- **Adding a palette**: copy Dark, keep every key, check text and fill contrast (4.5:1 for body text, 3:1 for large text and icons), and preview every story with the Palette control.
+- The theme (`ui.theme`) is the single source of looks: palettes, scales, `roundness`, and a style entry per component. A game's look lives in `Theme/GameTheme.luau` as overrides on the defaults (`references/theming.md` has every key and recipe).
+- Components read the active theme and palette, never `Tokens.Palettes.Dark` or other raw tokens, so themes and palettes swap at runtime: `UiController:SetPalette("HighContrast")` from a settings toggle, `UiController:SetTheme(winterTheme)` for an event.
+- **Adding a palette**: in GameTheme, name it and list only what differs from the default palette; run `uikit.cjs contrast` (4.5:1 for text, 3:1 for UI parts) and preview every story with the Palette control.
 - **Semantic names over literal ones**: `Positive` not `Green`, `SurfaceRaised` not `Gray2`. A seasonal theme can change what Positive looks like without renaming anything.
-- **Adding a token** is cheaper than adding a magic number: a new spacing step or a new control size goes in Tokens with a comment on when to use it.
-- Brand fonts: `Tokens.FontFamily` is Builder Sans (shipped with the client, no download, four weights). Custom fonts from the Creator Store need a download before first render; preload them with ContentProvider on the loading screen.
+- **Adding a step or a knob** is cheaper than a magic number: a new spacing step goes in the theme's `space`, a component's new option in its `components` entry (with a default in `Theme.luau` for kit components).
+- Fonts: the theme's `font` defaults to Builder Sans (shipped with the client, no download, four weights). Custom fonts from the Creator Store need a download before first render; preload them with ContentProvider on the loading screen.
 
 ## 5. State placement and data flow
 
@@ -116,13 +117,13 @@ node <skill>/scripts/uikit.cjs new component QuestCard --project .
 - **Long lists**: paginate or virtualize past ~100 rows; a ScrollingFrame with 1,000 tiles costs memory and layout time on phones.
 - **Images**: many unique images in a grid cost memory; use sprite sheets (`Icon rectOffset/rectSize`) for icon sets and keep item art small.
 - **Re-renders**: selectors on atoms, `React.memo` on list rows, bindings for animation. Profile with the MicroProfiler (`roblox-performance`) if a menu hitches on open.
-- **Ownership**: one owner per screen in a team, tokens owned by whoever owns the art direction, Primitives changed with review because everything depends on them.
+- **Ownership**: one owner per screen in a team, the theme owned by whoever owns the art direction, Primitives changed with review because everything depends on them.
 
 ## 9. Anti-patterns
 
 | Anti-pattern | Why it hurts | Instead |
 |---|---|---|
-| Hard-coded `Color3.fromRGB` / offsets in screens | Inconsistent, unthemable, wrong size on phones | Tokens + `ui.px` |
+| Hard-coded `Color3.fromRGB` / corner sizes / offsets in screens | Inconsistent, unthemable, wrong size on phones | Theme references + `ui.px` (scanner rule `hardcoded-style`) |
 | Components that fire remotes | Can't preview or test; the UI becomes a second source of rules | Callback props; UiController sends |
 | A "Ui" god module that every screen requires to toggle every other screen | Hidden coupling, impossible to reason about order | Atoms for open state; App mounts screens |
 | Copy-pasted frames per device ("ShopMobile", "ShopPC") | Two screens to maintain, they drift | One screen with size-class branches |

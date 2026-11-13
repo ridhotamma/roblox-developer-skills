@@ -1,6 +1,8 @@
 --!strict
 -- Measures the screen, the player's input and their accessibility settings, and provides the
--- result (UiContext.Ui) to everything below. Mount it once, at the root of the app.
+-- result (UiContext.Ui) with the active theme and palette to everything below. Mount it once,
+-- at the root of the app. Pass a different `theme` or `palette` to restyle the whole UI live
+-- (a high-contrast setting, a seasonal event): every component re-renders with the new look.
 --
 -- Live mode measures:
 --   * the safe area with a hidden ScreenGui that uses the same insets as our layers, so notches,
@@ -22,6 +24,7 @@ local Workspace = game:GetService("Workspace")
 
 local React = require(ReplicatedStorage.Packages.React)
 local Responsive = require(script.Parent.Responsive)
+local Theme = require(script.Parent.Parent.Theme.Theme)
 local UiContext = require(script.Parent.UiContext)
 
 export type Simulation = {
@@ -37,7 +40,8 @@ export type Simulation = {
 
 export type Props = {
 	simulate: Simulation?,
-	palette: string?, -- a key of Tokens.Palettes; default "Dark"
+	theme: Theme.Theme?, -- default: the kit's default theme (App passes your GameTheme)
+	palette: string?, -- a palette of the theme; default theme.defaultPalette
 	children: any,
 }
 
@@ -216,7 +220,8 @@ local function UiProvider(props: Props)
 		then simulatedEnvironment(simulation)
 		else live or readEnvironment(nil) -- first render, before the probe has measured
 
-	local paletteName = props.palette or "Dark"
+	local theme = props.theme or Theme.default
+	local paletteName = props.palette or theme.defaultPalette
 	local insets = if simulation then simulation.insets else nil
 	local topbar = if simulation then simulation.topbar or 0 else 0
 	local previewScale = if simulation then simulation.previewScale or 1 else 1
@@ -224,6 +229,7 @@ local function UiProvider(props: Props)
 	local ui = React.useMemo(function()
 		local metrics = Responsive.measure(environment.viewport, environment.safe, environment.input, environment.tenFoot)
 		return UiContext.build(metrics, {
+			theme = theme,
 			palette = paletteName,
 			reducedMotion = environment.reducedMotion,
 			preferredTransparency = environment.preferredTransparency,
@@ -239,6 +245,7 @@ local function UiProvider(props: Props)
 		environment.tenFoot,
 		environment.reducedMotion,
 		environment.preferredTransparency,
+		theme,
 		paletteName,
 		simulation ~= nil,
 		insets or false, -- never nil inside a dependency array: a nil hole changes its length

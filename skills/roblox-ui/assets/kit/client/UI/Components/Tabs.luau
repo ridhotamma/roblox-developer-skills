@@ -1,6 +1,7 @@
 --!strict
 -- A row of tabs. Scrolls sideways when the tabs don't fit (phones, long translations), and on a
--- gamepad LB / RB move between tabs with the bumper glyphs shown at each end.
+-- gamepad LB / RB move between tabs with the bumper glyphs shown at each end. Which Button
+-- variants and size the tabs use comes from theme.components.Tabs.
 --
 --   e(Tabs, { tabs = { { id = "all", label = "All" }, { id = "pets", label = "Pets" } },
 --             selected = tab, onSelect = setTab, shortcuts = props.open })
@@ -14,7 +15,6 @@ local Icon = require(script.Parent.Parent.Primitives.Icon)
 local Navigation = require(script.Parent.Parent.Foundation.Navigation)
 local Scroller = require(script.Parent.Parent.Primitives.Scroller)
 local Stack = require(script.Parent.Parent.Primitives.Stack)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
@@ -36,6 +36,7 @@ end
 
 local function Tabs(props: Props)
 	local ui = UiContext.useUi()
+	local style = ui.theme.components.Tabs
 
 	local index = 1
 	for i, tab in props.tabs do
@@ -70,8 +71,8 @@ local function Tabs(props: Props)
 		buttons[`Tab_{tab.id}`] = e(Button, {
 			text = tab.label,
 			icon = tab.icon,
-			size = "Small",
-			variant = if selected then "Primary" else "Ghost",
+			size = style.size,
+			variant = if selected then style.selected else style.idle,
 			onActivate = function()
 				props.onSelect(tab.id)
 			end,
@@ -79,11 +80,11 @@ local function Tabs(props: Props)
 		})
 	end
 
-	local height = ui.px(math.max(Tokens.Control.Small, ui.hitTarget))
+	local height = ui.px(math.max((ui.theme.control :: any)[style.size] or ui.theme.control.Small, ui.hitTarget))
 	return e(Stack, {
 		direction = "Row",
 		align = "Center",
-		gap = Tokens.Space.XS,
+		gap = style.gap,
 		size = UDim2.new(1, 0, 0, height),
 		layoutOrder = props.layoutOrder,
 	}, {
@@ -97,7 +98,7 @@ local function Tabs(props: Props)
 			Row = e(Stack, {
 				direction = "Row",
 				align = "Center",
-				gap = Tokens.Space.XS,
+				gap = style.gap,
 				size = UDim2.fromScale(0, 1),
 				automaticSize = Enum.AutomaticSize.X,
 			}, buttons),

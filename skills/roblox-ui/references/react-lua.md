@@ -75,7 +75,7 @@ e("TextButton", {
 ## 4. Children, keys and order
 
 ```lua
-e(Stack, { gap = Tokens.Space.S }, {
+e(Stack, { gap = "S" }, {
 	Title = e(Text, { text = "Shop", layoutOrder = 1 }),
 	Grid = e(Grid, { minItemWidth = 136, layoutOrder = 2 }, tiles),
 })

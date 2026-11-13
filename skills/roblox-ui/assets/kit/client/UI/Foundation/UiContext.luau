@@ -1,17 +1,22 @@
 --!strict
 -- The UI environment every component reads with `UiContext.useUi()`: screen metrics and size
--- class, input mode, the player's accessibility settings, the palette, and `px` to turn design
--- units into pixels. UiProvider builds it; nothing else should measure the screen.
+-- class, input mode, the player's accessibility settings, the active theme and palette, and
+-- helpers that turn design values into Roblox values. UiProvider builds it; nothing else should
+-- measure the screen or pick colours.
 --
 --   local ui = UiContext.useUi()
---   Size = UDim2.fromOffset(ui.px(320), ui.px(Tokens.Control.Medium))
---   BackgroundTransparency = ui.transparency(Tokens.Transparency.Hud)
+--   local style = ui.theme.components.Card            -- a component's look, from the theme
+--   BackgroundColor3 = ui.color("Accent")              -- palette key, rarity or Color3
+--   Padding = UDim.new(0, ui.space("L"))               -- space step or design units -> pixels
+--   CornerRadius = ui.corner(style.radius)             -- radius step, units or "Full" -> UDim
+--   Size = UDim2.fromOffset(ui.px(320), ui.px(ui.theme.control.Medium))
 --   if ui.sizeClass == "Compact" then ... end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
 local Responsive = require(script.Parent.Responsive)
+local Theme = require(script.Parent.Parent.Theme.Theme)
 local Tokens = require(script.Parent.Parent.Theme.Tokens)
 
 export type Insets = { Top: number, Bottom: number, Left: number, Right: number }
@@ -31,11 +36,18 @@ export type Ui = {
 	reducedMotion: boolean, -- GuiService.ReducedMotionEnabled: skip or shorten animation
 	preferredTransparency: number, -- GuiService.PreferredTransparency: 1 default, 0 = wants opaque
 
-	palette: Tokens.Palette,
+	-- Look
+	theme: Theme.Theme,
+	palette: Theme.Palette,
 	paletteName: string,
 
 	-- Design units -> whole pixels (whole pixels keep 1-unit strokes and text crisp).
 	px: (units: number) -> number,
+	-- Theme references -> Roblox values.
+	color: (ref: Theme.ColorRef) -> Color3,
+	space: (ref: Theme.SpaceRef) -> number, -- pixels
+	stroke: (ref: Theme.StrokeRef) -> number, -- pixels, at least 1
+	corner: (ref: Theme.RadiusRef) -> UDim,
 	-- Background transparency adjusted for the player's Background Transparency setting.
 	transparency: (base: number) -> number,
 	-- Smallest interactive size for the current input, in design units.
@@ -49,7 +61,8 @@ export type Ui = {
 }
 
 export type BuildOptions = {
-	palette: string?,
+	theme: Theme.Theme?,
+	palette: string?, -- a palette of the theme; default theme.defaultPalette
 	reducedMotion: boolean?,
 	preferredTransparency: number?,
 	simulated: boolean?,
@@ -59,6 +72,7 @@ export type BuildOptions = {
 }
 
 local NO_INSETS: Insets = table.freeze({ Top = 0, Bottom = 0, Left = 0, Right = 0 })
+local FULL = UDim.new(0.5, 0)
 
 local UiContext = {}
 
@@ -66,9 +80,18 @@ UiContext.Context = React.createContext(nil :: Ui?)
 
 function UiContext.build(metrics: Responsive.Metrics, options: BuildOptions): Ui
 	local scale = metrics.scale
-	local paletteName = options.palette or "Dark"
-	local palette = (Tokens.Palettes :: any)[paletteName] or Tokens.Palettes.Dark
+	local theme = options.theme or Theme.default
+	local paletteName = options.palette or theme.defaultPalette
+	local palette = theme.palettes[paletteName]
+	if palette == nil then
+		paletteName = theme.defaultPalette
+		palette = theme.palettes[paletteName]
+	end
 	local preferred = math.clamp(options.preferredTransparency or 1, 0, 1)
+
+	local function px(units: number): number
+		return math.round(units * scale)
+	end
 
 	return {
 		viewport = metrics.viewport,
@@ -83,11 +106,23 @@ function UiContext.build(metrics: Responsive.Metrics, options: BuildOptions): Ui
 		reducedMotion = options.reducedMotion == true,
 		preferredTransparency = preferred,
 
+		theme = theme,
 		palette = palette,
 		paletteName = paletteName,
 
-		px = function(units: number): number
-			return math.round(units * scale)
+		px = px,
+		color = function(ref: Theme.ColorRef): Color3
+			return Theme.color(theme, palette, ref)
+		end,
+		space = function(ref: Theme.SpaceRef): number
+			return px(Theme.space(theme, ref))
+		end,
+		stroke = function(ref: Theme.StrokeRef): number
+			return math.max(1, px(Theme.stroke(theme, ref)))
+		end,
+		corner = function(ref: Theme.RadiusRef): UDim
+			local units = Theme.radius(theme, ref)
+			return if units == nil then FULL else UDim.new(0, px(units))
 		end,
 		transparency = function(base: number): number
 			return base * preferred

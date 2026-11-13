@@ -1,5 +1,6 @@
 --!strict
--- {{NAME}} on every device (Devices.Matrix). Controls: Device ("All" or part of a name), Palette.
+-- {{NAME}} on every device (Devices.Matrix). Controls: Device ("All" or part of a name), Theme,
+-- Palette.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -15,12 +16,14 @@ return {
 	reactRoblox = ReactRoblox,
 	controls = {
 		Device = "All",
-		Palette = "Dark",
+		Theme = "Game", -- Game, Default, Sharp, Soft, Arcade
+		Palette = "", -- empty = the theme's default
 	},
 	story = function(props: any)
 		local controls = props.controls
 		return e(Devices.Matrix, {
 			device = controls.Device,
+			theme = controls.Theme,
 			palette = controls.Palette,
 			render = function()
 				return {{RENDER}}

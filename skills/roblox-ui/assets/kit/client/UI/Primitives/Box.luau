@@ -1,11 +1,11 @@
 --!strict
--- The basic surface: a Frame styled from tokens. Panels, cards, chips, wells and spacers are
--- all Boxes with different props.
+-- The basic surface: a Frame styled from theme references. Wells, chips, spacers and one-off
+-- panels are Boxes with different props; for the standard card look use Components/Card, which
+-- takes its defaults from the theme.
 --
 --   e(Box, {
 --       size = UDim2.fromScale(1, 0), automaticSize = Enum.AutomaticSize.Y,
---       color = ui.palette.Surface, radius = Tokens.Radius.L, padding = Tokens.Space.L,
---       stroke = { color = ui.palette.Border },
+--       color = "SurfaceSunken", radius = "M", padding = "L", stroke = { color = "Border" },
 --   }, children)
 --
 -- No `color` = no background. Accepts a ref (forwarded to the Frame).

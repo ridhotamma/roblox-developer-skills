@@ -11,6 +11,8 @@
 --   e(Modal, { open = shopOpen, title = "Shop", onClose = closeShop, footer = buyBar }, body)
 --
 -- `scroll = false` when the body manages its own scrolling (e.g. a grid beside a details pane).
+-- Look (corners, colour, border, scrim, default size, header height, footer) comes from
+-- theme.components.Modal; on phones the sheet is always square-cornered and full-screen.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -32,8 +34,8 @@ export type Props = {
 	open: boolean,
 	title: string,
 	onClose: (() -> ())?, -- nil: the player can't dismiss it (forced choices only)
-	width: number?, -- design units; default 640
-	height: number?, -- design units; default 560
+	width: number?, -- design units; default theme Modal.width
+	height: number?, -- design units; default theme Modal.height
 	scroll: boolean?, -- default true
 	footer: any?, -- element pinned under the body (actions)
 	order: number?, -- layer; default Tokens.Layers.Modal
@@ -43,8 +45,8 @@ export type Props = {
 -- An "X" drawn from two bars, so it needs no icon asset and no font glyph.
 local function CloseGlyph(props: { color: Color3 })
 	local ui = UiContext.useUi()
-	local length = ui.px(16)
-	local thickness = math.max(2, ui.px(2))
+	local length = ui.px(ui.theme.icon.S)
+	local thickness = math.max(2, ui.stroke("Regular"))
 	local function bar(rotation: number)
 		return e("Frame", {
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -67,6 +69,7 @@ end
 
 local function Modal(props: Props)
 	local ui = UiContext.useUi()
+	local style = ui.theme.components.Modal
 	local alpha = Motion.useSpring(if props.open then 1 else 0)
 	local panelRef = React.useRef(nil :: Frame?)
 	local compact = ui.sizeClass == "Compact"
@@ -89,12 +92,12 @@ local function Modal(props: Props)
 			return UDim2.fromScale(0, Motion.lerp(1.05, 0, a))
 		end)
 	else
-		local margin = ui.px(Tokens.Space.XL) * 2
-		local width = math.min(ui.px(props.width or 640), ui.safe.X - margin)
-		local height = math.min(ui.px(props.height or 560), ui.safe.Y - margin)
+		local margin = ui.space(style.margin) * 2
+		local width = math.min(ui.px(props.width or style.width), ui.safe.X - margin)
+		local height = math.min(ui.px(props.height or style.height), ui.safe.Y - margin)
 		panelSize = UDim2.fromOffset(width, height)
 		panelAnchor = Vector2.new(0.5, 0.5)
-		local rise = ui.px(Tokens.Space.XL)
+		local rise = ui.space(style.margin)
 		panelPosition = alpha:map(function(a: number)
 			return UDim2.new(0.5, 0, 0.5, math.round(rise * (1 - a)))
 		end)
@@ -105,7 +108,7 @@ local function Modal(props: Props)
 		else e(Scroller, {
 			size = UDim2.fromScale(1, 0),
 			flex = "Fill",
-			padding = Tokens.Space.L,
+			padding = style.padding,
 			layoutOrder = 3,
 		}, props.children)
 
@@ -118,7 +121,7 @@ local function Modal(props: Props)
 				Size = UDim2.fromScale(1, 1),
 				BackgroundColor3 = ui.palette.Scrim,
 				BackgroundTransparency = alpha:map(function(a: number)
-					return Motion.lerp(1, ui.transparency(Tokens.Transparency.Scrim), a)
+					return Motion.lerp(1, ui.transparency(style.scrim), a)
 				end),
 				BorderSizePixel = 0,
 				-- Swallows taps so they don't reach the world; closes when dismissible.
@@ -135,19 +138,19 @@ local function Modal(props: Props)
 				size = panelSize,
 				anchor = panelAnchor,
 				position = panelPosition,
-				color = ui.palette.Surface,
-				transparency = Tokens.Transparency.Surface,
-				radius = if compact then nil else Tokens.Radius.L,
-				stroke = if compact then nil else { color = ui.palette.Border },
+				color = style.color,
+				transparency = style.transparency,
+				radius = if compact then nil else style.radius,
+				stroke = if compact or not style.stroke then nil else { color = style.stroke, thickness = style.strokeWidth },
 				clip = true,
 				native = { Active = true }, -- clicks on the panel don't fall through to the scrim
 			}, {
 				Header = e(Stack, {
 					direction = "Row",
 					align = "Center",
-					gap = Tokens.Space.S,
-					size = UDim2.new(1, 0, 0, ui.px(Tokens.Control.Large)),
-					padding = { left = Tokens.Space.L, right = Tokens.Space.S },
+					gap = "S",
+					size = UDim2.new(1, 0, 0, ui.px(style.headerHeight)),
+					padding = { left = style.padding, right = "S" },
 					layoutOrder = 1,
 				}, {
 					Title = e(Text, {
@@ -171,8 +174,8 @@ local function Modal(props: Props)
 						else nil,
 				}),
 				Divider = e(Box, {
-					size = UDim2.new(1, 0, 0, math.max(1, ui.px(Tokens.Stroke.Thin))),
-					color = ui.palette.Border,
+					size = UDim2.new(1, 0, 0, ui.stroke("Thin")),
+					color = style.dividerColor,
 					layoutOrder = 2,
 				}),
 				Body = body,
@@ -180,8 +183,8 @@ local function Modal(props: Props)
 					then e(Box, {
 						size = UDim2.fromScale(1, 0),
 						automaticSize = Enum.AutomaticSize.Y,
-						color = ui.palette.SurfaceRaised,
-						padding = Tokens.Space.M,
+						color = style.footerColor,
+						padding = style.footerPadding,
 						layoutOrder = 4,
 					}, { Content = props.footer })
 					else nil,

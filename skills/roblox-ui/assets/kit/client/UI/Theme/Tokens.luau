@@ -1,7 +1,12 @@
 --!strict
--- Design tokens: the only place raw colours, sizes, spacing, type, motion and layer numbers live.
--- Components read tokens and never hard-code a Color3 or a pixel size, so changing a value here
--- changes the whole UI, and adding a palette re-themes every screen at once.
+-- Base design tokens: the kit's default values, and the system constants.
+--
+--   * Look (palettes, rarity, type, spacing, radii, strokes, control and icon sizes, motion,
+--     transparency) is the DEFAULT theme. Components never read these directly: they read
+--     `ui.theme` (Theme/Theme.luau), which starts from these values and applies your overrides
+--     from Theme/GameTheme.luau. Restyle the game there, not here.
+--   * System constants (HitTarget, Layers, Breakpoints, Scale) are read directly. They are about
+--     devices and ergonomics, not looks, so themes can't change them.
 --
 -- Sizes are in design units: 1 unit = 1 pixel at scale 1. Components turn units into pixels
 -- with `ui.px(n)` (Foundation/UiContext), which applies the device scale computed from `Scale`.
@@ -81,11 +86,12 @@ Tokens.Palettes = {
 }
 
 -- Rarity colours are also shown as a label (never colour alone: about 1 in 12 boys is colourblind).
+-- As caption text they need 4.5:1 on Surface and SurfaceRaised: `uikit.cjs contrast` checks it.
 Tokens.Rarity = {
 	Common = Color3.fromRGB(170, 176, 190),
 	Uncommon = Color3.fromRGB(80, 200, 120),
 	Rare = Color3.fromRGB(70, 150, 255),
-	Epic = Color3.fromRGB(175, 95, 255),
+	Epic = Color3.fromRGB(190, 120, 255),
 	Legendary = Color3.fromRGB(255, 170, 40),
 }
 

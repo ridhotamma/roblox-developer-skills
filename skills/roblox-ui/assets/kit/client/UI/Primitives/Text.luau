@@ -1,7 +1,9 @@
 --!strict
--- Text from the type scale. Sizes come from Tokens.Type times the device scale, so every label
--- of a variant is the same size on a screen, and the engine applies the player's Text Size
--- accessibility setting on top (TextScaled would ignore it).
+-- Text from the theme's type scale. Font, sizes and weights come from `ui.theme` (font, type)
+-- times the device scale, so every label of a variant is the same size on a screen and a theme
+-- can change the font or make buttons bolder everywhere. The engine applies the player's Text
+-- Size accessibility setting on top (TextScaled would ignore it). Line height and the outline
+-- style come from theme.components.Text.
 --
 --   e(Text, { text = "Shop", variant = "Title" })                       -- hugs its content
 --   e(Text, { text = description, width = UDim.new(1, 0), muted = true }) -- wraps, grows down
@@ -13,18 +15,20 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local React = require(ReplicatedStorage.Packages.React)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
+local Theme = require(script.Parent.Parent.Theme.Theme)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
 
-export type Variant = "Display" | "Title" | "Heading" | "Button" | "Body" | "Label" | "Caption"
+-- "Display" | "Title" | "Heading" | "Button" | "Body" | "Label" | "Caption", or a style your
+-- theme adds under `type`.
+export type Variant = string
 
 export type Props = {
 	text: any, -- string or Binding<string>
 	variant: Variant?, -- default Body
-	color: Color3?,
-	muted: boolean?, -- palette.TextMuted
+	color: Theme.ColorRef?, -- palette key ("Accent"), rarity or Color3; default "Text"
+	muted: boolean?, -- "TextMuted"
 	align: ("Left" | "Center" | "Right")?,
 	verticalAlign: ("Top" | "Center" | "Bottom")?,
 	width: UDim?,
@@ -62,20 +66,23 @@ local FLEX_MODES = {
 	Shrink = Enum.UIFlexMode.Shrink,
 }
 
--- One Font object per weight, built once.
-local fonts: { [Enum.FontWeight]: Font } = {}
-local function fontFor(weight: Enum.FontWeight): Font
-	local font = fonts[weight]
+-- One Font object per family and weight, built once. This is the one place the kit builds
+-- fonts, always from the theme's family.
+local fonts: { [string]: Font } = {}
+local function fontFor(family: string, weight: Enum.FontWeight): Font
+	local key = `{family}|{weight.Name}`
+	local font = fonts[key]
 	if not font then
-		font = Font.new(Tokens.FontFamily, weight)
-		fonts[weight] = font
+		font = Font.new(family, weight) -- ui:ignore hardcoded-style
+		fonts[key] = font
 	end
 	return font
 end
 
 local Text = React.forwardRef(function(props: Props, ref: any)
 	local ui = UiContext.useUi()
-	local style = Tokens.Type[props.variant or "Body"]
+	local style = ui.theme.type[props.variant or "Body"] or ui.theme.type.Body
+	local textStyle = ui.theme.components.Text
 
 	-- Truncated text stays on one line ("Long item na..."); everything else wraps when it has a width.
 	local wrapByDefault = props.wrap ~= false and not props.truncate
@@ -98,10 +105,10 @@ local Text = React.forwardRef(function(props: Props, ref: any)
 
 	local hostProps: { [any]: any } = {
 		Text = props.text,
-		FontFace = fontFor(style.Weight),
+		FontFace = fontFor(ui.theme.font, style.Weight),
 		TextSize = ui.px(style.Size),
-		LineHeight = 1.1,
-		TextColor3 = props.color or (if props.muted then ui.palette.TextMuted else ui.palette.Text),
+		LineHeight = textStyle.lineHeight,
+		TextColor3 = ui.color(props.color or (if props.muted then "TextMuted" else "Text")),
 		TextTransparency = props.transparency,
 		TextXAlignment = X_ALIGN[props.align or "Left"],
 		TextYAlignment = Y_ALIGN[props.verticalAlign or "Center"],
@@ -132,9 +139,9 @@ local Text = React.forwardRef(function(props: Props, ref: any)
 	if props.outline then
 		children.Outline = e("UIStroke", {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
-			Color = Color3.new(0, 0, 0),
-			Thickness = math.max(1, ui.px(1.5)),
-			Transparency = 0.35,
+			Color = ui.color(textStyle.outlineColor),
+			Thickness = ui.stroke(textStyle.outlineWidth),
+			Transparency = textStyle.outlineTransparency,
 		})
 	end
 	children.Content = e(React.Fragment, nil, props.children)

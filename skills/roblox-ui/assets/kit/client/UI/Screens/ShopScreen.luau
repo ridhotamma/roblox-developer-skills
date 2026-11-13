@@ -17,6 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Box = require(script.Parent.Parent.Primitives.Box)
 local Button = require(script.Parent.Parent.Primitives.Button)
+local Card = require(script.Parent.Parent.Components.Card)
 local Grid = require(script.Parent.Parent.Primitives.Grid)
 local ItemTile = require(script.Parent.Parent.Components.ItemTile)
 local Modal = require(script.Parent.Parent.Components.Modal)
@@ -27,7 +28,6 @@ local Scroller = require(script.Parent.Parent.Primitives.Scroller)
 local Stack = require(script.Parent.Parent.Primitives.Stack)
 local Tabs = require(script.Parent.Parent.Components.Tabs)
 local Text = require(script.Parent.Parent.Primitives.Text)
-local Tokens = require(script.Parent.Parent.Theme.Tokens)
 local UiContext = require(script.Parent.Parent.Foundation.UiContext)
 
 local e = React.createElement
@@ -74,17 +74,18 @@ local function Details(props: { item: ItemTile.Item?, purchase: Purchase, onBuy:
 	local item = props.item
 	return e(Stack, {
 		size = UDim2.new(0, ui.px(props.width), 1, 0),
-		gap = Tokens.Space.M,
-		padding = Tokens.Space.L,
-		color = ui.palette.SurfaceRaised,
+		gap = "M",
+		padding = "L",
+		color = "SurfaceRaised",
 		align = "Stretch",
 		layoutOrder = 2,
 	}, {
-		Picture = e(Box, {
+		Picture = e(Card, {
 			size = UDim2.fromScale(1, 0),
 			aspectRatio = 1,
-			color = ui.palette.SurfaceSunken,
-			radius = Tokens.Radius.L,
+			color = ui.theme.components.Tile.artColor,
+			stroke = false,
+			padding = 0,
 			layoutOrder = 1,
 		}, {
 			Image = if item and item.image
@@ -106,7 +107,7 @@ local function Details(props: { item: ItemTile.Item?, purchase: Purchase, onBuy:
 			then e(Text, {
 				text = item.rarity or "Common",
 				variant = "Label",
-				color = Tokens.Rarity[item.rarity or "Common"],
+				color = item.rarity or "Common",
 				layoutOrder = 3,
 			})
 			else nil,
@@ -131,16 +132,15 @@ local function Details(props: { item: ItemTile.Item?, purchase: Purchase, onBuy:
 end
 
 local function BuyBar(props: { item: ItemTile.Item?, purchase: Purchase, onBuy: () -> () })
-	local ui = UiContext.useUi()
 	local item = props.item
 	return e(Stack, {
 		direction = "Row",
 		align = "Center",
-		gap = Tokens.Space.M,
+		gap = "M",
 		size = UDim2.fromScale(1, 0),
 		automaticSize = Enum.AutomaticSize.Y,
-		padding = Tokens.Space.M,
-		color = ui.palette.SurfaceRaised,
+		padding = "M",
+		color = "SurfaceRaised",
 		layoutOrder = 3,
 	}, {
 		Info = e(Stack, { size = UDim2.fromScale(0, 0), automaticSize = Enum.AutomaticSize.Y, flex = "Fill", layoutOrder = 1 }, {
@@ -155,7 +155,7 @@ local function BuyBar(props: { item: ItemTile.Item?, purchase: Purchase, onBuy: 
 				then e(Text, {
 					text = item.rarity or "Common",
 					variant = "Caption",
-					color = Tokens.Rarity[item.rarity or "Common"],
+					color = item.rarity or "Common",
 					layoutOrder = 2,
 				})
 				else nil,
@@ -221,7 +221,7 @@ local function ShopScreen(props: Props)
 	local tabStrip = e(Box, {
 		size = UDim2.fromScale(1, 0),
 		automaticSize = Enum.AutomaticSize.Y,
-		padding = { x = Tokens.Space.M, top = if compact then Tokens.Space.S else Tokens.Space.M },
+		padding = { x = "M", top = if compact then "S" else "M" },
 		layoutOrder = 1,
 	}, {
 		Tabs = e(Tabs, { tabs = tabs, selected = category, onSelect = setCategory, shortcuts = props.open }),
@@ -229,13 +229,13 @@ local function ShopScreen(props: Props)
 	local gridArea = e(Scroller, {
 		size = UDim2.fromScale(1, 0),
 		flex = "Fill",
-		padding = Tokens.Space.M,
+		padding = "M",
 		layoutOrder = 2,
 	}, {
 		Grid = e(Grid, {
 			minItemWidth = Responsive.pick(ui.sizeClass, { Compact = 112, Expanded = 136 }),
 			aspectRatio = 0.78,
-			gap = Tokens.Space.S,
+			gap = "S",
 		}, tiles),
 	})
 
