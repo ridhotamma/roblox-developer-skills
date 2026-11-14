@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obby Layout</title>
+<style>
+:root{--bg:#F3EFE7;--panel:#FFFFFF;--ink:#26231F;--muted:#7B756B;--line:#E4DED3;--accent:#2F7D6D;--err:#D64545;--warn:#DB8F1F;--info:#4F82E6;--chip:#EFEAE0;--shadow:0 6px 24px rgba(40,30,10,.10)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1A1B1F;--panel:#24262B;--ink:#ECE9E2;--muted:#9A968E;--line:#34373D;--accent:#57B8A4;--err:#F06A6A;--warn:#F0AE45;--info:#7AA5F5;--chip:#2E3036;--shadow:0 6px 24px rgba(0,0,0,.4)}}
+:root[data-theme="dark"]{--bg:#1A1B1F;--panel:#24262B;--ink:#ECE9E2;--muted:#9A968E;--line:#34373D;--accent:#57B8A4;--err:#F06A6A;--warn:#F0AE45;--info:#7AA5F5;--chip:#2E3036;--shadow:0 6px 24px rgba(0,0,0,.4)}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:1fr 340px;grid-template-rows:auto 1fr;height:100%}
+header{grid-column:1/3;display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+h1{font-size:16px;margin:0;font-weight:650;letter-spacing:-.01em}
+.chip{background:var(--chip);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted)}
+.seg{display:inline-flex;background:var(--chip);border-radius:9px;padding:3px}
+.seg button,.tog{border:0;background:transparent;color:var(--ink);font:inherit;padding:5px 12px;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.tog{background:var(--chip);font-size:13px}
+.tog.on{background:var(--accent);color:#fff}
+.sp{flex:1}
+#stage{position:relative;overflow:hidden;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#plan{display:none;cursor:crosshair}
+#over{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.lab{position:absolute;transform:translate(-50%,-50%);background:var(--panel);color:var(--ink);border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:600;box-shadow:0 1px 5px rgba(0,0,0,.18);white-space:nowrap;opacity:.94}
+.lab.poi{background:var(--accent);color:#fff}
+.pin{position:absolute;width:12px;height:12px;margin:-6px 0 0 -6px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.25)}
+.pin.error{background:var(--err)}.pin.warn{background:var(--warn)}.pin.info{background:var(--info)}
+.pin.sel{width:20px;height:20px;margin:-10px 0 0 -10px;animation:pulse 1.1s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(214,69,69,.55)}100%{box-shadow:0 0 0 18px rgba(214,69,69,0)}}
+#hint{position:absolute;right:14px;bottom:12px;font-size:12px;color:var(--muted);background:var(--panel);padding:4px 10px;border-radius:8px;opacity:.9}
+#tip{position:absolute;display:none;background:var(--ink);color:var(--bg);padding:5px 9px;border-radius:7px;font-size:12px;pointer-events:none;white-space:nowrap;z-index:5}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow:auto;padding:16px;min-height:0}
+.score{display:flex;align-items:center;gap:14px}
+.ring{--v:0;width:68px;height:68px;border-radius:50%;background:conic-gradient(var(--c) calc(var(--v)*1%),var(--chip) 0);display:grid;place-items:center;flex:none}
+.ring b{width:52px;height:52px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font-size:20px}
+.verdict{font-weight:650;font-size:15px;text-transform:capitalize}
+.sub{color:var(--muted);font-size:12.5px}
+h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:20px 0 8px}
+.bal{position:relative;height:10px;border-radius:5px;background:linear-gradient(90deg,var(--err),var(--warn) 25%,var(--accent) 50%,var(--warn) 75%,var(--info))}
+.bal i{position:absolute;top:-4px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--panel);border:3px solid var(--ink)}
+.bal-l{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:5px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--chip);border-radius:9px;padding:8px 10px}
+.stat b{display:block;font-size:17px;font-variant-numeric:tabular-nums}
+.stat span{font-size:11.5px;color:var(--muted)}
+.curve{display:flex;align-items:flex-end;gap:5px;height:70px;margin-top:4px}
+.curve div{flex:1;background:var(--accent);border-radius:4px 4px 0 0;position:relative;min-height:3px}
+.curve div span{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-size:10px;color:var(--muted)}
+.issue{display:grid;grid-template-columns:10px 1fr;gap:9px;padding:9px 8px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+.issue:hover{background:var(--chip)}.issue.sel{border-color:var(--ink);background:var(--chip)}
+.issue i{width:9px;height:9px;border-radius:50%;margin-top:5px}
+.issue .m{font-size:13px}.issue .f{font-size:12px;color:var(--muted);margin-top:2px}
+.ok{padding:12px;background:var(--chip);border-radius:9px;font-size:13px}
+.leg{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--muted)}
+.leg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+@media (max-width:820px){#app{grid-template-columns:1fr;grid-template-rows:auto 56vh 1fr}header{grid-column:1}aside{border-left:0;border-top:1px solid var(--line)}body{overflow:auto}#hint{display:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1 id="title">Layout</h1><span class="chip" id="type"></span><span class="chip" id="dims"></span>
+    <span class="sp"></span>
+    <span class="seg" id="views"><button data-v="3d" class="on">3D</button><button data-v="plan">Plan</button></span>
+    <button class="tog" id="tCut">Cutaway</button><button class="tog" id="tEye">Player view</button>
+    <button class="tog on" id="tLab">Labels</button><button class="tog on" id="tIss">Issues</button>
+    <button class="tog" id="tHeat">Walk width</button><button class="tog" id="tClr">Clearances</button>
+  </header>
+  <div id="stage"><canvas id="gl"></canvas><canvas id="plan"></canvas><div id="over"></div><div id="tip"></div><div id="hint"></div></div>
+  <aside>
+    <div class="score"><div class="ring" id="ring"><b id="score">0</b></div><div><div class="verdict" id="verdict"></div><div class="sub" id="counts"></div></div></div>
+    <h2>Spacing balance</h2>
+    <div class="bal"><i id="balDot"></i></div><div class="bal-l"><span>too tight</span><span>balanced</span><span>too loose</span></div>
+    <h2>Measurements</h2><div class="stats" id="stats"></div>
+    <div id="curveBox" style="display:none"><h2>Difficulty by stage</h2><div class="curve" id="curve"></div><div style="height:18px"></div></div>
+    <h2>Findings</h2><div id="issues"></div>
+    <h2>Plan legend</h2>
+    <div class="leg"><span><i style="background:rgba(214,69,69,.55)"></i>too narrow to walk</span><span><i style="background:rgba(224,150,43,.5)"></i>narrow for a main route</span><span><i style="background:rgba(140,90,200,.45)"></i>can't be reached</span><span><i style="border:1.5px dashed var(--info);background:none"></i>empty floor</span><span><i style="border:1.5px dashed var(--accent);background:none"></i>space an object needs</span></div>
+  </aside>
+</div>
+<script>
+const D = {"name":"Obby","type":"obby","bounds":[-105.4,-457.2,123.4,21],"spawn":[0,24,0],"focus":[4.49,24,-18.12],"zones":[{"id":"S1","label":"Stage 1: hops","circle":[5.83,-108.69,8],"y":24},{"id":"S2","label":"Stage 2: lava","circle":[67.64,-230.61,8],"y":24},{"id":"S3","label":"Stage 3: stones","circle":[81.41,-319.99,8],"y":24},{"id":"S4","label":"Stage 4: stairs","circle":[78.71,-390.04,8],"y":48.5},{"id":"S5","label":"Stage 5: hops","circle":[-17.56,-417.65,8],"y":48.5},{"id":"S6","label":"Stage 6: stairs","circle":[-81.41,-409.71,8],"y":80}],"paths":[],"pois":[],"meshes":[[{"s":"block","p":[0,0.8,0],"z":[18,1.6,18],"c":"#F2F2F2","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.3,0],"z":[8,0.6,8],"c":"#8F9399","m":"Metal"},{"s":"cylinder","p":[0,0.45,0],"z":[5,0.4,5],"c":"#F7F3EA","m":"Neon"}],[{"s":"block","p":[0,0.8,0],"z":[8.5,1.6,8.5],"c":"#2F81BC","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[8.5,1.6,8.5],"c":"#58AAE4","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[14,1.6,14],"c":"#F2F2F2","m":"SmoothPlastic"}],[{"s":"cylinder","p":[0,0.2,0],"z":[6,0.4,6],"c":"#45D07A","m":"Neon"},{"s":"cylinder","p":[0,0.25,0],"z":[4,0.4,4],"c":"#F7F3EA","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[10,1.6,13],"c":"#522FBC","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.75,0],"z":[10,1.5,2.1],"c":"#F0483E","m":"Neon"}],[{"s":"block","p":[0,0.8,0],"z":[10,1.6,13],"c":"#7B58E4","m":"SmoothPlastic"}],[{"s":"cylinder","p":[0,0.8,0],"z":[5.5,1.6,5.5],"c":"#BC2FB0","m":"SmoothPlastic"}],[{"s":"cylinder","p":[0,0.8,0],"z":[5.5,1.6,5.5],"c":"#E458D8","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[6.5,1.6,5.5],"c":"#BC2F3B","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[6.5,1.6,5.5],"c":"#E45864","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[6,1.6,6],"c":"#BC982F","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[6,1.6,6],"c":"#E4C158","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[5.5,1.6,5],"c":"#6ABC2F","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[5.5,1.6,5],"c":"#92E458","m":"SmoothPlastic"}],[{"s":"block","p":[0,0.8,0],"z":[20,1.6,20],"c":"#FFE08A","m":"SmoothPlastic"}],[{"s":"block","p":[-4.5,6,0],"z":[1,12,1],"c":"#F6C445","m":"Neon"},{"s":"block","p":[4.5,6,0],"z":[1,12,1],"c":"#F6C445","m":"Neon"},{"s":"block","p":[0,11.5,0],"z":[10,1,1],"c":"#F6C445","m":"Neon"}]],"items":[{"i":"p1","k":"platform","m":0,"p":[0,22.4,0],"r":0,"f":[18,18],"s":[18,1.6,18],"o":"platform","w":0,"c":"#F2F2F2"},{"i":"spawn_1","k":"spawn","m":1,"p":[0,24,0],"r":0,"f":[8,8],"s":[8,0.6,8],"o":"marker","w":1,"c":"#8F9399"},{"i":"p2","k":"platform","m":2,"p":[4.49,22.4,-18.12],"r":346,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#2F81BC"},{"i":"p3","k":"platform","m":3,"p":[7.35,22.4,-30.36],"r":347,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#58AAE4"},{"i":"p4","k":"platform","m":2,"p":[7.28,22.4,-43.71],"r":0,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#2F81BC"},{"i":"p5","k":"platform","m":3,"p":[4.18,22.4,-56.7],"r":13,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#58AAE4"},{"i":"p6","k":"platform","m":2,"p":[2.54,22.4,-69.52],"r":7,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#2F81BC"},{"i":"p7","k":"platform","m":3,"p":[0.23,22.4,-82.03],"r":10,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#58AAE4"},{"i":"p8","k":"platform","m":2,"p":[-3.49,22.4,-94.48],"r":17,"f":[8.5,8.5],"s":[8.5,1.6,8.5],"o":"platform","w":0,"c":"#2F81BC"},{"i":"p9","k":"platform","m":4,"p":[5.83,22.4,-108.69],"r":327,"f":[14,14],"s":[14,1.6,14],"o":"platform","w":0,"c":"#F2F2F2"},{"i":"checkpoint_10","k":"checkpoint","m":5,"p":[5.83,24,-108.69],"r":327,"f":[6,6],"s":[6,0.4,6],"o":"marker","w":1,"c":"#45D07A","sh":"cylinder"},{"i":"p10","k":"platform","m":6,"p":[15.74,22.4,-123.8],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#522FBC"},{"i":"hazard_12","k":"hazard","m":7,"p":[15.74,24,-123.8],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p11","k":"platform","m":8,"p":[25.38,22.4,-138.5],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#7B58E4"},{"i":"hazard_14","k":"hazard","m":7,"p":[25.38,24,-138.5],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p12","k":"platform","m":6,"p":[35.02,22.4,-153.19],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#522FBC"},{"i":"hazard_16","k":"hazard","m":7,"p":[35.02,24,-153.19],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p13","k":"platform","m":8,"p":[44.66,22.4,-167.89],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#7B58E4"},{"i":"hazard_18","k":"hazard","m":7,"p":[44.66,24,-167.89],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p14","k":"platform","m":6,"p":[54.3,22.4,-182.58],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#522FBC"},{"i":"hazard_20","k":"hazard","m":7,"p":[54.3,24,-182.58],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p15","k":"platform","m":8,"p":[63.94,22.4,-197.28],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#7B58E4"},{"i":"hazard_22","k":"hazard","m":7,"p":[63.94,24,-197.28],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p16","k":"platform","m":6,"p":[73.58,22.4,-211.98],"r":327,"f":[10,13],"s":[10,1.6,13],"o":"platform","w":0,"c":"#522FBC"},{"i":"hazard_24","k":"hazard","m":7,"p":[73.58,24,-211.98],"r":327,"f":[10,2.1],"s":[10,1.5,2.1],"o":"hazard","w":1,"c":"#F0483E"},{"i":"p17","k":"platform","m":4,"p":[67.64,22.4,-230.61],"r":18,"f":[14,14],"s":[14,1.6,14],"o":"platform","w":0,"c":"#F2F2F2"},{"i":"checkpoint_26","k":"checkpoint","m":5,"p":[67.64,24,-230.61],"r":18,"f":[6,6],"s":[6,0.4,6],"o":"marker","w":1,"c":"#45D07A","sh":"cylinder"},{"i":"p18","k":"platform","m":9,"p":[70.76,22.4,-247.69],"r":350,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2FB0","sh":"cylinder"},{"i":"p19","k":"platform","m":10,"p":[67.23,22.4,-258.75],"r":18,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#E458D8","sh":"cylinder"},{"i":"p20","k":"platform","m":9,"p":[69.31,22.4,-270.18],"r":350,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2FB0","sh":"cylinder"},{"i":"p21","k":"platform","m":10,"p":[65.79,22.4,-281.25],"r":18,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#E458D8","sh":"cylinder"},{"i":"p22","k":"platform","m":9,"p":[67.87,22.4,-292.67],"r":350,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2FB0","sh":"cylinder"},{"i":"p23","k":"platform","m":10,"p":[64.34,22.4,-303.74],"r":18,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#E458D8","sh":"cylinder"},{"i":"p24","k":"platform","m":9,"p":[66.43,22.4,-315.17],"r":350,"f":[5.5,5.5],"s":[5.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2FB0","sh":"cylinder"},{"i":"p25","k":"platform","m":4,"p":[81.41,22.4,-319.99],"r":288,"f":[14,14],"s":[14,1.6,14],"o":"platform","w":0,"c":"#F2F2F2"},{"i":"checkpoint_35","k":"checkpoint","m":5,"p":[81.41,24,-319.99],"r":288,"f":[6,6],"s":[6,0.4,6],"o":"marker","w":1,"c":"#45D07A","sh":"cylinder"},{"i":"p26","k":"platform","m":11,"p":[94.59,25.9,-328.82],"r":304,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2F3B"},{"i":"p27","k":"platform","m":12,"p":[101.7,29.4,-337.24],"r":320,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#E45864"},{"i":"p28","k":"platform","m":11,"p":[106.21,32.9,-347.28],"r":336,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2F3B"},{"i":"p29","k":"platform","m":12,"p":[107.78,36.4,-358.19],"r":352,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#E45864"},{"i":"p30","k":"platform","m":11,"p":[106.28,39.9,-369.1],"r":8,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2F3B"},{"i":"p31","k":"platform","m":12,"p":[101.83,43.4,-379.18],"r":24,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#E45864"},{"i":"p32","k":"platform","m":11,"p":[94.77,46.9,-387.64],"r":40,"f":[6.5,5.5],"s":[6.5,1.6,5.5],"o":"platform","w":0,"c":"#BC2F3B"},{"i":"p33","k":"platform","m":4,"p":[78.71,46.9,-390.04],"r":82,"f":[14,14],"s":[14,1.6,14],"o":"platform","w":0,"c":"#F2F2F2"},{"i":"checkpoint_44","k":"checkpoint","m":5,"p":[78.71,48.5,-390.04],"r":82,"f":[6,6],"s":[6,0.4,6],"o":"marker","w":1,"c":"#45D07A","sh":"cylinder"},{"i":"p34","k":"platform","m":13,"p":[62.53,46.9,-393.05],"r":79,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#BC982F"},{"i":"p35","k":"platform","m":14,"p":[50.21,46.9,-394.78],"r":82,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#E4C158"},{"i":"p36","k":"platform","m":13,"p":[37.54,46.9,-394.7],"r":90,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#BC982F"},{"i":"p37","k":"platform","m":14,"p":[25.05,46.9,-395.87],"r":85,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#E4C158"},{"i":"p38","k":"platform","m":13,"p":[12.69,46.9,-398.87],"r":76,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#BC982F"},{"i":"p39","k":"platform","m":14,"p":[0.32,46.9,-400.87],"r":81,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#E4C158"},{"i":"p40","k":"platform","m":13,"p":[-11.91,46.9,-402.57],"r":82,"f":[6,6],"s":[6,1.6,6],"o":"platform","w":0,"c":"#BC982F"},{"i":"p41","k":"platform","m":4,"p":[-17.56,46.9,-417.65],"r":21,"f":[14,14],"s":[14,1.6,14],"o":"platform","w":0,"c":"#F2F2F2"},{"i":"checkpoint_53","k":"checkpoint","m":5,"p":[-17.56,48.5,-417.65],"r":21,"f":[6,6],"s":[6,0.4,6],"o":"marker","w":1,"c":"#45D07A","sh":"cylinder"},{"i":"p42","k":"platform","m":15,"p":[-27.08,51.4,-430.5],"r":37,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#6ABC2F"},{"i":"p43","k":"platform","m":16,"p":[-35.78,55.9,-437.17],"r":53,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#92E458"},{"i":"p44","k":"platform","m":15,"p":[-45.98,60.4,-441.17],"r":69,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#6ABC2F"},{"i":"p45","k":"platform","m":16,"p":[-56.89,64.9,-442.21],"r":85,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#92E458"},{"i":"p46","k":"platform","m":15,"p":[-67.66,69.4,-440.21],"r":101,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#6ABC2F"},{"i":"p47","k":"platform","m":16,"p":[-77.46,73.9,-435.31],"r":117,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#92E458"},{"i":"p48","k":"platform","m":15,"p":[-85.53,78.4,-427.9],"r":133,"f":[5.5,5],"s":[5.5,1.6,5],"o":"platform","w":0,"c":"#6ABC2F"},{"i":"p49","k":"platform","m":17,"p":[-81.41,78.4,-409.71],"r":193,"f":[20,20],"s":[20,1.6,20],"o":"platform","w":0,"c":"#FFE08A"},{"i":"finish_62","k":"finish","m":18,"p":[-81.41,80,-409.71],"r":193,"f":[10,2],"s":[10,12,2],"o":"marker","w":1,"c":"#F6C445"}],"report":{"name":"Obby","type":"obby","score":100,"verdict":"balanced","counts":{"error":0,"warn":0,"info":0},"tight":0,"loose":0,"issues":[],"stats":{"items":63,"type":"obby","jumps":48,"hops":[{"from":"p1","to":"p2","gap":4,"dy":0,"reach":8.7,"ratio":0.14,"stage":"S1"},{"from":"p2","to":"p3","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S1"},{"from":"p3","to":"p4","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S1"},{"from":"p4","to":"p5","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S1"},{"from":"p5","to":"p6","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S1"},{"from":"p6","to":"p7","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S1"},{"from":"p7","to":"p8","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S1"},{"from":"p8","to":"p9","gap":4,"dy":0,"reach":8.7,"ratio":0.15,"stage":"S2"},{"from":"p9","to":"p10","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p10","to":"p11","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p11","to":"p12","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p12","to":"p13","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p13","to":"p14","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p14","to":"p15","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p15","to":"p16","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S2"},{"from":"p16","to":"p17","gap":4.6,"dy":0,"reach":8.7,"ratio":0.29,"stage":"S3"},{"from":"p17","to":"p18","gap":5.1,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p18","to":"p19","gap":5.1,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p19","to":"p20","gap":5.1,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p20","to":"p21","gap":5.1,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p21","to":"p22","gap":5.1,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p22","to":"p23","gap":5.1,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p23","to":"p24","gap":5.2,"dy":0,"reach":8.7,"ratio":0.43,"stage":"S3"},{"from":"p24","to":"p25","gap":5,"dy":0,"reach":8.7,"ratio":0.4,"stage":"S4"},{"from":"p25","to":"p26","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p26","to":"p27","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p27","to":"p28","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p28","to":"p29","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p29","to":"p30","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p30","to":"p31","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p31","to":"p32","gap":4.7,"dy":3.5,"reach":7.4,"ratio":0.57,"stage":"S4"},{"from":"p32","to":"p33","gap":5,"dy":0,"reach":8.7,"ratio":0.4,"stage":"S5"},{"from":"p33","to":"p34","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p34","to":"p35","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p35","to":"p36","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p36","to":"p37","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p37","to":"p38","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p38","to":"p39","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p39","to":"p40","gap":6.3,"dy":0,"reach":8.7,"ratio":0.71,"stage":"S5"},{"from":"p40","to":"p41","gap":5,"dy":0,"reach":8.7,"ratio":0.4,"stage":"S6"},{"from":"p41","to":"p42","gap":5.2,"dy":4.5,"reach":7,"ratio":0.84,"stage":"S6"},{"from":"p42","to":"p43","gap":5.3,"dy":4.5,"reach":7,"ratio":0.85,"stage":"S6"},{"from":"p43","to":"p44","gap":5.3,"dy":4.5,"reach":7,"ratio":0.85,"stage":"S6"},{"from":"p44","to":"p45","gap":5.3,"dy":4.5,"reach":7,"ratio":0.85,"stage":"S6"},{"from":"p45","to":"p46","gap":5.3,"dy":4.5,"reach":7,"ratio":0.85,"stage":"S6"},{"from":"p46","to":"p47","gap":5.3,"dy":4.5,"reach":7,"ratio":0.85,"stage":"S6"},{"from":"p47","to":"p48","gap":5.3,"dy":4.5,"reach":7,"ratio":0.85,"stage":"S6"},{"from":"p48","to":"p49","gap":5,"dy":0,"reach":8.7,"ratio":0.4,"stage":"Finish"}],"curve":[{"stage":"S1","jumps":7,"difficulty":0.15,"hardest":0.15},{"stage":"S2","jumps":8,"difficulty":0.27,"hardest":0.29},{"stage":"S3","jumps":8,"difficulty":0.41,"hardest":0.43},{"stage":"S4","jumps":8,"difficulty":0.55,"hardest":0.57},{"stage":"S5","jumps":8,"difficulty":0.67,"hardest":0.71},{"stage":"S6","jumps":8,"difficulty":0.79,"hardest":0.85},{"stage":"Finish","jumps":1,"difficulty":0.4,"hardest":0.4}],"maxJumpsBetweenCheckpoints":7},"profile":{"cell":1,"pass":3,"main":4,"empty":1000000000,"coverage":[0,1],"deadGap":false},"grid":null}};
+const $ = id => document.getElementById(id), css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const rep = D.report, B = D.bounds, CX = (B[0] + B[2]) / 2, CZ = (B[1] + B[3]) / 2, SPAN = Math.max(B[2] - B[0], B[3] - B[1]);
+const interior = D.type === "interior" || D.type === "building";
+const state = { view: "3d", cut: interior, labels: true, issues: true, heat: false, clr: false, sel: -1, hover: -1 };
+const rad = d => d * Math.PI / 180;
+const hex = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255]; };
+const l2w = (x, z, rot, lx, lz) => { const c = Math.cos(rad(rot)), s = Math.sin(rad(rot)); return [x + lx * c + lz * s, z - lx * s + lz * c]; };
+
+// ---------- side panel ----------
+$("title").textContent = D.name; document.title = D.name + " layout";
+$("type").textContent = D.type; $("dims").textContent = Math.round(B[2] - B[0]) + " x " + Math.round(B[3] - B[1]) + " studs, " + D.items.length + " objects";
+const sc = rep.score, col = sc >= 90 ? css("--accent") : sc >= 70 ? css("--warn") : css("--err");
+$("ring").style.setProperty("--v", sc); $("ring").style.setProperty("--c", col); $("score").textContent = sc;
+$("verdict").textContent = rep.verdict; $("counts").textContent = rep.counts.error + " errors, " + rep.counts.warn + " warnings, " + rep.counts.info + " notes";
+$("balDot").style.left = (50 + 50 * (rep.loose - rep.tight) / (rep.loose + rep.tight + 4)) + "%";
+(function () {
+  const s = rep.stats, rows = [];
+  const add = (v, l) => v !== undefined && v !== null && rows.push(`<div class="stat"><b>${v}</b><span>${l}</span></div>`);
+  if (s.jumps !== undefined) { add(s.jumps, "jumps"); add(s.maxJumpsBetweenCheckpoints, "max jumps between checkpoints"); }
+  else { add(s.coverage !== undefined ? Math.round(s.coverage * 100) + "%" : undefined, "floor covered"); add(s.narrowestRoute, "narrowest route (studs)"); add(s.medianGap, "median gap (studs)"); add(s.widestEmpty, "widest empty floor (studs)"); add(s.longestWalkSeconds ? s.longestWalkSeconds + " s" : undefined, "longest walk from spawn"); add(s.poiSpacing ? s.poiSpacing.join("-") : undefined, "studs between points of interest"); }
+  add(s.items, "objects"); $("stats").innerHTML = rows.join("");
+  if (s.curve && s.curve.length) { $("curveBox").style.display = ""; $("curve").innerHTML = s.curve.map(c => `<div style="height:${Math.max(4, Math.min(100, c.difficulty * 100))}%;background:${c.difficulty > 0.9 ? css("--err") : c.difficulty > 0.65 ? css("--warn") : css("--accent")}" title="${c.jumps} jumps, hardest ${c.hardest}"><span>${c.stage}</span></div>`).join(""); }
+  const el = $("issues");
+  if (!rep.issues.length) el.innerHTML = '<div class="ok">Nothing is jammed together, stranded or unreachable.</div>';
+  else el.innerHTML = rep.issues.slice(0, 120).map((i, k) => `<div class="issue" data-k="${k}"><i style="background:var(--${i.sev === "error" ? "err" : i.sev})"></i><div><div class="m">${esc(i.msg)}</div>${i.fix ? `<div class="f">${esc(i.fix)}</div>` : ""}</div></div>`).join("") + (rep.issues.length > 120 ? `<div class="sub">and ${rep.issues.length - 120} more</div>` : "");
+  el.onclick = e => { const r = e.target.closest(".issue"); if (!r) return; select(+r.dataset.k === state.sel ? -1 : +r.dataset.k); };
+})();
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c])); }
+function select(k) {
+  state.sel = k; document.querySelectorAll(".issue").forEach(e => e.classList.toggle("sel", +e.dataset.k === k));
+  const i = rep.issues[k];
+  if (i && i.at) { cam.tx = i.at[0]; cam.tz = i.at[1]; cam.dist = Math.min(cam.dist, Math.max(40, SPAN * 0.35)); pv.auto = false; pv.x = i.at[0]; pv.z = i.at[1]; pv.s = Math.max(pv.s, Math.min(14, 600 / SPAN * 2.2)); }
+  dirty = true;
+}
+
+// ---------- geometry ----------
+const SHAPES = (function () {
+  const box = [], f = (a, b, c, d) => box.push(a, b, c, a, c, d), v = [[-.5, -.5, -.5], [.5, -.5, -.5], [.5, -.5, .5], [-.5, -.5, .5], [-.5, .5, -.5], [.5, .5, -.5], [.5, .5, .5], [-.5, .5, .5]];
+  f(v[0], v[1], v[2], v[3]); f(v[4], v[7], v[6], v[5]); f(v[0], v[4], v[5], v[1]); f(v[3], v[2], v[6], v[7]); f(v[0], v[3], v[7], v[4]); f(v[1], v[5], v[6], v[2]);
+  const wedge = [v[0], v[1], v[2], v[0], v[2], v[3], v[3], v[2], v[6], v[3], v[6], v[7], v[0], v[7], v[6], v[0], v[6], v[1], v[0], v[3], v[7], v[1], v[6], v[2]];
+  const cyl = n => { const p = [], q = []; for (let i = 0; i < n; i++) { const a = i / n * 6.28318, b = (i + 1) / n * 6.28318, x0 = Math.cos(a) / 2, z0 = Math.sin(a) / 2, x1 = Math.cos(b) / 2, z1 = Math.sin(b) / 2;
+    p.push([x0, -.5, z0], [x1, -.5, z1], [x1, .5, z1], [x0, -.5, z0], [x1, .5, z1], [x0, .5, z0]); q.push([x0, 0, z0], [x1, 0, z1], [x1, 0, z1], [x0, 0, z0], [x1, 0, z1], [x0, 0, z0]);
+    p.push([0, .5, 0], [x0, .5, z0], [x1, .5, z1], [0, -.5, 0], [x1, -.5, z1], [x0, -.5, z0]); q.push([0, 1, 0], [0, 1, 0], [0, 1, 0], [0, -1, 0], [0, -1, 0], [0, -1, 0]); } return { p, q }; };
+  const ball = sub => { const t = (1 + Math.sqrt(5)) / 2, V = [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t], [t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]].map(nz);
+    let F = [[0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11], [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8], [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9], [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]].map(f => f.map(i => V[i]));
+    for (let s = 0; s < sub; s++) { const G2 = []; for (const [a, b, c] of F) { const ab = nz(mid(a, b)), bc = nz(mid(b, c)), ca = nz(mid(c, a)); G2.push([a, ab, ca], [b, bc, ab], [c, ca, bc], [ab, bc, ca]); } F = G2; }
+    const p = [], q = []; for (const tri of F) for (const w of tri) { p.push([w[0] / 2, w[1] / 2, w[2] / 2]); q.push(w); } return { p, q }; };
+  function nz(a) { const l = Math.hypot(a[0], a[1], a[2]); return [a[0] / l, a[1] / l, a[2] / l]; } function mid(a, b) { return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]; }
+  const partCount = D.items.reduce((n, it) => n + D.meshes[it.m].length, 0), lo = partCount > 5000;
+  return { block: { p: box }, wedge: { p: wedge }, cylinder: cyl(lo ? 8 : 16), disc: cyl(40), ball: ball(lo ? 0 : 1) };
+})();
+
+let opaque, glassy, nOpaque = 0, nGlass = 0;
+function buildGeometry() {
+  const O = [], T = [];
+  const emit = (shape, size, pr, pp, it, c, flag, yCut) => {
+    const S = (shape === "cylinder" && size[0] > 14 ? SHAPES.disc : SHAPES[shape]) || SHAPES.block, P = S.p, Q = S.q, cs = Math.cos(rad(pr)), sn = Math.sin(rad(pr)), ci = Math.cos(rad(it.r)), si = Math.sin(rad(it.r));
+    const out = flag === 2 ? T : O, W = new Array(P.length);
+    const rotN = n => { const x1 = n[0] * cs + n[2] * sn, z1 = -n[0] * sn + n[2] * cs; return [x1 * ci + z1 * si, n[1], -x1 * si + z1 * ci]; };
+    for (let i = 0; i < P.length; i++) { const v = P[i]; let x = v[0] * size[0], y = v[1] * size[1], z = v[2] * size[2]; const x1 = x * cs + z * sn + pp[0], z1 = -x * sn + z * cs + pp[2]; y += pp[1]; W[i] = [it.p[0] + x1 * ci + z1 * si, it.p[1] + y, it.p[2] - x1 * si + z1 * ci]; }
+    const ctr = [it.p[0] + pp[0] * ci + pp[2] * si, it.p[1] + pp[1], it.p[2] - pp[0] * si + pp[2] * ci];
+    for (let i = 0; i < W.length; i += 3) {
+      let n = null;
+      if (!Q && flag !== 1) { const a = W[i], b = W[i + 1], d = W[i + 2], ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = d[0] - a[0], vy = d[1] - a[1], vz = d[2] - a[2];
+        n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx]; const l = Math.hypot(n[0], n[1], n[2]) || 1; n = [n[0] / l, n[1] / l, n[2] / l];
+        if (n[0] * (a[0] - ctr[0]) + n[1] * (a[1] - ctr[1]) + n[2] * (a[2] - ctr[2]) < 0) n = [-n[0], -n[1], -n[2]]; }
+      for (let k = 0; k < 3; k++) { const w = W[i + k], nn = flag === 1 ? [0, 0, 0] : Q ? rotN(Q[i + k]) : n;
+        const ao = it.flat ? 1 : 0.8 + 0.2 * Math.min(1, Math.max(0, (w[1] - it.p[1]) / 3.5));
+        out.push(w[0], w[1], w[2], nn[0], nn[1], nn[2], c[0] * ao, c[1] * ao, c[2] * ao, flag === 2 ? (c[3] || 0.5) : 1); }
+    }
+  };
+  const blob = (it, a) => { // soft contact shadow: dark footprint fading out
+    const g = Math.min(2.2, 0.5 + Math.max(it.f[0], it.f[1]) * 0.12), y = it.p[1] + 0.04, hw = it.f[0] / 2, hd = it.f[1] / 2;
+    const P = (lx, lz) => { const w = l2w(it.p[0], it.p[2], it.r, lx, lz); return [w[0], y, w[1]]; };
+    const ring = (h0, d0, a0, h1, d1, a1) => { const c0 = [[-h0, -d0], [h0, -d0], [h0, d0], [-h0, d0]], c1 = [[-h1, -d1], [h1, -d1], [h1, d1], [-h1, d1]];
+      for (let i = 0; i < 4; i++) { const j = (i + 1) % 4, q = [[c0[i], a0], [c0[j], a0], [c1[j], a1], [c0[i], a0], [c1[j], a1], [c1[i], a1]]; for (const [p, al] of q) { const w = P(p[0], p[1]); T.push(w[0], w[1], w[2], 0, 0, 0, 0, 0, 0, al); } } };
+    ring(0, 0, a, hw, hd, a); ring(hw, hd, a, hw + g, hd + g, 0);
+  };
+  for (const it of D.items) {
+    const wallish = it.o === "wall" || it.o === "window" || it.o === "lintel" || it.o === "ceiling";
+    if (it.o === "ceiling" && (state.cut || !state.eye)) continue;
+    for (const p of D.meshes[it.m]) {
+      let size = p.z, pp = p.p;
+      if (state.cut && wallish && it.k !== "fence") { const bottom = it.p[1] + pp[1] - size[1] / 2; if (bottom > 2.4 || it.o === "window") continue; const top = Math.min(it.p[1] + pp[1] + size[1] / 2, 2.6), h = top - bottom; size = [size[0], h, size[2]]; pp = [pp[0], bottom - it.p[1] + h / 2, pp[2]]; }
+      const c = hex(p.c), glass = p.m === "Glass", neon = p.m === "Neon";
+      emit(p.s, size, p.r || 0, pp, it, glass ? [c[0], c[1], c[2], it.k === "water" ? 0.78 : 0.5] : c, glass ? 2 : neon ? 1 : 0);
+    }
+    if (!it.w && !wallish && it.o !== "floor" && it.o !== "platform") blob(it, it.o === "nature" ? 0.2 : 0.26);
+    if (it.o === "nature" && it.s[0] > 6) blob({ p: it.p, r: 0, f: [it.s[0] * 0.8, it.s[0] * 0.8] }, 0.1);
+  }
+  // paths
+  for (const pa of D.paths || []) { const c = hex(pa.kind === "trail" ? "#B89466" : "#D9CDB4"), y = pa.y || 0.06, w = pa.width / 2;
+    for (let i = 1; i < pa.points.length; i++) { const a = pa.points[i - 1], b = pa.points[i], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l * w, nz2 = dx / l * w;
+      const q = [[a[0] + nx, a[1] + nz2], [b[0] + nx, b[1] + nz2], [b[0] - nx, b[1] - nz2], [a[0] + nx, a[1] + nz2], [b[0] - nx, b[1] - nz2], [a[0] - nx, a[1] - nz2]];
+      for (const p of q) O.push(p[0], y, p[1], 0, 1, 0, c[0], c[1], c[2], 1);
+      emit("cylinder", [pa.width, 0.02, pa.width], 0, [0, 0, 0], { p: [b[0], y, b[1]], r: 0, flat: 1 }, c, 0); if (i === 1) emit("cylinder", [pa.width, 0.02, pa.width], 0, [0, 0, 0], { p: [a[0], y, a[1]], r: 0, flat: 1 }, c, 0); } }
+  // the avatar, for scale
+  if (D.spawn) { const s = D.spawn, it = { p: [s[0], s[1] || 0, s[2]], r: D.spawnRot || 0 }, sk = hex("#F3D2A9"), sh = hex("#3E7BD6"), pa = hex("#3B4252");
+    emit("block", [0.9, 2, 1], 0, [-0.5, 1, 0], it, pa, 0); emit("block", [0.9, 2, 1], 0, [0.5, 1, 0], it, pa, 0); emit("block", [2, 2, 1], 0, [0, 3, 0], it, sh, 0);
+    emit("block", [0.9, 2, 1], 0, [-1.5, 3, 0], it, sk, 0); emit("block", [0.9, 2, 1], 0, [1.5, 3, 0], it, sk, 0); emit("cylinder", [1.3, 1.2, 1.3], 0, [0, 4.6, 0], it, sk, 0); blob({ p: it.p, r: 0, f: [3, 1.6] }, 0.3); }
+  opaque = new Float32Array(O); glassy = new Float32Array(T); nOpaque = O.length / 10; nGlass = T.length / 10;
+}
+
+// ---------- WebGL ----------
+const glc = $("gl"), gl = glc.getContext("webgl", { antialias: true, alpha: false });
+let prog, bufO, bufT, dirty = true;
+const cam = { tx: CX, ty: interior ? 3 : D.type === "obby" ? 28 : 4, tz: CZ, yaw: 35, pitch: interior ? 52 : 38, dist: SPAN * (interior ? 1.15 : 0.95), fov: 45 };
+if (D.type === "obby") { cam.pitch = 34; cam.dist = SPAN * 0.8; }
+const home = Object.assign({}, cam);
+function initGL() {
+  if (!gl) { $("hint").textContent = "WebGL is not available: use the Plan view"; setView("plan"); return; }
+  const sh = (t, s) => { const o = gl.createShader(t); gl.shaderSource(o, s); gl.compileShader(o); return o; };
+  prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, "attribute vec3 p;attribute vec3 n;attribute vec4 c;uniform mat4 vp;varying vec3 vn;varying vec4 vc;varying vec3 vw;void main(){vn=n;vc=c;vw=p;gl_Position=vp*vec4(p,1.);}"));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, "precision mediump float;uniform vec3 eye;uniform vec3 fogC;uniform vec3 sun;uniform vec2 fog;varying vec3 vn;varying vec4 vc;varying vec3 vw;void main(){vec3 col=vc.rgb;float l=length(vn);if(l>.01){vec3 N=vn/l;float d=max(dot(N,sun),0.);float h=.5+.5*N.y;col=vc.rgb*(mix(vec3(.50,.53,.62),vec3(.84,.83,.80),h)*.78+vec3(1.,.95,.86)*d*.52);}else if(vc.a>=1.){col=min(vc.rgb*1.12+.04,1.);}float f=clamp((distance(vw,eye)-fog.x)/(fog.y-fog.x),0.,1.);gl_FragColor=vec4(mix(col,fogC,f*.8),vc.a);}"));
+  gl.linkProgram(prog); gl.useProgram(prog);
+  bufO = gl.createBuffer(); bufT = gl.createBuffer(); upload();
+}
+function upload() { buildGeometry(); if (!gl) return; gl.bindBuffer(gl.ARRAY_BUFFER, bufO); gl.bufferData(gl.ARRAY_BUFFER, opaque, gl.STATIC_DRAW); gl.bindBuffer(gl.ARRAY_BUFFER, bufT); gl.bufferData(gl.ARRAY_BUFFER, glassy, gl.STATIC_DRAW); dirty = true; }
+const M = {
+  mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) o[j * 4 + i] = a[i] * b[j * 4] + a[4 + i] * b[j * 4 + 1] + a[8 + i] * b[j * 4 + 2] + a[12 + i] * b[j * 4 + 3]; return o; },
+  persp(f, a, n, r) { const t = 1 / Math.tan(f / 2), o = new Float32Array(16); o[0] = t / a; o[5] = t; o[10] = (r + n) / (n - r); o[11] = -1; o[14] = 2 * r * n / (n - r); return o; },
+  look(e, c) { let z = [e[0] - c[0], e[1] - c[1], e[2] - c[2]], l = Math.hypot(...z); z = z.map(v => v / l); let x = [z[2], 0, -z[0]]; l = Math.hypot(...x) || 1; x = x.map(v => v / l); const y = [z[1] * x[2] - z[2] * x[1], z[2] * x[0] - z[0] * x[2], z[0] * x[1] - z[1] * x[0]];
+    return new Float32Array([x[0], y[0], z[0], 0, x[1], y[1], z[1], 0, x[2], y[2], z[2], 0, -(x[0] * e[0] + x[1] * e[1] + x[2] * e[2]), -(y[0] * e[0] + y[1] * e[1] + y[2] * e[2]), -(z[0] * e[0] + z[1] * e[1] + z[2] * e[2]), 1]); },
+};
+let VP = null, EYE = [0, 0, 0];
+function eyePos() { const p = rad(cam.pitch), y = rad(cam.yaw); return [cam.tx + cam.dist * Math.cos(p) * Math.sin(y), cam.ty + cam.dist * Math.sin(p), cam.tz + cam.dist * Math.cos(p) * Math.cos(y)]; }
+function project(x, y, z) { const m = VP, w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (w <= 0.01) return null; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w * 0.5 + 0.5, 0.5 - (m[1] * x + m[5] * y + m[9] * z + m[13]) / w * 0.5]; }
+function draw3d() {
+  const w = glc.clientWidth, h = glc.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
+  if (glc.width !== Math.round(w * dpr) || glc.height !== Math.round(h * dpr)) { glc.width = Math.round(w * dpr); glc.height = Math.round(h * dpr); }
+  gl.viewport(0, 0, glc.width, glc.height);
+  const bg = hex(css("--bg")); gl.clearColor(bg[0], bg[1], bg[2], 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  EYE = eyePos(); VP = M.mul(M.persp(rad(cam.fov), w / h, Math.max(0.5, cam.dist * 0.02), cam.dist * 6 + SPAN * 3), M.look(EYE, [cam.tx, cam.ty, cam.tz]));
+  gl.uniformMatrix4fv(gl.getUniformLocation(prog, "vp"), false, VP); gl.uniform3fv(gl.getUniformLocation(prog, "eye"), EYE); gl.uniform3fv(gl.getUniformLocation(prog, "fogC"), bg);
+  gl.uniform3fv(gl.getUniformLocation(prog, "sun"), [0.42, 0.82, 0.38]); gl.uniform2f(gl.getUniformLocation(prog, "fog"), cam.dist * 1.1 + SPAN * 0.4, cam.dist * 2.2 + SPAN * 2.4);
+  const bind = b => { gl.bindBuffer(gl.ARRAY_BUFFER, b); ["p", "n", "c"].forEach((n, i) => { const l = gl.getAttribLocation(prog, n); gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, i === 2 ? 4 : 3, gl.FLOAT, false, 40, [0, 12, 24][i]); }); };
+  gl.enable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true); bind(bufO); gl.drawArrays(gl.TRIANGLES, 0, nOpaque);
+  gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(-1, -1); bind(bufT); gl.drawArrays(gl.TRIANGLES, 0, nGlass); gl.disable(gl.POLYGON_OFFSET_FILL); gl.depthMask(true);
+}
+
+// ---------- plan view ----------
+const pc = $("plan"), ctx = pc.getContext("2d"), pv = { x: CX, z: CZ, s: 1, auto: true };
+let heatImg = null;
+function fitPlan() { const w = pc.clientWidth || 800, h = pc.clientHeight || 600; pv.s = Math.min(w / (B[2] - B[0]), h / (B[3] - B[1])) * 0.92; pv.x = CX; pv.z = CZ; }
+const sx = x => (x - pv.x) * pv.s + pc.clientWidth / 2, sz = z => (z - pv.z) * pv.s + pc.clientHeight / 2;
+function heat() {
+  const g = rep.grid; if (!g) return null; if (heatImg) return heatImg;
+  const raw = atob(g.data), c = document.createElement("canvas"); c.width = g.w; c.height = g.h; const x = c.getContext("2d"), im = x.createImageData(g.w, g.h), P = rep.profile;
+  const COL = [null, [140, 90, 200, 120], [214, 69, 69, 135], [224, 150, 43, 110], [70, 160, 120, 34]];
+  for (let i = 0; i < raw.length; i++) { const col = COL[raw.charCodeAt(i)], o = i * 4; if (col) { im.data[o] = col[0]; im.data[o + 1] = col[1]; im.data[o + 2] = col[2]; im.data[o + 3] = col[3]; } }
+  x.putImageData(im, 0, 0); return (heatImg = c);
+}
+const byId = new Map(D.items.map((it, i) => [it.i, i]));
+function poly(it, grow = 0) { const hw = it.f[0] / 2 + grow, hd = it.f[1] / 2 + grow; return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(p => l2w(it.p[0], it.p[2], it.r, p[0], p[1])); }
+function drawPlan() {
+  const w = pc.clientWidth, h = pc.clientHeight, dpr = Math.min(2, devicePixelRatio || 1);
+  if (pc.width !== Math.round(w * dpr) || pc.height !== Math.round(h * dpr)) { pc.width = Math.round(w * dpr); pc.height = Math.round(h * dpr); }
+  if (pv.auto) fitPlan(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  const ink = css("--ink"), muted = css("--muted"), line = css("--line");
+  const path = P => { ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(sx(p[0]), sz(p[1])) : ctx.moveTo(sx(p[0]), sz(p[1]))); ctx.closePath(); };
+  const order = { floor: 0, decor: 1, marker: 2, platform: 2 };
+  const items = D.items.map((it, i) => [it, i]).sort((a, b) => ((order[a[0].o] ?? 3) - (order[b[0].o] ?? 3)) || (a[0].p[1] - b[0].p[1]));
+  const grid = step => { ctx.beginPath(); for (let x = Math.ceil(B[0] / step) * step; x <= B[2]; x += step) { ctx.moveTo(sx(x), sz(B[1])); ctx.lineTo(sx(x), sz(B[3])); } for (let z = Math.ceil(B[1] / step) * step; z <= B[3]; z += step) { ctx.moveTo(sx(B[0]), sz(z)); ctx.lineTo(sx(B[2]), sz(z)); } ctx.stroke(); };
+  let gridDone = false;
+  const drawGrid = () => { if (gridDone) return; gridDone = true; ctx.lineWidth = 1; ctx.strokeStyle = "rgba(0,0,0,.05)"; if (pv.s > 5) grid(4); ctx.strokeStyle = "rgba(0,0,0,.09)"; if (pv.s > 0.9) grid(20); };
+  for (const [it, i] of items) {
+    if (it.o === "ceiling" || it.o === "lintel") continue;
+    if ((order[it.o] ?? 3) > 0 && !gridDone) { drawGrid(); for (const pa of D.paths || []) { ctx.strokeStyle = pa.kind === "trail" ? "#B89466" : "#D9CDB4"; ctx.lineWidth = pa.width * pv.s; ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.beginPath(); pa.points.forEach((p, k) => k ? ctx.lineTo(sx(p[0]), sz(p[1])) : ctx.moveTo(sx(p[0]), sz(p[1]))); ctx.stroke(); } if (state.heat && heat()) { const g = rep.grid; ctx.imageSmoothingEnabled = false; ctx.drawImage(heatImg, sx(g.x0), sz(g.z0), g.w * g.cell * pv.s, g.h * g.cell * pv.s); } }
+    const round = it.sh === "cylinder" || it.sh === "ball", wall = it.o === "wall", nat = it.o === "nature" && it.s[0] > it.f[0] + 2;
+    ctx.lineWidth = i === state.hover ? 2.5 : 1;
+    if (nat) { ctx.fillStyle = it.c + "55"; ctx.beginPath(); ctx.arc(sx(it.p[0]), sz(it.p[2]), it.s[0] / 2 * pv.s, 0, 7); ctx.fill(); ctx.fillStyle = "#7D573A"; ctx.beginPath(); ctx.arc(sx(it.p[0]), sz(it.p[2]), Math.max(1.5, it.f[0] / 2 * pv.s), 0, 7); ctx.fill(); if (i === state.hover) { ctx.strokeStyle = ink; ctx.stroke(); } continue; }
+    if (round) { ctx.beginPath(); ctx.ellipse(sx(it.p[0]), sz(it.p[2]), it.f[0] / 2 * pv.s, it.f[1] / 2 * pv.s, 0, 0, 7); } else path(poly(it));
+    ctx.fillStyle = wall ? ink : it.o === "window" ? "#9FD3E6" : it.c; ctx.globalAlpha = it.o === "floor" ? 0.55 : it.w ? 0.75 : 1; ctx.fill(); ctx.globalAlpha = 1;
+    if (!wall && it.o !== "floor") { ctx.strokeStyle = i === state.hover ? ink : "rgba(0,0,0,.35)"; ctx.stroke(); }
+    if (it.cl && !it.w && pv.s > 3) { const f = l2w(it.p[0], it.p[2], it.r, 0, -it.f[1] / 2), t = Math.min(it.f[0] * 0.25, 1.2); path([l2w(it.p[0], it.p[2], it.r, -t, -it.f[1] / 2 + t), l2w(it.p[0], it.p[2], it.r, t, -it.f[1] / 2 + t), f]); ctx.fillStyle = "rgba(0,0,0,.45)"; ctx.fill(); }
+  }
+  drawGrid();
+  if (state.clr) { ctx.setLineDash([4, 3]); ctx.strokeStyle = css("--accent"); ctx.fillStyle = "rgba(47,125,109,.10)"; ctx.lineWidth = 1.2;
+    for (const it of D.items) { const c = it.cl; if (!c || it.w) continue; const hw = it.f[0] / 2, hd = it.f[1] / 2;
+      for (const r of [c.f && [-hw, -hd - c.f, hw, -hd], c.b && [-hw, hd, hw, hd + c.b], c.l && [-hw - c.l, -hd, -hw, hd], c.r && [hw, -hd, hw + c.r, hd]]) if (r) { path([[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]].map(p => l2w(it.p[0], it.p[2], it.r, p[0], p[1]))); ctx.fill(); ctx.stroke(); } }
+    ctx.setLineDash([]); }
+  // obby route with jump lengths
+  if (rep.stats.hops) { ctx.font = "600 11px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const hp of rep.stats.hops) { const a = D.items[byId.get(hp.from)], b = D.items[byId.get(hp.to)]; if (!a || !b) continue; const c = hp.ratio > 1 ? css("--err") : hp.ratio > 0.7 ? css("--warn") : css("--accent");
+      ctx.strokeStyle = c; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(a.p[0]), sz(a.p[2])); ctx.lineTo(sx(b.p[0]), sz(b.p[2])); ctx.stroke();
+      if (pv.s > 2.2 && hp.gap > 0.3) { const mx = (sx(a.p[0]) + sx(b.p[0])) / 2, mz = (sz(a.p[2]) + sz(b.p[2])) / 2, t = hp.gap + (hp.dy ? (hp.dy > 0 ? " +" : " ") + hp.dy : ""); const tw = ctx.measureText(t).width + 8; ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(mx - tw / 2, mz - 8, tw, 16, 8); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(t, mx, mz + 0.5); } } }
+  // zones
+  ctx.font = "600 12px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  if (state.labels) for (const z of D.zones || []) { ctx.setLineDash([6, 4]); ctx.strokeStyle = muted; ctx.lineWidth = 1; let lx, lz;
+    if (z.circle) { ctx.beginPath(); ctx.arc(sx(z.circle[0]), sz(z.circle[1]), z.circle[2] * pv.s, 0, 7); ctx.stroke(); lx = z.circle[0]; lz = z.circle[1] - z.circle[2]; } else { ctx.strokeRect(sx(z.rect[0]), sz(z.rect[1]), (z.rect[2] - z.rect[0]) * pv.s, (z.rect[3] - z.rect[1]) * pv.s); lx = (z.rect[0] + z.rect[2]) / 2; lz = z.rect[1]; }
+    ctx.setLineDash([]); const t = z.label || z.id, tw = ctx.measureText(t).width + 12; if ((z.circle ? z.circle[2] * 2 : z.rect[2] - z.rect[0]) * pv.s < tw * 0.7) continue; ctx.fillStyle = css("--panel"); ctx.beginPath(); ctx.roundRect(sx(lx) - tw / 2, sz(lz) - 9, tw, 18, 9); ctx.fill(); ctx.fillStyle = ink; ctx.fillText(t, sx(lx), sz(lz) + 0.5); }
+  // empties and issues
+  ctx.setLineDash([5, 4]); ctx.strokeStyle = css("--info"); ctx.lineWidth = 1.5; for (const e of rep.empties || []) { ctx.beginPath(); ctx.arc(sx(e.at[0]), sz(e.at[1]), e.dia / 2 * pv.s, 0, 7); ctx.stroke(); } ctx.setLineDash([]);
+  if (state.issues) rep.issues.forEach((i, k) => { if (!i.at || (i.sev === "info" && k !== state.sel)) return; const r = k === state.sel ? 9 : 5; ctx.beginPath(); ctx.arc(sx(i.at[0]), sz(i.at[1]), r, 0, 7); ctx.fillStyle = css(i.sev === "error" ? "--err" : i.sev === "warn" ? "--warn" : "--info"); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); });
+  // spawn
+  if (D.spawn) { ctx.fillStyle = "#3E7BD6"; ctx.beginPath(); ctx.arc(sx(D.spawn[0]), sz(D.spawn[2]), Math.max(4, 1.5 * pv.s), 0, 7); ctx.fill(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); }
+  // gaps around the hovered object
+  const hv = D.items[state.hover];
+  if (hv && rep.near && rep.near[hv.i]) { ctx.font = "600 11px system-ui"; for (const n of rep.near[hv.i]) { if (n.gap <= 0.05) continue; const bad = n.gap > 0.6 && n.gap < rep.profile.pass, c = bad ? css("--err") : css("--accent");
+    ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(sx(n.a[0]), sz(n.a[1])); ctx.lineTo(sx(n.b[0]), sz(n.b[1])); ctx.stroke(); const mx = (sx(n.a[0]) + sx(n.b[0])) / 2, mz = (sz(n.a[1]) + sz(n.b[1])) / 2, t = String(n.gap), tw = ctx.measureText(t).width + 8; ctx.fillStyle = c; ctx.beginPath(); ctx.roundRect(mx - tw / 2, mz - 8, tw, 16, 8); ctx.fill(); ctx.fillStyle = "#fff"; ctx.fillText(t, mx, mz + 0.5); } }
+  // avatar-sized cursor
+  if (mouse) { ctx.strokeStyle = "#3E7BD6"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(mouse[0], mouse[1], 2 * pv.s, 0, 7); ctx.stroke(); }
+  // scale bar
+  const nice = [1, 2, 4, 5, 10, 20, 40, 50, 100, 200].find(v => v * pv.s > 70) || 400; ctx.fillStyle = ink; ctx.fillRect(16, h - 22, nice * pv.s, 3); ctx.font = "12px system-ui"; ctx.textAlign = "left"; ctx.fillText(nice + " studs  (avatar is 4 wide, 5 tall)", 16, h - 34);
+}
+let mouse = null;
+
+// ---------- overlay labels for 3D ----------
+function drawOverlay() {
+  const o = $("over"); if (state.view !== "3d") { o.innerHTML = ""; return; }
+  const w = glc.clientWidth, h = glc.clientHeight, out = [];
+  const put = (cls, x, y, z, txt) => { const p = project(x, y, z); if (!p || p[0] < -0.05 || p[0] > 1.05 || p[1] < -0.05 || p[1] > 1.05) return; out.push(`<div class="${cls}" style="left:${(p[0] * w).toFixed(1)}px;top:${(p[1] * h).toFixed(1)}px">${txt ? esc(txt) : ""}</div>`); };
+  if (state.labels) { for (const z of D.zones || []) { if (z.kind === "water" && D.zones.length > 14) continue; const c = z.circle ? [z.circle[0], z.circle[1]] : [(z.rect[0] + z.rect[2]) / 2, (z.rect[1] + z.rect[3]) / 2]; if (/_build$|_alley$/.test(z.id)) continue; put("lab", c[0], (z.y || 0) + (interior ? 9 : 14), c[1], z.label || z.id); }
+    for (const p of D.pois || []) if (!(D.zones || []).some(z => z.id === p.id)) put("lab poi", p.pos[0], 20, p.pos[p.pos.length - 1], p.label || p.id); }
+  if (state.issues) rep.issues.forEach((i, k) => { if (!i.at || (i.sev === "info" && k !== state.sel)) return; put("pin " + i.sev + (k === state.sel ? " sel" : ""), i.at[0], 2.5, i.at[1]); });
+  o.innerHTML = out.join("");
+}
+
+// ---------- input ----------
+function setView(v) { state.view = v; glc.style.display = v === "3d" ? "block" : "none"; pc.style.display = v === "plan" ? "block" : "none"; document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $("hint").textContent = v === "3d" ? "drag to orbit, shift-drag or right-drag to pan, scroll to zoom" : "drag to pan, scroll to zoom, hover an object to measure its gaps"; dirty = true; }
+$("views").onclick = e => { if (e.target.dataset.v) setView(e.target.dataset.v); };
+const tog = (id, key, fn) => { const b = $(id); b.classList.toggle("on", !!state[key]); b.onclick = () => { state[key] = !state[key]; b.classList.toggle("on", state[key]); if (fn) fn(); dirty = true; }; };
+tog("tCut", "cut", () => upload()); tog("tLab", "labels"); tog("tIss", "issues"); tog("tHeat", "heat", () => { if (state.heat) setView("plan"); }); tog("tClr", "clr", () => { if (state.clr) setView("plan"); });
+tog("tEye", "eye", () => {
+  if (state.eye && D.spawn) { const s = D.spawn, f = D.focus || [CX, 4, CZ]; state.cut = false; $("tCut").classList.remove("on"); Object.assign(cam, { tx: s[0], ty: (s[1] || 0) + 4.5, tz: s[2], dist: 12.5, pitch: 14, yaw: Math.atan2(s[0] - f[0], s[2] - f[2]) * 180 / Math.PI, fov: 70 }); D.spawnRot = cam.yaw; setView("3d"); }
+  else { Object.assign(cam, home); state.cut = interior; $("tCut").classList.toggle("on", state.cut); }
+  upload();
+});
+const ptrs = new Map(); let pinch = 0;
+function down(e) { e.target.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY, e.button, e.shiftKey]); }
+function up(e) { ptrs.delete(e.pointerId); pinch = 0; }
+glc.addEventListener("pointerdown", down); glc.addEventListener("pointerup", up); glc.addEventListener("pointercancel", up); glc.addEventListener("contextmenu", e => e.preventDefault());
+glc.addEventListener("pointermove", e => {
+  const p = ptrs.get(e.pointerId); if (!p) return; const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) cam.dist = Math.max(4, cam.dist * pinch / d); pinch = d; }
+  else if (p[2] === 2 || p[3]) { const k = cam.dist * 0.0016, y = rad(cam.yaw); cam.tx -= (dx * Math.cos(y) + dy * Math.sin(y)) * k; cam.tz -= (-dx * Math.sin(y) + dy * Math.cos(y)) * k; }
+  else { cam.yaw -= dx * 0.35; cam.pitch = Math.max(2, Math.min(89, cam.pitch + dy * 0.3)); }
+  dirty = true;
+});
+glc.addEventListener("wheel", e => { e.preventDefault(); cam.dist = Math.max(4, Math.min(SPAN * 5, cam.dist * Math.exp(e.deltaY * 0.0012))); dirty = true; }, { passive: false });
+pc.addEventListener("pointerdown", down); pc.addEventListener("pointerup", up); pc.addEventListener("pointercancel", up);
+pc.addEventListener("pointerleave", () => { mouse = null; state.hover = -1; $("tip").style.display = "none"; dirty = true; });
+pc.addEventListener("pointermove", e => {
+  const r = pc.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, p = ptrs.get(e.pointerId); mouse = [mx, my];
+  if (p) { if (ptrs.size === 2) { const pr = [p[0], p[1]]; p[0] = e.clientX; p[1] = e.clientY; const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) pv.s *= d / pinch; pinch = d; pv.auto = false; void pr; } else { pv.auto = false; pv.x -= (e.clientX - p[0]) / pv.s; pv.z -= (e.clientY - p[1]) / pv.s; p[0] = e.clientX; p[1] = e.clientY; } }
+  else { const wx = (mx - pc.clientWidth / 2) / pv.s + pv.x, wz = (my - pc.clientHeight / 2) / pv.s + pv.z; let best = -1, area = Infinity;
+    D.items.forEach((it, i) => { if (it.o === "floor" || it.o === "ceiling" || it.o === "lintel" || it.k === "sidewalk" || it.k === "street") return; const c = Math.cos(rad(it.r)), s = Math.sin(rad(it.r)), dx = wx - it.p[0], dz = wz - it.p[2], lx = dx * c - dz * s, lz = dx * s + dz * c, hw = Math.max(it.f[0] / 2, 0.8), hd = Math.max(it.f[1] / 2, 0.8); if (Math.abs(lx) <= hw && Math.abs(lz) <= hd && hw * hd < area) { area = hw * hd; best = i; } });
+    state.hover = best; const tip = $("tip"); if (best >= 0) { const it = D.items[best]; tip.style.display = "block"; tip.textContent = `${it.l || it.i}  ·  ${+it.s[0].toFixed(1)} x ${+it.s[1].toFixed(1)} x ${+it.s[2].toFixed(1)} studs`; tip.style.left = Math.min(mx + 14, pc.clientWidth - 220) + "px"; tip.style.top = (my + 14) + "px"; } else tip.style.display = "none"; }
+  dirty = true;
+});
+pc.addEventListener("wheel", e => { e.preventDefault(); const r = pc.getBoundingClientRect(), mx = e.clientX - r.left - pc.clientWidth / 2, my = e.clientY - r.top - pc.clientHeight / 2, k = Math.exp(-e.deltaY * 0.0014), wx = mx / pv.s + pv.x, wz = my / pv.s + pv.z; pv.auto = false; pv.s = Math.max(0.05, Math.min(60, pv.s * k)); pv.x = wx - mx / pv.s; pv.z = wz - my / pv.s; dirty = true; }, { passive: false });
+addEventListener("resize", () => { dirty = true; });
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { dirty = true; });
+
+initGL(); setView(location.hash === "#plan" || !gl ? "plan" : "3d");
+(function loop() { if (dirty) { dirty = false; if (state.view === "3d" && gl) draw3d(); else drawPlan(); drawOverlay(); } requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>
