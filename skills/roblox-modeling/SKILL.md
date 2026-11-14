@@ -33,7 +33,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
    - **z-fighting**: no two parts with coplanar, same-facing, overlapping faces, at rest and at the end of each clip. These flicker in every engine.
    - **assembly**: every part touches the rest (nothing floats); **ground**: lowest point at y = 0 (set `"ground": false` for swimming / flying things).
    - **dimensions** against `reference.dimensions`, and **silhouette** checks against a reference image (`compare-<Name>-<view>.png` shows green = both, red = reference only, blue = model only).
-   - **per animation**: something moves, loops are seamless, nothing goes below the floor, no parts pass through each other (pairs that do not overlap at rest), no popping-fast rotations.
+   - **per animation**: something moves, loops are seamless, nothing goes below the floor, no parts pass through each other (pairs that do not overlap at rest), **attached parts stay welded** (every vertex where a part meets its parent, or the skinned body its bone drives, at rest must stay in contact in every frame: catches fins, lids, wings and limbs that swing off their joint), no popping-fast rotations.
    - your own **checks** (angle at a time, poses that must match, gaps, ratios, parts kept apart through a clip).
 
 8. **Look at the sheets** with the Read tool: `sheet-<Name>.png` (three perspective views plus front / side / top orthographic blueprints with a metric grid and the overall size) and `anim-<Name>-<Clip>.png` (eight moments plus top views). Compare them with the reference images, not just with the plan: proportions, silhouette, where each part sits, how the motion reads. For a close look at a detail use `rmodel.cjs render <spec> --clip Open --time 0.4 --yaw 120 --highlight Lid`.
@@ -67,7 +67,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
 
 ### Parts
 
-Common fields: `name`, `shape`, `color` (hex or palette key), `material` (`roughness`, `metalness`, `emissive`), `parent` (default: the root), `pivot` (the point the part rotates about; default the part's centre), `at` (move), `rot` (degrees, applied X then Y then Z around the shape's own centre), `scale`, `mirror: "x"` (adds a left/right copy: `FinL` → `FinR`, mirrored children follow), `jitter` (metres of seeded random wobble for organic or rocky looks), `hidden`, `note`.
+Common fields: `name`, `shape`, `color` (hex or palette key), `material` (`roughness`, `metalness`, `emissive`), `parent` (default: the root), `pivot` (the point the part rotates about; default the part's centre), `at` (move), `rot` (degrees, applied X then Y then Z around the pivot when the part has one, so a fin posed at an angle stays on its hinge, otherwise around the shape's own centre), `scale`, `mirror: "x"` (adds a left/right copy: `FinL` → `FinR`, mirrored children follow), `jitter` (metres of seeded random wobble for organic or rocky looks), `hidden`, `note`.
 
 | shape | fields | use for |
 |---|---|---|

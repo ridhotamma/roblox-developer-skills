@@ -74,6 +74,13 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   ok(CK.run(MD.compile(thru)).some(r => r.id === 'anim:Bad' && r.status === 'fail' && /passes through/.test(r.msg)), 'lid rotating the wrong way into the base fails');
   const seam = Object.assign({}, base, { parts: [{ name: 'A', shape: 'box', size: [1, 1, 1], at: [0, 0.5, 0] }], animations: [{ name: 'Loop', duration: 1, loop: true, tracks: [{ part: 'A', rot: [[0, [0, 0, 0]], [1, [0, 45, 0]]] }] }] });
   ok(CK.run(MD.compile(seam)).some(r => r.id === 'anim:Loop' && r.status === 'fail' && /seam/.test(r.msg)), 'loop whose end differs from its start fails');
+  // a flap whose hinge is not on its root edge swings off the body; hinged on the root it stays welded
+  const flap = pivot => Object.assign({}, base, { ground: false, parts: [{ name: 'Body', shape: 'box', size: [0.2, 0.2, 0.6], at: [0, 0, 0] },
+    { name: 'Fin', parent: 'Body', shape: 'box', size: [0.15, 0.01, 0.1], at: [0.17, 0, 0], pivot }],
+    animations: [{ name: 'Flap', duration: 1, loop: true, tracks: [{ part: 'Fin', rot: { wave: { axis: 'z', amp: 30, cycles: 1 } } }] }] });
+  const off = CK.run(MD.compile(flap([0.3, 0, 0]))), on = CK.run(MD.compile(flap([0.1, 0, 0])));
+  ok(off.some(r => r.id === 'anim:Flap' && r.status === 'fail' && /come apart/.test(r.msg)), 'a part hinged away from its joint fails the attachment test');
+  ok(on.some(r => r.id === 'anim:Flap' && r.status === 'pass' && /stay joined/.test(r.msg)) && !on.some(r => /come apart/.test(r.msg)), 'hinged on its joint it stays joined');
   const bad = MD.compile({ name: 'E', parts: [{ name: 'A', shape: 'blob' }, { name: 'B', shape: 'box', parent: 'Nope' }], animations: [{ name: 'X', duration: 1, tracks: [{ part: 'Z', rot: [] }] }] });
   ok(bad.errors.length >= 3, 'bad shape, missing parent and missing track part are spec errors');
 }

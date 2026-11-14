@@ -89,9 +89,21 @@
    "color": "body",
    "stations": [
     {
+     "at": -0.124,
+     "w": 0,
+     "h": 0,
+     "dy": 0.003
+    },
+    {
+     "at": -0.112,
+     "w": 0.006,
+     "h": 0.022,
+     "dy": 0.003
+    },
+    {
      "at": -0.096,
-     "w": 0.012,
-     "h": 0.034,
+     "w": 0.011,
+     "h": 0.03,
      "dy": 0.003
     },
     {
@@ -142,7 +154,8 @@
      "h": 0,
      "dy": 0.006
     }
-   ]
+   ],
+   "note": "the last stations taper to a point inside the tail fin, so the body flows into the tail instead of ending in a flat cap"
   },
   {
    "name": "Tail",
@@ -256,7 +269,7 @@
   },
   {
    "name": "PelvicL",
-   "parent": "Spine1",
+   "parent": "Head",
    "shape": "extrude",
    "plane": "zy",
    "depth": 0.004,
@@ -265,7 +278,7 @@
    "outline": [
     [
      0.092,
-     -0.022
+     -0.017
     ],
     [
      0.07,
@@ -280,8 +293,8 @@
      -0.062
     ],
     [
-     0.055,
-     -0.022
+     0.058,
+     -0.017
     ]
    ],
    "at": [
@@ -305,34 +318,38 @@
    "mirror": "x",
    "outline": [
     [
-     0.075,
-     0.004
+     0.072,
+     0.017
+    ],
+    [
+     0.072,
+     -0.013
+    ],
+    [
+     0.024,
+     -0.008
     ],
     [
      0.03,
-     0.024
-    ],
-    [
-     0.022,
-     -0.016
+     0.01
     ]
    ],
    "at": [
-    -0.023,
+    -0.019,
     0,
     0
    ],
    "rot": [
     0,
-    -25,
+    18,
     0
    ],
    "pivot": [
-    -0.02,
-    0.003,
-    0.07
+    -0.019,
+    0.002,
+    0.072
    ],
-   "note": "hinged at its front edge so it can flap"
+   "note": "root edge on the body behind the gill; pivot on that edge, so it flaps without leaving the body"
   },
   {
    "name": "EyeL",
@@ -420,9 +437,14 @@
      "rot": {
       "wave": {
        "axis": "y",
-       "amp": 18,
+       "amp": 12,
        "cycles": 2,
-       "phase": 0.1
+       "phase": 0.1,
+       "offset": [
+        0,
+        4,
+        0
+       ]
       }
      }
     },
@@ -472,8 +494,13 @@
      "rot": {
       "wave": {
        "axis": "y",
-       "amp": 28,
-       "cycles": 3
+       "amp": 14,
+       "cycles": 3,
+       "offset": [
+        0,
+        8,
+        0
+       ]
       }
      }
     },
@@ -607,7 +634,7 @@
        2.0,
        [
         0,
-        35,
+        30,
         0
        ],
        "out"

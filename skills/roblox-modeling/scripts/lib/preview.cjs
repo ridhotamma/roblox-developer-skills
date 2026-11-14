@@ -29,7 +29,7 @@ button:hover{border-color:var(--dim)}button.on{background:var(--acc);border-colo
 .ck{display:flex;gap:8px;padding:4px 0;border-top:1px solid var(--line);font-size:13px}.ck:first-child{border-top:0}.ck b{min-width:38px;font-size:11px;padding-top:2px}
 .pass{color:var(--ok)}.fail{color:var(--bad)}.warn{color:var(--warn)}.hint{color:var(--dim);font-size:12px;margin-top:8px}
 .ref{margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:8px;color:var(--dim);font-size:13px}
-label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+a{color:var(--acc)}label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 </style>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@${THREE_VER}/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@${THREE_VER}/examples/jsm/"}}</script>
 </head><body><main>

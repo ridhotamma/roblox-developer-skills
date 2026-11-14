@@ -37,8 +37,9 @@ function buildPartMesh(p, E, warn) {
     const r = M.rng(M.hash(p.name) ^ (p.seed || 0)), amt = p.jitter;
     m.pos = m.pos.map(v => [v[0] + (r() * 2 - 1) * amt, v[1] + (r() * 2 - 1) * amt, v[2] + (r() * 2 - 1) * amt]);
   }
-  // rot and scale act around the shape's own centre (so a tilted fin stays where it was drawn); at then moves it
-  const c = p.shape === 'extrude' || p.shape === 'hull' || p.shape === 'mesh' || p.shape === 'loft' || p.shape === 'lathe' ? G.bounds(m.pos).center : [0, 0, 0];
+  // rot and scale act around the part's pivot when it has one (a fin posed on its hinge stays on its hinge),
+  // otherwise around the shape's own centre (a tilted fin stays where it was drawn); at then moves it
+  const c = p.pivot ? sub(p.pivot, at) : p.shape === 'extrude' || p.shape === 'hull' || p.shape === 'mesh' || p.shape === 'loft' || p.shape === 'lathe' ? G.bounds(m.pos).center : [0, 0, 0];
   m.pos = m.pos.map(v => add(add(M.quatRot(q, M.vmul(sub(v, c), s)), c), at));
   if (s[0] * s[1] * s[2] < 0) G.flip(m);
   return m;

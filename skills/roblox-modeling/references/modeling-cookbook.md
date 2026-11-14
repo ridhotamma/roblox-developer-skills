@@ -29,7 +29,7 @@
 
 **Barrel**: `lathe` profile bulging in the middle (`[[0.26,0],[0.31,0.25],[0.32,0.45],[0.31,0.65],[0.26,0.9]]`), 8-10 segments; hoops as thin hollow `open: "both"` boxes are wrong (square), use `lathe` rings or `torus` with small tube; lid recess = smaller dark cylinder slightly below the top.
 
-**Fish** (see `examples/fish.json`): trace a side view; loft body 8 sides with 8-10 stations (nose station `w: 0, h: 0`), width 0.4-0.5 × height; spine of 3-4 `none` bones from head to tail; body skinned along z; tail, dorsal and anal fins as thin `extrude` outlines in `zy` parented to the nearest bone; pectoral / pelvic fins mirrored, hinged at their front edge; eyes = two small `sphere detail 0` (white + pupil) mirrored, parented to the head bone. `"ground": false`.
+**Fish** (see `examples/fish.json`): trace a side view; loft body 8 sides with 8-10 stations (nose station `w: 0, h: 0`), width 0.4-0.5 × height; spine of 3-4 `none` bones from head to tail; body skinned along z; tail, dorsal and anal fins as thin `extrude` outlines in `zy` parented to the nearest bone; body stations taper to a point inside the tail fin; pectoral / pelvic fins mirrored, the root edge 1-3 mm inside the body surface, `pivot` on that root edge, parented to the bone nearest the root (the head bone for fins near the head); eyes = two small `sphere detail 0` (white + pupil) mirrored, parented to the head bone. `"ground": false`.
 
 **Bird**: loft body (shorter, rounder: height ≈ width), head sphere or loft continuation, beak `cone` 4-5 sides, wings as `extrude` outlines in `xz` (top view outline) hinged at the shoulder with `pivot`, split into inner + outer wing (outer parented to inner) for a better flap, tail `extrude` fan, legs thin `cylinder`s.
 
@@ -55,4 +55,6 @@
 | Inside-out part (render shows holes) | geometry | Fix custom `mesh` face winding (counter-clockwise seen from outside) |
 | Paper-thin part disappears edge-on | geometry (warn) | At least 3-5 mm thick, or accept for fins seen mostly side-on |
 | Proportions drift from the reference | dimensions, silhouette | Re-measure, fix the regions the overlay marks |
+| A fin, lid or limb swings off its joint during a clip (looks cut off or floating) | anim attachment ("come apart") | Put the `pivot` on the edge where the part meets its parent, embed the root 2-3 mm into the parent, and on skinned bodies hang the part from the bone nearest its root |
+| A lofted body ends in a flat cap where a thin tail or fin begins (reads as a cut stump) | only the renders | Add stations that taper the body to a point inside the fin |
 | Rotation acts around the wrong point | renders, `apart`, `angle` | `pivot` is in model space; `rot` turns a shape around its own centre at build time only |

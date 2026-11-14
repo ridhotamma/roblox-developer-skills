@@ -57,12 +57,22 @@
   {
    "id": "anim:Open",
    "status": "pass",
+   "msg": "4 attached part pairs stay joined"
+  },
+  {
+   "id": "anim:Open",
+   "status": "pass",
    "msg": "no parts pass through each other"
   },
   {
    "id": "anim:Close",
    "status": "pass",
    "msg": "moves (largest displacement 0.884 m)"
+  },
+  {
+   "id": "anim:Close",
+   "status": "pass",
+   "msg": "4 attached part pairs stay joined"
   },
   {
    "id": "anim:Close",
@@ -78,6 +88,11 @@
    "id": "anim:Rattle",
    "status": "pass",
    "msg": "loops seamlessly (first pose = last pose)"
+  },
+  {
+   "id": "anim:Rattle",
+   "status": "pass",
+   "msg": "4 attached part pairs stay joined"
   },
   {
    "id": "anim:Rattle",

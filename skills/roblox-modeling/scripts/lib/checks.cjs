@@ -53,6 +53,12 @@ function samplePoints(A) {
   }
   return (A.samples = out);
 }
+// 0 when p is on or inside B, else the distance from p to B's surface.
+function distToMesh(p, B) {
+  const planes = B.planes !== undefined ? B.planes : (B.planes = G.convexPlanes(B));
+  if (planes ? planes.every(pl => dot(pl.n, p) - pl.d <= 1e-9) : insideByRay(p, B)) return 0;
+  let d = Infinity; for (const t of B.tris) d = Math.min(d, pointTriDist(p, B.pos[t[0]], B.pos[t[1]], B.pos[t[2]])); return d;
+}
 function insideByRay(p, B) {
   const dir = M.unit([0.5773, 0.5774, 0.5775]); let hits = 0;
   for (const t of B.tris) {                     // Möller–Trumbore
@@ -158,6 +164,19 @@ function run(model, opts) {
   for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) {
     const a = rest[i], b = rest[j]; restOverlap.set(pairKey(a, b), Math.max(penetration(a, b), penetration(b, a)));
   }
+  const attached = [];
+  {
+    const above = (a, n) => { for (let k = n; k; k = k.parent) if (k === a) return true; return false; };   // a is n or one of its ancestors
+    const linked = (A, B) => above(A.node, B.node.parent) || above(B.node, A.node.parent) ||
+      (A.node.skinBones && A.node.skinBones.some(b => above(b, B.node))) || (B.node.skinBones && B.node.skinBones.some(b => above(b, A.node)));
+    for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) {
+      if (!linked(rest[i], rest[j]) || meshGap(rest[i], rest[j]) > tol * 1.5) continue;
+      // the joint = every vertex of one part that sits on or inside the other at rest; all of it must stay welded
+      const ai = rest[i].pos.map((p, k) => (distToMesh(p, rest[j]) <= tol ? k : -1)).filter(k => k >= 0);
+      const aj = rest[j].pos.map((p, k) => (distToMesh(p, rest[i]) <= tol ? k : -1)).filter(k => k >= 0);
+      attached.push([i, j, ai, aj]);
+    }
+  }
   for (const clip of model.clips) {
     const id = `anim:${clip.name}`, N = Math.max(12, Math.min(48, Math.round(clip.duration * 24))), frames = [];
     for (let k = 0; k <= N; k++) frames.push((k / N) * clip.duration);
@@ -184,6 +203,17 @@ function run(model, opts) {
         if (d > tol * 2.5) { const k = pairKey(a, b), h = hits.get(k); if (!h || d > h.d) hits.set(k, { d, t: frames[fi] }); }
       }
     });
+    // attachment: a part that touches its parent (or, for parts hung on bones, the skinned body those bones
+    // drive) at rest must keep touching it in every frame, or it visibly comes off
+    const detached = new Map();
+    for (const [i, j, ai, aj] of attached) poses.forEach((p, fi) => {
+      let g = meshGap(p[i], p[j]);
+      if (g <= tol * 1.5) { g = 0; for (const k of ai) g = Math.max(g, distToMesh(p[i].pos[k], p[j])); for (const k of aj) g = Math.max(g, distToMesh(p[j].pos[k], p[i])); }
+      if (g <= tol * 1.5) return;
+      const k = `${p[i].name} / ${p[j].name}`, h = detached.get(k); if (!h || g > h.g) detached.set(k, { g, t: frames[fi] });
+    });
+    if (detached.size) for (const [k, h] of detached) add(id, 'fail', `${k} come apart by ${(h.g * 1000).toFixed(1)} mm at ${h.t.toFixed(2)} s (their joint opens a gap): put the pivot on the joint where they meet, embed the root deeper, or reduce the angle`);
+    else if (attached.length) add(id, 'pass', `${attached.length} attached part pairs stay joined`);
     if (hits.size) for (const [k, h] of hits) add(id, 'fail', `${k.replace('|', ' passes through ')} by ${h.d.toFixed(3)} m at ${h.t.toFixed(2)} s (move the pivot, limit the angle, or add clearance)`);
     else add(id, 'pass', 'no parts pass through each other');
     // speed sanity
@@ -259,4 +289,4 @@ function summary(results) {
   return { text: lines.join('\n') + `\n\n${n.pass} passed, ${n.fail} failed, ${n.warn} warnings`, ...n };
 }
 
-module.exports = { run, summary, zFight, meshGap, penetration, pointTriDist, insideByRay };
+module.exports = { run, summary, zFight, distToMesh, meshGap, penetration, pointTriDist, insideByRay };

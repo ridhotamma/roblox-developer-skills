@@ -1,18 +1,18 @@
 {
  "name": "Fish",
  "title": "Low-poly fish",
- "triangles": 322,
+ "triangles": 348,
  "parts": 16,
  "size": [
-  0.07202399902040366,
-  0.14795229793365128,
-  0.3
+  0.07146985752517557,
+  0.1479143173161818,
+  0.30000000000000004
  ],
  "results": [
   {
    "id": "budget",
    "status": "pass",
-   "msg": "322 triangles (budget 1200)"
+   "msg": "348 triangles (budget 1200)"
   },
   {
    "id": "geometry",
@@ -32,7 +32,7 @@
   {
    "id": "dimensions",
    "status": "pass",
-   "msg": "width (x): 0.072 m vs reference 0.07 m (+2.9%, tolerance 8%)"
+   "msg": "width (x): 0.071 m vs reference 0.07 m (+2.1%, tolerance 8%)"
   },
   {
    "id": "dimensions",
@@ -57,12 +57,17 @@
   {
    "id": "anim:Swim",
    "status": "pass",
+   "msg": "11 attached part pairs stay joined"
+  },
+  {
+   "id": "anim:Swim",
+   "status": "pass",
    "msg": "no parts pass through each other"
   },
   {
    "id": "anim:Idle",
    "status": "pass",
-   "msg": "moves (largest displacement 0.023 m)"
+   "msg": "moves (largest displacement 0.019 m)"
   },
   {
    "id": "anim:Idle",
@@ -72,12 +77,22 @@
   {
    "id": "anim:Idle",
    "status": "pass",
+   "msg": "11 attached part pairs stay joined"
+  },
+  {
+   "id": "anim:Idle",
+   "status": "pass",
    "msg": "no parts pass through each other"
   },
   {
    "id": "anim:Die",
    "status": "pass",
-   "msg": "moves (largest displacement 0.180 m)"
+   "msg": "moves (largest displacement 0.185 m)"
+  },
+  {
+   "id": "anim:Die",
+   "status": "pass",
+   "msg": "11 attached part pairs stay joined"
   },
   {
    "id": "anim:Die",

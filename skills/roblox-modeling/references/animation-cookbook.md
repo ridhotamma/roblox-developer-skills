@@ -24,7 +24,7 @@
 
 ## Skinned chains
 
-For bodies that must bend smoothly (fish, snakes, tails, tentacles, worms, ropes): `none` bones chained head → tail with pivots along the axis, the body `loft` with `"skin": { "bones": [...], "axis": "z" }`. Vertices are weighted between the two nearest bones along the axis. Place bones where the body should bend most (fish: just behind the head, mid-body, in front of the tail and at the tail root). Rigid attachments (fins, eyes) are parented to the nearest bone; keep the bend moderate where a rigid part spans two bones, or the part separates from the surface (add a `contact` check at the most bent frame).
+For bodies that must bend smoothly (fish, snakes, tails, tentacles, worms, ropes): `none` bones chained head → tail with pivots along the axis, the body `loft` with `"skin": { "bones": [...], "axis": "z" }`. Vertices are weighted between the two nearest bones along the axis. Place bones where the body should bend most (fish: just behind the head, mid-body, in front of the tail and at the tail root). Rigid attachments (fins, eyes) are parented to the bone nearest their root; keep the bend moderate where a rigid part spans two bones, or its root separates from the surface. The automatic attachment test reports exactly which pair opens, by how much and when.
 
 ## Recipes
 
