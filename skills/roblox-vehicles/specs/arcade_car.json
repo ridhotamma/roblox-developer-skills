@@ -93,6 +93,10 @@
   "recovery": {
     "airControl": 0.5,
     "autoFlip": true,
-    "stuckAssist": true
+    "stuckAssist": true,
+    "airGravity": 2.0
+  },
+  "assists": {
+    "stability": 1
   }
 }

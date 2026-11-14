@@ -37,7 +37,7 @@ A car that wedges on a kerb, beaches on a terrain ridge, snags on a tree or ends
 | **Stuck assist** | `VehicleSim` (`Recovery.StuckAssist`) | Throttle held (forward or reverse) but the car moves less than 0.4 m/s for 1 s: for 0.45 s the car is lifted (60% of its weight) and pushed (0.45 g) in the throttle direction. After 3 failed tries it recovers. |
 | **Recovery** | `VehicleSim:Recover()` | Sets the car upright above the ground under it (the suspension casts start a wheel radius above the mounts, so the drop never leaves a wheel unable to find the ground), 3 studs back from the obstacle (or forward if it was reversing), velocity zeroed. 2 s minimum between recoveries. |
 | **Auto-flip** | `VehicleSim` (`Recovery.AutoFlip`) | Tilted more than ~73° (side or roof) and nearly stopped for 1.5 s: recover. Also runs on the server for parked cars knocked over. |
-| **Air control** | `VehicleSim` (`Recovery.AirControl`) + `Stabilizer` Torque | Airborne (no wheel touching, or the springs carrying under 20% of the weight), a torque levels the car and damps tumbling so it lands on its wheels after jumps and drops. With some wheels off the ground at speed (cresting a ramp lip), it only damps pitch and roll rate: in Roblox gravity the rear springs would otherwise flip the nose down off every lip. |
+| **Air control** | `VehicleSim` (`Recovery.AirControl`, `Recovery.AirGravity`) + `Stabilizer` Torque | Airborne (no wheel touching, or the springs carrying under 20% of the weight), a rate-capped torque (≤ ~70°/s) turns the car until its wheels face the ground below it, a landing ramp's slope included, and damps tumbling. In the air, gravity is lightened to `AirGravity` real g, so there is hang time to land. With some wheels off the ground at speed (cresting a ramp lip), it strongly damps pitch and roll rate, and each wheel off the ground gets its share of the gravity relief. Otherwise, in Roblox gravity, the rear springs flip the nose down off every lip. |
 | **Reset button** | `VehicleController` | R / gamepad Y / touch "Reset", 3 s cooldown, always available as the last resort. |
 
 ## 3. Rules for vehicles (prohibited patterns)
@@ -97,7 +97,8 @@ Then drive the real map's worst spots. Any failure: fix the map (section 4) or t
 | `STUCK_SECONDS` / `UNSTICK_SECONDS` / `MAX_UNSTICK_TRIES` | VehicleSim | 1 / 0.45 / 3 | Faster assist for arcade games; slower for sims. |
 | `FLIP_SECONDS` | VehicleSim | 1.5 | |
 | `CAST_LIFT` | VehicleSim / VehicleVisuals | 1 | Wheel radii above the mount where casts start. Keep both files equal; lower only if wheels catch ceilings in tight tunnels. |
-| `AIR_LEVEL` / `AIR_DAMP` | VehicleSim | 40 / 14 | Air-control gains (× `Recovery.AirControl`). |
+| `AIR_LEVEL` / `AIR_MAX_RATE` / `AIR_DAMP` / `LIP_DAMP` | VehicleSim | 2.5 / 1.2 / 14 / 60 | Air control: leveling rate per radian of tilt, max pitch/roll rate (rad/s), rate tracking and ramp-lip damping (× `Recovery.AirControl`). |
+| `Recovery.AirGravity` | spec | 2.5 | Gravity in the air, real g. 2–3 for GTA-like hang time; 1 = real world (very floaty with Roblox's map scale); 0 = Roblox gravity. Longer hang time means longer jumps, so size stunt gaps for it. |
 | `Recovery.AirControl` | spec | 0.3 | 0.2–0.4 road cars, 0.4–0.6 arcade/off-road jumpers; 0 for realism (with auto-flip on). |
 
 If players report getting stuck somewhere specific, log the car's position when the stuck assist triggers 3 times (the `Stuck` telemetry) and fix those places on the map.

@@ -70,8 +70,9 @@ Change one thing at a time and drive the same corner before and after.
 | Wheels float above/below the road | wheel radius detected wrong | set `WheelRadius` attribute on the wheel |
 | Gets stuck on kerbs, trees, terrain | see anti-stuck.md | keep AutoHull on, hull friction ≤ 0.15, props in VehicleIgnore, fix kerb heights |
 | Spins out of every slide | slide grip too low | tires.slideGrip 0.8–0.86, drift stabilizer ↑ |
-| Slippery on keyboard: the tail swings out on every left/right flick | rear grip equal to or below the front, stabilizer only catching big slides | rear grip 10–15% above front (the biggest single fix), drift.maxAngle 15–20 with stabilizer 0.9–1.0, slideGrip 0.9+; see the Arcade / stable setup below |
+| Slippery on keyboard: the tail swings out on every left/right flick, quick lane changes turn into slides | stability assist off or low; rear grip equal to or below the front | `assists.stability` 0.6–1.0 (the biggest single fix: a 100 km/h keyboard lane change slides the SportsCar 68° at 0 and 4° at 0.6), rear grip 10–15% above front, drift.maxAngle 15–20 with stabilizer 0.9–1.0, slideGrip 0.9+; see the Arcade / stable setup below |
 | Lands on its roof after jumps | no air control | recovery.airControl 0.3–0.5 |
+| Jumps over too fast to line up a landing, nose snaps down off the lip | Roblox gravity (~5.6 g) in the air | `recovery.airGravity` 2–3 g (default 2.5: ~2× the hang time of Roblox gravity); 1 = real-world, 0 = Roblox gravity |
 
 ## 4. Arcade vs simulation
 
@@ -91,9 +92,11 @@ Arcade cars are still defined by the same variables; they're just less realistic
 
 ## 5. Setups
 
-**Arcade / stable (keyboard-friendly):** `specs/arcade_car.json`: AWD 45/55, frontWeight 0.55, comHeight ~0.42 m, grip 1.4–1.5 front with rear 10–15% higher, slideGrip 0.9–0.95, tire shape 1.6, stiffness ~9, drift maxAngle 15–20 with stabilizer 1.0 and countersteer ~0.2, handbrakeGripScale 0.6–0.7, antiRoll 0.7, rollCenter 0.65, downforceCl ~0.4. In the lab's keyboard slalom grid (55/65/80 km/h, full lock flicked every 0.5–0.9 s) it never spins and slides at most ~25°; the stock road specs slide 65–87° and the RWD ones spin in some runs. Rear grip bias is what does it: at equal front/rear grip the same car slides ~40°. Steering speed and highSpeedScale barely change the result, and a very low highSpeedScale makes it slightly worse.
+**GTA-style helpers (every spec):** GTA's handling hides several assists behind its numbers. The kit has the two that matter most on a keyboard. `assists.stability` works like ESC: steering asks for a yaw rate (v·tan(steer)/wheelbase, capped by grip), and rotation beyond it is torqued out. It is off while the handbrake is held and for 0.6 s after. `recovery.airGravity` lightens gravity in the air, and air control turns the car toward the ground below at no more than ~70°/s. With both at their defaults, every road spec goes 0/9 spins on the slalom grid, and a 14° ramp at 80 km/h tilts the car at most 60–85°/s, down from 120–185°/s.
 
-**Drift (RWD):** see drifting.md and `specs/drift_car.json`: frontWeight 0.50–0.52, rear grip 5–12% below front, slideGrip 0.82–0.88, tire shape 1.6–1.75, handbrakeGripScale 0.3–0.4, steering maxAngle 50–55, mid-range torque, short gears, countersteer 0.5–0.7, drift maxAngle 60–70, stabilizer 0.5–0.7.
+**Arcade / stable (keyboard-friendly):** `specs/arcade_car.json`: stability 1.0, airGravity 2.0, AWD 45/55, frontWeight 0.55, comHeight ~0.42 m, grip 1.4–1.5 front with rear 10–15% higher, slideGrip 0.9–0.95, tire shape 1.6, stiffness ~9, drift maxAngle 15–20 with stabilizer 1.0 and countersteer ~0.2, handbrakeGripScale 0.6–0.7, antiRoll 0.7, rollCenter 0.65, downforceCl ~0.4. In the lab's keyboard slalom grid (55/65/80 km/h, full lock flicked every 0.5–0.9 s) it never spins and slides at most ~4°. Without the stability assist it slides ~25°, and the stock road specs slid 65–87°, with the RWD ones spinning in some runs. Steering speed and highSpeedScale barely change the result, and a very low highSpeedScale makes it slightly worse.
+
+**Drift (RWD):** see drifting.md and `specs/drift_car.json`: frontWeight 0.50–0.52, rear grip 5–12% below front, slideGrip 0.82–0.88, tire shape 1.6–1.75, handbrakeGripScale 0.3–0.4, steering maxAngle 50–55, mid-range torque, short gears, countersteer 0.5–0.7, drift maxAngle 60–70, stabilizer 0.5–0.7, assists.stability 0–0.3 (0.2 keeps it from spinning on landings without killing drifts).
 
 **Off-road / truck:** maxLength 2.2–3.0 studs, rideHeight 0.5–0.55, frequency 1.9–2.4 Hz, damping 0.3, grip 0.75–0.9, AWD 40/60, comHeight 0.75–0.9 m, low first gear for climbing.
 

@@ -33,7 +33,7 @@ Players must always be able to keep driving. Every vehicle built with this skill
 - **a hidden collision hull** instead of the body mesh: bottom no lower than the axles, rounded nose and tail cylinders, friction 0.08, so the car rides over, deflects off and slides along kerbs, trees, poles and barriers
 - **a `VehicleIgnore` collision group** for grass, flowers, small rocks and debris (no collision, invisible to the wheels)
 - **stuck assist**: throttle held but not moving for 1 s → lift and push; after 3 tries → recover a few studs back
-- **auto-flip** when on its side or roof, **air control** that levels the car in jumps, and a **Reset** button (R / Y / touch) with a cooldown
+- **auto-flip** when on its side or roof, **air control** (lighter in-air gravity for hang time, a smooth rate-capped turn toward the landing surface), and a **Reset** button (R / Y / touch) with a cooldown
 
 Never ship a vehicle with these turned off for free-roam driving, with collision left on a detailed body mesh, or with hull friction above 0.3. Run every vehicle through the stuck test course in `references/anti-stuck.md` and fix the map where it fails (kerb heights, props, terrain spikes, gaps).
 
@@ -70,9 +70,9 @@ Bundled specs (verified by `scripts/selftest.cjs` to land in realistic ranges):
 | `DriftCar` | RWD, 374 hp, 1250 kg | 5.5 s | 251 km/h (redline) | 38 m |
 | `ArcadeCar` | AWD, 279 hp, 1300 kg | 4.2 s | 240 km/h (limiter) | 32 m |
 
-`ArcadeCar` is the planted, keyboard-friendly tune: high grip with the rear 14% above the front, high slide grip, and a stabilizer that catches slides past 15°. Start from it when players say the cars feel slippery (tuning-guide.md, "Arcade / stable").
+`ArcadeCar` is the planted, keyboard-friendly tune: full stability assist, high grip with the rear 14% above the front, high slide grip, a stabilizer that catches slides past 15°, and 2 g air gravity for GTA-like hang time. Start from it when players say the cars feel slippery (tuning-guide.md, "Arcade / stable").
 
-Spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m above ground), `wheelRadius` (m, used for gearing; the mesh's wheel size is only visual), `wheelbase` (m, report only), `drivetrain`, `awdFrontSplit`, `engine` {`idleRpm`, `redlineRpm`, `launchRpm`, `efficiency`, `speedLimitKmh`, `torqueCurve` [[rpm, N·m]...]}, `gearbox` {`ratios`, `reverse`, `finalDrive`, `shiftUpRpm`, `shiftDownRpm`, `shiftTime`}, `brakes` {`decelG`, `frontBias`, `handbrakeGripScale`}, `steering` {`maxAngle`, `speed`, `highSpeedScale`, `highSpeedKmh`}, `tires` {`gripFront`, `gripRear`, `stiffness`, `shape`, `slideGrip`, `rollingResistance`}, `drift` {`countersteer`, `maxAngle`, `stabilizer`}, `recovery` {`airControl`, `autoFlip`, `stuckAssist`}, `body` {`autoHull`, `hullFriction`}, `suspension` {`frequencyFront`, `frequencyRear`, `dampingRatio`, `maxLength` (studs), `rideHeight` (0–1), `antiRoll`, `rollCenter` (0–1)}, `aero` {`cd`, `area` (m²), `downforceCl`}.
+Spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m above ground), `wheelRadius` (m, used for gearing; the mesh's wheel size is only visual), `wheelbase` (m, report only), `drivetrain`, `awdFrontSplit`, `engine` {`idleRpm`, `redlineRpm`, `launchRpm`, `efficiency`, `speedLimitKmh`, `torqueCurve` [[rpm, N·m]...]}, `gearbox` {`ratios`, `reverse`, `finalDrive`, `shiftUpRpm`, `shiftDownRpm`, `shiftTime`}, `brakes` {`decelG`, `frontBias`, `handbrakeGripScale`}, `steering` {`maxAngle`, `speed`, `highSpeedScale`, `highSpeedKmh`}, `tires` {`gripFront`, `gripRear`, `stiffness`, `shape`, `slideGrip`, `rollingResistance`}, `drift` {`countersteer`, `maxAngle`, `stabilizer`}, `recovery` {`airControl`, `airGravity` (g in the air, default 2.5), `autoFlip`, `stuckAssist`}, `assists` {`stability` (0–1, GTA/ESC-style yaw assist, default 0.6)}, `body` {`autoHull`, `hullFriction`}, `suspension` {`frequencyFront`, `frequencyRear`, `dampingRatio`, `maxLength` (studs), `rideHeight` (0–1), `antiRoll`, `rollCenter` (0–1)}, `aero` {`cd`, `area` (m²), `downforceCl`}.
 
 ## The kit
 

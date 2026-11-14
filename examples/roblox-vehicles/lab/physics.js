@@ -53,7 +53,9 @@
   const CAST_LIFT = 1; // sphere casts start this many wheel radii above the mount
   const AIR_SUPPORT = 0.2;
   const STOP_GAIN = 0.4; // share of 'stop this corner in one step': above ~0.65 the yaw mode oscillates at standstill
-  const AIR_LEVEL = 40, AIR_DAMP = 14; // air control gains (× Recovery.AirControl)
+  const AIR_LEVEL = 2.5, AIR_DAMP = 14, AIR_MAX_RATE = 1.2, LIP_DAMP = 60; // air control: leveling rate per rad of tilt (1/s), rate-tracking gain (1/s, × Recovery.AirControl), max pitch/roll rate (rad/s)
+  const ESC_GAIN = 10; // stability assist: yaw-rate correction (1/s, × Assists.Stability)
+  const ESC_HANDBRAKE_GRACE = 0.6; // s after the handbrake is released before the assist returns
   const HOLD_MS = 0.6; // hill hold below this speed (m/s) with no pedal
   const MIN_ROOT_MASS = 150; // RMU: keeps a seated character a small share of the assembly // springs carrying less than this share of weight = airborne
 
@@ -66,7 +68,8 @@
     steering: { maxAngle: 34, speed: 4, highSpeedScale: 0.4, highSpeedKmh: 160 },
     tires: { gripFront: 1.0, gripRear: 1.0, stiffness: 10, shape: 1.9, slideGrip: 0.8, rollingResistance: 0.013 },
     drift: { countersteer: 0.15, maxAngle: 50, stabilizer: 0.5 },
-    recovery: { airControl: 0.3, autoFlip: true, stuckAssist: true },
+    recovery: { airControl: 0.3, airGravity: 2.5, autoFlip: true, stuckAssist: true },
+    assists: { stability: 0.6 },
     body: { autoHull: true, hullFriction: 0.08 },
     suspension: { frequencyFront: 2.4, frequencyRear: 2.6, dampingRatio: 0.35, maxLength: 1.6, rideHeight: 0.6, antiRoll: 0.3, rollCenter: 0.5 },
     aero: { cd: 0.32, area: 2.1, downforceCl: 0 },
@@ -343,7 +346,7 @@
       this.inertiaAir = (mass * (rootSize[0] ** 2 + rootSize[2] ** 2)) / 12;
       this.gear = 1; this.shiftTimer = 0; this.steer = 0; this.rpm = spec.engine.idleRpm;
       this.stuckTimer = 0; this.unstickUntil = 0; this.unstickTries = 0; this.flipTimer = 0; this.lastRecover = -Infinity;
-      this.accelLong = 0; this.accelLat = 0; this.tireLongN = 0; this.tireLatN = 0;
+      this.accelLong = 0; this.accelLat = 0; this.tireLongN = 0; this.tireLatN = 0; this.handbrakeAt = -Infinity;
       this.frontCount = Math.max(fronts.length, 1);
       this.wheelbaseM = (wheelbase * MPS); this.trackM = (track * MPS);
       this.clock = 0; this.recoveries = 0; this.unsticks = 0; this.events = [];
@@ -570,24 +573,55 @@
           extra = V.add(extra, V.add([0, weight * 0.6, 0], V.mul(push, spec.mass * G * 0.45 * toRoblox)));
         }
       }
+      // Stability assist (what ESC and GTA's hidden handling helpers do): the steering asks for a yaw
+      // rate, v·tan(steer)/wheelbase, capped by what the tires can hold. Rotation beyond that (or
+      // against it) is a slide the driver didn't ask for: a yaw torque takes it out, so quick
+      // keyboard flicks and lift-off don't swing the rear out. Off while the handbrake is held
+      // (and briefly after), so handbrake turns and drifts still work.
+      if (input.handbrake) this.handbrakeAt = now;
+      const stability = spec.assists.stability;
+      this.escT = [0, 0, 0];
+      if (stability > 0 && grounded >= 2 && forwardMs > 3 && now - this.handbrakeAt > ESC_HANDBRAKE_GRACE) {
+        const yawRate = V.dot(body.w, up);
+        const muAvg = (tires.gripFront + tires.gripRear) / 2;
+        const cap = (muAvg * G) / forwardMs;
+        const wanted = clamp((-forwardMs * Math.tan((this.steer * Math.PI) / 180)) / this.wheelbaseM, -cap, cap);
+        const over = yawRate - clamp(yawRate, Math.min(0, wanted), Math.max(0, wanted));
+        this.escT = V.mul(up, -over * ESC_GAIN * stability * this.inertiaAir);
+      }
+
+      // In the air: Roblox gravity (~5.6 g at 0.28 m/stud) makes jumps last a blink. Lift part of it
+      // so the car falls at Recovery.AirGravity real g: hang time to line up the landing.
+      // Leaving a ramp lip at speed, the share of wheels already off the ground gets that relief
+      // too: the springs still on the lip then don't flip the nose down off every jump.
+      const offShare = grounded === 0 ? 1 : speedMs > 8 ? 1 - grounded / this.wheels.length : 0;
+      if (offShare > 0 && rec.airGravity > 0) {
+        extra = V.add(extra, [0, offShare * this.assemblyMass * Math.max(0, world.gravity - (rec.airGravity * G) / MPS), 0]);
+      }
       this.aeroF = extra;
 
       const upright = up[1];
       if (rec.autoFlip && upright < 0.3 && V.len(velocity) < 4) { this.flipTimer += dt; if (this.flipTimer >= 1.5) this.recover(); }
       else this.flipTimer = 0;
 
-      // Air control. Fully airborne: level the car (spring toward upright + damping). Partly off the
-      // ground at speed (cresting a ramp lip, one axle in the air): damp pitch/roll rate only, so
-      // Roblox's strong gravity doesn't kick the nose down off every jump.
+      // Air control. Fully airborne: turn the car smoothly (rate-capped, no snap) until its wheels
+      // face the ground below it, a ramp's slope included. Partly off the ground at speed (cresting
+      // a ramp lip, one axle in the air): damp pitch/roll rate only, so the nose doesn't drop off
+      // every jump.
       const ang = body.w;
       const tilt = [ang[0], 0, ang[2]];
       if ((grounded === 0 || support < AIR_SUPPORT) && rec.airControl > 0) {
-        const axis = V.cross(up, [0, 1, 0]);
-        const level = V.sub(V.mul(axis, AIR_LEVEL), V.mul(tilt, AIR_DAMP));
-        this.stabT = V.mul(level, this.inertiaAir * rec.airControl);
+        const below = world.raycast(body.pos, [0, -80, 0]);
+        const targetUp = below && below.normal[1] > 0.5 ? below.normal : [0, 1, 0];
+        const err = V.cross(up, targetUp); // axis × sin(angle) that turns "up" onto targetUp
+        let rate = V.mul(err, AIR_LEVEL);
+        const rl = V.len(rate);
+        if (rl > AIR_MAX_RATE) rate = V.mul(rate, AIR_MAX_RATE / rl);
+        this.stabT = V.mul(V.sub(rate, tilt), AIR_DAMP * this.inertiaAir * rec.airControl);
       } else if (grounded < this.wheels.length && rec.airControl > 0 && speedMs > 5) {
-        this.stabT = V.mul(tilt, -AIR_DAMP * this.inertiaAir * rec.airControl);
+        this.stabT = V.mul(tilt, -LIP_DAMP * this.inertiaAir * rec.airControl);
       } else this.stabT = [0, 0, 0];
+      this.stabT = V.add(this.stabT, this.escT);
 
       this.telemetry = { speedKmh: forwardMs * 3.6, rpm: this.rpm, gear: this.gear, steer: this.steer, grounded, slip: worstSlip, driftAngle, drifting, stuck };
       return this.telemetry;

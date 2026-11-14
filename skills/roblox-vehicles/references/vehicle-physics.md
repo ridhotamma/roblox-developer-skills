@@ -138,6 +138,7 @@ Gear ratios set where the power is usable: short gears = strong acceleration, lo
 - `MaxAngle`: steering lock at the wheels (road cars 30–38°).
 - `Speed`: how many full locks per second the wheels can travel (3–5 cars, 6–8 karts); smooths keyboard input.
 - Speed sensitivity: lock shrinks linearly to `HighSpeedScale × MaxAngle` at `HighSpeedKmh`. Essential with keyboard input, or full lock at 200 km/h spins the car.
+- Stability assist (`Assists.Stability`, 0–1): the yaw rate the steering asks for is `v · tan(steer) / wheelbase` (bicycle model), capped at `μ·g / v`. Yaw beyond that band, or yaw against the steering, gets a torque of `−excess × 10 × Stability × I` about the car's up axis. This is ESC's job done with a torque instead of single-wheel braking, and it's the main reason GTA cars feel planted on a keyboard. It needs two or more wheels on the ground and forward speed above 3 m/s, and it's off while the handbrake is held and for 0.6 s after, so handbrake turns still rotate the car. Understeer is left alone.
 
 ## 10. Aerodynamics and resistance
 

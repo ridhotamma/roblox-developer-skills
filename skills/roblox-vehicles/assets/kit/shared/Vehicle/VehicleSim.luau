@@ -13,7 +13,10 @@
 -- plus drag and downforce at the centre of mass, and the never-get-stuck layer:
 --   * stuck assist: throttle held but not moving -> lift and push; repeated -> recover
 --   * flip recovery: on its side or roof and slow -> set upright
---   * air control: levels the car while airborne and damps the kick off ramp lips
+--   * air control: lighter gravity in the air (Recovery.AirGravity, real g) for hang time, a
+--     rate-capped turn toward the ground below while airborne, and pitch damping on ramp lips
+-- Stability assist (Assists.Stability, like ESC and GTA's hidden helpers): yaw beyond what the
+-- steering asks for is taken out, so keyboard flicks and lift-off don't swing the rear out.
 -- Drift helpers: countersteer assist and a yaw stabilizer past the spec's max drift angle.
 --
 -- Roblox gravity (196.2 studs/s^2) is ~5.6x real gravity at 0.28 m per stud, while tires,
@@ -44,7 +47,13 @@ local STOP_GAIN = 0.4 -- "stop this corner in one step" gain at standstill; near
 -- (much less effective mass than the corners) oscillates and parked cars never settle
 local HOLD_MS = 0.6 -- hill hold: no pedal below this speed (m/s) -> brakes on all four wheels
 local AIR_SUPPORT = 0.2 -- springs carrying less than this share of the weight = airborne
-local AIR_LEVEL, AIR_DAMP = 40, 14 -- air control gains, times Recovery.AirControl
+local AIR_LEVEL = 2.5 -- airborne: wanted pitch/roll rate (rad/s) per radian of tilt from the ground below
+local AIR_MAX_RATE = 1.2 -- rad/s (~70°/s): the car never snaps around in the air
+local AIR_DAMP = 14 -- airborne rate tracking (1/s), times Recovery.AirControl
+local LIP_DAMP = 60 -- partly airborne at speed: pitch/roll rate damping (1/s), times Recovery.AirControl
+local LIP_MIN_MS = 8 -- partly airborne above this speed (m/s) gets the air-gravity relief per wheel off
+local ESC_GAIN = 10 -- stability assist: yaw-rate correction (1/s), times Assists.Stability
+local ESC_HANDBRAKE_GRACE = 0.6 -- s after the handbrake is released before the assist returns
 local DRIFT_MIN_ANGLE = 10 -- degrees of body slip that count as drifting
 local DRIFT_MIN_KMH = 25
 
@@ -117,6 +126,7 @@ export type VehicleSim = typeof(setmetatable(
 		accelLat: number,
 		tireLongN: number,
 		tireLatN: number,
+		handbrakeAt: number,
 	},
 	VehicleSim
 ))
@@ -248,6 +258,7 @@ function VehicleSim.new(model: Model): VehicleSim?
 		accelLat = 0,
 		tireLongN = 0,
 		tireLatN = 0,
+		handbrakeAt = -math.huge,
 	}, VehicleSim)
 end
 
@@ -556,9 +567,22 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 		extraForce += groundAlong * root.AssemblyMass * excess * (grounded / #self.wheels)
 	end
 
+	-- In the air: Roblox gravity (~5.6 g at 0.28 m per stud) makes jumps last a blink. Lift part of
+	-- it so the car falls at Recovery.AirGravity real g: hang time to line up the landing. Leaving a
+	-- ramp lip at speed, the share of wheels already off the ground gets that relief too, so the
+	-- springs still on the lip don't flip the nose down off every jump.
+	local recovery = spec.Recovery
+	local offShare = if grounded == 0
+		then 1
+		elseif speedMs > LIP_MIN_MS then 1 - grounded / #self.wheels
+		else 0
+	if offShare > 0 and recovery.AirGravity > 0 then
+		local lift = math.max(0, Workspace.Gravity - recovery.AirGravity * G / MPS)
+		extraForce += Vector3.yAxis * offShare * root.AssemblyMass * lift
+	end
+
 	-- Never stuck, part 1: throttle held but going nowhere (beached on a kerb, wedged against a
 	-- tree, wheels hanging in a ditch) -> lift and push for a moment; after several tries, recover.
-	local recovery = spec.Recovery
 	local stuck = false
 	if recovery.StuckAssist then
 		local trying = math.abs(input.Throttle) > 0.5
@@ -599,21 +623,42 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 		self.flipTimer = 0
 	end
 
-	-- Never stuck, part 3: in the air, level the car so it lands on its wheels. Partly off the
-	-- ground at speed (cresting a ramp lip, one axle in the air), only damp pitch and roll rate,
-	-- so Roblox's strong gravity doesn't kick the nose down off every jump.
+	-- Never stuck, part 3: fully airborne, turn the car smoothly (rate-capped, no snap) until its
+	-- wheels face the ground below it, a landing ramp's slope included. Partly off the ground at
+	-- speed (cresting a ramp lip, one axle in the air), only damp pitch and roll rate.
 	local stabilizer = self.stabilizer
 	if stabilizer then
 		local angular = root.AssemblyAngularVelocity
 		local tilt = angular - Vector3.yAxis * angular.Y
+		local torque = Vector3.zero
 		if (grounded == 0 or support < AIR_SUPPORT) and recovery.AirControl > 0 then
-			local axis = up:Cross(Vector3.yAxis) -- rotation that brings "up" back to world up
-			stabilizer.Torque = (axis * AIR_LEVEL - tilt * AIR_DAMP) * self.inertia * recovery.AirControl
+			local below = Workspace:Raycast(root.Position, Vector3.yAxis * -80, self.params)
+			local targetUp = if below and below.Normal.Y > 0.5 then below.Normal else Vector3.yAxis
+			local rate = up:Cross(targetUp) * AIR_LEVEL -- axis * sin(angle) that turns up onto targetUp
+			if rate.Magnitude > AIR_MAX_RATE then
+				rate = rate.Unit * AIR_MAX_RATE
+			end
+			torque = (rate - tilt) * AIR_DAMP * self.inertia * recovery.AirControl
 		elseif grounded < #self.wheels and recovery.AirControl > 0 and speedMs > 5 then
-			stabilizer.Torque = -tilt * AIR_DAMP * self.inertia * recovery.AirControl
-		else
-			stabilizer.Torque = Vector3.zero
+			torque = -tilt * LIP_DAMP * self.inertia * recovery.AirControl
 		end
+
+		-- Stability assist: the steering asks for a yaw rate, v * tan(steer) / wheelbase, capped by
+		-- what the tires can hold. Rotation beyond that (or against it) is a slide the driver didn't
+		-- ask for, and a yaw torque takes it out. Off while the handbrake is held and briefly after,
+		-- so handbrake turns and drifts still work.
+		if input.Handbrake then
+			self.handbrakeAt = now
+		end
+		local stability = spec.Assists.Stability
+		if stability > 0 and grounded >= 2 and forwardMs > 3 and now - self.handbrakeAt > ESC_HANDBRAKE_GRACE then
+			local yawRate = angular:Dot(up)
+			local cap = (tires.GripFront + tires.GripRear) / 2 * G / forwardMs
+			local wanted = math.clamp(-forwardMs * math.tan(math.rad(self.steer)) / self.wheelbaseM, -cap, cap)
+			local over = yawRate - math.clamp(yawRate, math.min(0, wanted), math.max(0, wanted))
+			torque -= up * over * ESC_GAIN * stability * self.inertia
+		end
+		stabilizer.Torque = torque
 	end
 
 	return {

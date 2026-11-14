@@ -96,7 +96,11 @@
    "recovery": {
     "airControl": 0.5,
     "autoFlip": true,
-    "stuckAssist": true
+    "stuckAssist": true,
+    "airGravity": 2
+   },
+   "assists": {
+    "stability": 1
    }
   },
   "report": {
@@ -205,6 +209,9 @@
     "cd": 0.33,
     "area": 1.95,
     "downforceCl": 0.1
+   },
+   "assists": {
+    "stability": 0.2
    }
   },
   "report": {

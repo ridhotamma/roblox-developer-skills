@@ -61,8 +61,12 @@ return table.freeze({
 		}),
 		Recovery = table.freeze({
 			AirControl = 0.5,
+			AirGravity = 2,
 			AutoFlip = true,
 			StuckAssist = true,
+		}),
+		Assists = table.freeze({
+			Stability = 1,
 		}),
 		Body = table.freeze({
 			AutoHull = true,
@@ -139,8 +143,12 @@ return table.freeze({
 		}),
 		Recovery = table.freeze({
 			AirControl = 0.3,
+			AirGravity = 2.5,
 			AutoFlip = true,
 			StuckAssist = true,
+		}),
+		Assists = table.freeze({
+			Stability = 0.2,
 		}),
 		Body = table.freeze({
 			AutoHull = true,
@@ -217,8 +225,12 @@ return table.freeze({
 		}),
 		Recovery = table.freeze({
 			AirControl = 0.3,
+			AirGravity = 2.5,
 			AutoFlip = true,
 			StuckAssist = true,
+		}),
+		Assists = table.freeze({
+			Stability = 0.6,
 		}),
 		Body = table.freeze({
 			AutoHull = true,
@@ -294,8 +306,12 @@ return table.freeze({
 		}),
 		Recovery = table.freeze({
 			AirControl = 0.5,
+			AirGravity = 2.5,
 			AutoFlip = true,
 			StuckAssist = true,
+		}),
+		Assists = table.freeze({
+			Stability = 0.6,
 		}),
 		Body = table.freeze({
 			AutoHull = true,
@@ -372,8 +388,12 @@ return table.freeze({
 		}),
 		Recovery = table.freeze({
 			AirControl = 0.4,
+			AirGravity = 2.5,
 			AutoFlip = true,
 			StuckAssist = true,
+		}),
+		Assists = table.freeze({
+			Stability = 0.6,
 		}),
 		Body = table.freeze({
 			AutoHull = true,
@@ -450,8 +470,12 @@ return table.freeze({
 		}),
 		Recovery = table.freeze({
 			AirControl = 0.3,
+			AirGravity = 2.5,
 			AutoFlip = true,
 			StuckAssist = true,
+		}),
+		Assists = table.freeze({
+			Stability = 0.6,
 		}),
 		Body = table.freeze({
 			AutoHull = true,
