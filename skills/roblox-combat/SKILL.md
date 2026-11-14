@@ -1,6 +1,6 @@
 ---
 name: roblox-combat
-description: Make Roblox combat feel great and play fair - hit feedback (hitstop, hit flash, knockback, camera shake, FOV punch, faked slow motion before the hit, invulnerability blink, layered impact sound, damage numbers), melee attack anatomy (startup, active, recovery, hitboxes, hit-stun, poise, combos, input buffering, block, parry, dodge), guns and ranged weapons (hitscan vs projectile, camera-to-muzzle aiming, spread and bloom, recoil with recovery, muzzle flash, smoke, tracers, bullet drop, impacts by material, bullet holes, hit markers, headshots, damage falloff, ammo and reload, ADS, explosives), and enemy design (archetypes, telegraphs, attack patterns, state-machine AI, attack tokens, waves, difficulty scaling, bosses). Ships a server-authoritative Luau kit with client-side prediction (HitFeedback, CameraFx, WeaponFx, Knockback, Ballistics, CombatService, WeaponService, EnemyService) and a browser feel lab for tuning hits by feel. Use this whenever the user is building combat, a fighting or battlegrounds game, an FPS or shooter, guns, bows, spells or projectiles, enemies, NPC AI, bosses, waves, or says combat feels floaty, weak, laggy or unfair, even if they only say "make hitting feel better".
+description: Make Roblox combat feel great and play fair - hit feedback (hitstop, hit flash, knockback, camera shake, FOV punch, faked slow motion before the hit, invulnerability blink, layered impact sound, damage numbers), melee attack anatomy (startup, active, recovery, hitboxes, hit-stun, poise, combos, input buffering, block, parry, dodge), guns and ranged weapons (first-person and over-the-shoulder third-person shooter camera like Resident Evil 4 / GTA with shoulder swap, aim zoom and wall collision, hitscan vs projectile, camera-to-muzzle aiming, spread and bloom, recoil with recovery, muzzle flash, smoke, tracers, bullet drop, impacts by material, bullet holes, hit markers, headshots, damage falloff, ammo and reload, ADS, explosives), and enemy design (archetypes, telegraphs, attack patterns, state-machine AI, attack tokens, waves, difficulty scaling, bosses). Ships a server-authoritative Luau kit with client-side prediction (HitFeedback, CameraFx, WeaponFx, Knockback, Ballistics, AimCamera, WeaponState, CameraController, CombatService, WeaponService, EnemyService), Luau tests that run in the luau CLI, a browser feel lab for tuning hits by feel, and a browser shooter lab whose numbers are checked against the Luau. Use this whenever the user is building combat, a fighting or battlegrounds game, an FPS, TPS or shooter, a first-person or over-the-shoulder camera, guns, bows, spells or projectiles, enemies, NPC AI, bosses, waves, or says combat feels floaty, weak, laggy or unfair, even if they only say "make hitting feel better".
 ---
 
 # Roblox combat
@@ -23,6 +23,7 @@ Good combat is two things at once: **it feels powerful** (every hit lands with s
 | "Combat feels weak/floaty" | Diagnose against the feedback stack (`references/hit-feedback.md` §1, the problems table in `references/combat-flow.md` §8). Add the missing layers in order: sound → hitstop → flash → knockback → shake. Give numbers from the weight table. |
 | Melee combat system | Attack anatomy, hitboxes, combos and stun from `references/combat-flow.md`; install the kit (melee parts). |
 | Guns / FPS / bows / spells | `references/ranged-weapons.md`; install the kit (weapon parts). Pick hitscan or projectile per weapon; start from the archetype stat table. |
+| First-person or over-the-shoulder (RE4 / GTA) camera | The kit's `CameraController` + `AimCamera` (`references/ranged-weapons.md` §12). Tune `CombatConfig.Camera`; point the user at the shooter lab to feel it and to see the tests. |
 | Enemies, AI, bosses, waves | `references/enemy-design.md`; the kit's `EnemyService` gives a working state machine with telegraphs, tokens, stagger and respawn. |
 | Tune the feel by playing | Send/publish `assets/feel-lab.html`: a browser sandbox where the user hits a dummy with adjustable hitstop, flash, knockback, shake, FOV punch, slow-mo, i-frames and sound, then copies the tuned values as a Luau `HitWeights` table. |
 
@@ -35,7 +36,9 @@ Good combat is two things at once: **it feels powerful** (every hit lands with s
 | `shared/Combat/CombatConfig.luau` | both | Hit weights, melee combo, i-frames, enemy archetypes, weapons, sounds, caps. All tuning lives here. |
 | `shared/Combat/Hitbox.luau` | both | Box query in front of a root part, unique living character models. |
 | `shared/Combat/Knockback.luau` | both | `LinearVelocity` push for a set time, with caps. |
-| `shared/Combat/Ballistics.luau` | both | Spread cone, damage falloff, projectile stepping with gravity and raycasts. |
+| `shared/Combat/Ballistics.luau` | both | Spread cone, damage falloff, projectile stepping with gravity and raycasts, crosshair aim point (skipping the stretch behind the character), muzzle obstruction. |
+| `shared/Combat/AimCamera.luau` | both | Pure shooter-camera maths: first person and over-the-shoulder third person, mouse / touch / gamepad look, aim zoom, shoulder swap, wall and floor collision, character facing. No Instances; tested in the luau CLI. |
+| `shared/Combat/WeaponState.luau` | both | Pure gun rules: Semi / Auto / Burst, frame-rate-proof fire rate, click buffering, ammo, reload and cancel, bloom, spread and recoil size; `ServerFire` is the server's rate and ammo check. |
 | `server/Services/CombatService.luau` | server | The one place damage happens: i-frames, damage, poise, delayed knockback, broadcast, `Damaged` signal (with hit position, direction and body part); melee `Swing` handler with server combo and hitbox. |
 | `server/Services/WeaponService.luau` | server | `Fire`/`Reload` handlers: rate, ammo, origin and direction validation, hitscan or simulated projectiles, headshots, falloff, shot broadcast. |
 | `server/Services/EnemyService.luau` | server | Enemy state machine (Idle, Chase, Hover, Telegraph, Attack, Recover, Stagger, Dead), attack tokens, server network ownership, respawn, `Defeated` signal. |
@@ -43,20 +46,27 @@ Good combat is two things at once: **it feels powerful** (every hit lands with s
 | `client/Combat/CameraFx.luau` | client | Trauma camera shake, recoil spring, FOV punch, shake scale setting. |
 | `client/Combat/WeaponFx.luau` | client | Muzzle flash and light, smoke, tracers, projectile visuals, impacts by material, bullet holes, hit marker. |
 | `client/Controllers/CombatController.luau` | client | Melee input (mouse, gamepad, touch button), combo mirror, pre-hit slow-mo, predicted hits, knockback listener, hit events. |
-| `client/Controllers/WeaponController.luau` | client | Equipped-weapon input, fire modes, spread and bloom, recoil, ADS, reload, ammo display and crosshair, others' shots. |
+| `client/Controllers/WeaponController.luau` | client | Equipped-weapon input (rules in `WeaponState`), recoil, ADS, reload, ammo display and crosshair, the red "muzzle blocked" dot, others' shots. |
+| `client/Controllers/CameraController.luau` | client | The shooter camera in game: drives `AimCamera` from mouse, right stick and touch drags, spherecasts for walls, locks the mouse, turns the character to the aim, hides it in first person. `V` view, `Q` shoulder (gamepad D-pad up / R3, touch buttons). |
 | `client/Components/EnemyVisuals.luau` | client | Red telegraph pulse and "!" from the enemy's `State` attribute. |
 
 Install steps to give the user:
 1. Copy the kit folders into `src` (merge with the scaffold).
 2. Add the remotes to `REMOTES` in `src/shared/Net/init.luau` (the list is at the top of `CombatConfig.luau`, with directions): `Swing`, `Fire`, `Reload`, `CombatHit`, `Knockback`, `Ammo` as `"Event"`, and `ShotFired` as `"Unreliable"`.
 3. Enemies: put an R15 or R6 rig (Humanoid + HumanoidRootPart) in Workspace, tag it `Enemy`, set attribute `Archetype` = `Grunt` or `Brute`. Or put templates in `ServerStorage.Assets.Enemies` and call `EnemyService:Spawn("Grunt", cframe)`.
-4. Guns: a Tool with a `Handle`, an `Attachment` named `Muzzle` at the barrel tip, and attribute `Weapon` = a name from `CombatConfig.Weapons` (`Pistol`, `Rifle`, `Shotgun`, `Bow`).
-5. Sounds: paste audio asset ids into `CombatConfig.Sounds` (empty ids are skipped, so everything works silently until then). Animations: optional ids in the config; until then the timings in the config drive everything.
-6. If `roblox-security` is installed, the services call `AntiCheatService:Grant` around knockback automatically.
+4. Camera: on by default (`CombatConfig.Camera.Enabled`), starting over the right shoulder (`StartMode = "Third"`, or `"First"`). Set `Enabled = false` to keep Roblox's camera; call `CameraController.SetEnabled(false)` for cutscenes and vehicles.
+5. Guns: a Tool with a `Handle`, an `Attachment` named `Muzzle` at the barrel tip, and attribute `Weapon` = a name from `CombatConfig.Weapons` (`Pistol`, `Rifle`, `Shotgun`, `Bow`).
+6. Sounds: paste audio asset ids into `CombatConfig.Sounds` (empty ids are skipped, so everything works silently until then). Animations: optional ids in the config; until then the timings in the config drive everything.
+7. If `roblox-security` is installed, the services call `AntiCheatService:Grant` around knockback automatically.
    If `roblox-ragdoll` is installed, every hit also becomes a flinch and a limb injury by body zone, finishers knock down and deaths ragdoll (it listens to `CombatService.Damaged`; guns pass the exact part they hit).
-7. Play, hit, tune values in `CombatConfig` (or in the feel lab first).
+8. Play, hit, tune values in `CombatConfig` (or in the feel lab first).
 
 When writing new combat code for a project, follow the same split: input and cosmetics in Controllers and `client/Combat`, validation and damage only through `CombatService:Hit`, tuning only in `CombatConfig`.
+
+## Tests and the shooter lab
+
+- `tests/Shooter.spec.luau`: 57 checks of AimCamera, WeaponState, Ballistics and CameraFx. Run `node tests/run-luau.cjs` (needs the `luau` CLI: `brew install luau` or `rokit add luau-lang/luau`). It bundles `tests/RobloxShim.luau` (Vector3, CFrame, Random, raycasts against boxes, RunService) with the kit modules unmodified, so what passes is the code that goes into Studio. Run it after changing those modules or the camera / weapon config.
+- The shooter lab (`examples/roblox-combat/index.html` in the skills repo) is a playable FPS / TPS sandbox and 33 replayable scenarios (first person, over the shoulder, walls, corners, input, fire modes, reload, bloom, recoil, spread, damage, the bow, the server's rate check). Its JS is a line-for-line port; `node lab/run-tests.cjs` runs the scenarios and replays each one's trace through the real Luau (`tests/Replay.luau`), failing on any number that differs. `lab/build-config.cjs` regenerates its config from `CombatConfig.luau`.
 
 ## Feel lab
 
@@ -66,7 +76,8 @@ When writing new combat code for a project, follow the same split: input and cos
 
 - Roblox has no global time scale: slow motion is local and cosmetic (animations, sound, color, FOV); physics and other players keep normal speed.
 - The kit's Luau is a reviewed starting point, not battle-tested in a live game: test in Studio with two players (Test → Clients and Servers) and with emulated latency (Studio's network simulation settings) before shipping.
-- Lag compensation, viewmodels, pathfinding, ranged enemies and bosses are documented in the references but not implemented in the kit.
+- The camera's wall checks are spherecasts; very thin parts or fast-moving platforms can still clip for a frame. Mouse lock fights other scripts that set `MouseBehavior`; check menus and shift-lock settings in Studio.
+- Lag compensation, viewmodels (first person shows the third-person arms and tool), pathfinding, ranged enemies and bosses are documented in the references but not implemented in the kit.
 - Ragdolls, flinches by body part and limping are the `roblox-ragdoll` skill's job; this kit only pushes and staggers.
 
 ## References

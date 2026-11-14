@@ -47,13 +47,39 @@ function Ballistics.Step(
 	return nextPosition, nextVelocity, nil
 end
 
--- The aim point: where the camera's crosshair ray lands (or max range). Bullets fly from the
--- muzzle toward this point, so the crosshair stays honest even though the gun is offset.
-function Ballistics.AimPoint(camera: Camera, range: number, params: RaycastParams): Vector3
-	local origin = camera.CFrame.Position
-	local direction = camera.CFrame.LookVector * range
-	local result = workspace:Raycast(origin, direction, params)
-	return if result then result.Position else origin + direction
+export type RayFn = (origin: Vector3, direction: Vector3) -> Vector3? -- hit position or nil
+
+-- The aim point: where the crosshair ray from `cameraCFrame` lands (or max range). Bullets fly
+-- from the muzzle toward this point, so the crosshair stays honest even though the gun is offset.
+-- `skip` studs at the start of the ray are ignored: in third person that's the stretch between
+-- the camera and the character (AimCamera:AimSkip()), so a post behind you can't eat the shot.
+function Ballistics.AimFrom(cameraCFrame: CFrame, range: number, skip: number, cast: RayFn): Vector3
+	local look = cameraCFrame.LookVector
+	local origin = cameraCFrame.Position + look * skip
+	local hit = cast(origin, look * (range - skip))
+	return hit or origin + look * (range - skip)
+end
+
+function Ballistics.AimPoint(camera: Camera, range: number, params: RaycastParams, skip: number?): Vector3
+	return Ballistics.AimFrom(camera.CFrame, range, skip or 0, function(origin, direction)
+		local result = workspace:Raycast(origin, direction, params)
+		return if result then result.Position else nil
+	end)
+end
+
+-- Where the bullet from the muzzle toward `aimPoint` actually stops, if something sits between
+-- them (the gun pokes past a corner the camera sees around). Nil when the line is clear.
+function Ballistics.Obstruction(muzzle: Vector3, aimPoint: Vector3, cast: RayFn): Vector3?
+	local toAim = aimPoint - muzzle
+	local distance = toAim.Magnitude
+	if distance < 1e-3 then
+		return nil
+	end
+	local hit = cast(muzzle, toAim)
+	if hit and (aimPoint - hit).Magnitude > 0.5 then
+		return hit
+	end
+	return nil
 end
 
 function Ballistics.IsHead(part: Instance): boolean

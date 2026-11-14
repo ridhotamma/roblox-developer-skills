@@ -279,6 +279,37 @@ return table.freeze({
 	}),
 	AdsFov = 55,
 	OriginTolerance = 8, -- max studs between the fire origin and the character's head (server check)
+	FireBuffer = 0.12, -- seconds: a semi-auto click this close before the gun is ready fires when it is
+	FireJitterTolerance = 0.12, -- seconds of network bunching the server's fire-rate check forgives
+
+	-- Shooter camera (CameraController + AimCamera). "Third" = over the shoulder, like Resident
+	-- Evil 4, The Last of Us or GTA; "First" = from the head. Distances in studs, angles in degrees.
+	Camera = table.freeze({
+		Enabled = true, -- false = keep Roblox's default camera (the weapon kit still works)
+		StartMode = "Third", -- "Third" | "First"
+		AllowToggle = true, -- the view key switches modes
+		Sensitivity = 0.22, -- degrees per mouse pixel
+		TouchSensitivity = 0.3, -- degrees per dragged pixel
+		GamepadSpeed = 260, -- degrees per second at full right-stick tilt
+		GamepadDeadzone = 0.15,
+		GamepadCurve = 2, -- stick response exponent (1 = linear; 2 = fine control near the centre)
+		AimSensitivityScale = 0.6, -- look speed multiplier while aiming
+		PitchMin = -80,
+		PitchMax = 80,
+		Third = table.freeze({ Distance = 8, Height = 1.6, Shoulder = 2.2, Fov = 70 }),
+		ThirdAim = table.freeze({ Distance = 4, Height = 1.5, Shoulder = 1.9, Fov = 50 }),
+		First = table.freeze({ Height = 1.5, Fov = 80, AimFov = 55 }),
+		AimBlendSpeed = 14, -- per second: hip <-> aim transition (~0.2 s)
+		ShoulderSwapSpeed = 10, -- per second
+		CollisionRadius = 0.5, -- camera sphere; walls never come closer than this
+		PushOutSpeed = 18, -- studs/s the camera eases back out after a wall stops blocking it
+		FaceAimSeconds = 0.6, -- after a shot, the character keeps facing the crosshair this long
+		TurnSpeed = 900, -- degrees per second the character turns to face the aim
+		Keys = table.freeze({
+			ToggleView = table.freeze({ "V", "DPadUp" }),
+			SwapShoulder = table.freeze({ "Q", "ButtonR3" }),
+		}),
+	}),
 
 	-- Audio asset ids ("rbxassetid://123"). Empty = silent. Find sounds in the Creator Store.
 	Sounds = table.freeze({

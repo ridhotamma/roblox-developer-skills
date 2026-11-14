@@ -330,6 +330,7 @@ local hud: ScreenGui? = nil
 local arms: { Frame } = {}
 local marker: Frame? = nil
 local ammoLabel: TextLabel? = nil
+local blockDot: Frame? = nil
 
 local function ensureHud(): ScreenGui
 	if hud and hud.Parent then
@@ -385,6 +386,19 @@ local function ensureHud(): ScreenGui
 	label.Parent = gui
 	ammoLabel = label
 
+	-- Where the bullet will really stop when something sits between the muzzle and the crosshair.
+	local dot = Instance.new("Frame")
+	dot.AnchorPoint = Vector2.new(0.5, 0.5)
+	dot.Size = UDim2.fromOffset(10, 10)
+	dot.BackgroundColor3 = Color3.fromRGB(255, 90, 90)
+	dot.BorderSizePixel = 0
+	dot.Visible = false
+	dot.Parent = gui
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0.5, 0)
+	corner.Parent = dot
+	blockDot = dot
+
 	hud = gui
 	return gui
 end
@@ -413,6 +427,24 @@ function WeaponFx.SetAmmo(magazine: number, reserve: number, reloading: boolean?
 	local label = ammoLabel :: TextLabel
 	label.Text = if reloading then "Reloading..." else `{magazine} / {reserve}`
 	label.TextColor3 = if magazine == 0 then Color3.fromRGB(255, 90, 90) else Color3.new(1, 1, 1)
+end
+
+-- Shows a red dot where the shot would actually land (nil hides it), and dims the crosshair.
+function WeaponFx.SetObstruction(point: Vector3?)
+	ensureHud()
+	local dot = blockDot :: Frame
+	local camera = workspace.CurrentCamera
+	local screen, onScreen = Vector3.zero, false
+	if point and camera then
+		screen, onScreen = camera:WorldToViewportPoint(point)
+	end
+	dot.Visible = onScreen
+	if dot.Visible then
+		dot.Position = UDim2.fromOffset(screen.X, screen.Y)
+	end
+	for _, arm in arms do
+		arm.BackgroundTransparency = if dot.Visible then 0.6 else 0
+	end
 end
 
 local markerToken = 0

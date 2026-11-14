@@ -16,6 +16,7 @@ local CombatConfig = require(ReplicatedStorage.Shared.Combat.CombatConfig)
 local CombatService = require(script.Parent.CombatService)
 local Hitbox = require(ReplicatedStorage.Shared.Combat.Hitbox)
 local Net = require(ReplicatedStorage.Shared.Net)
+local WeaponState = require(ReplicatedStorage.Shared.Combat.WeaponState)
 
 type AmmoState = { magazine: number, reserve: number, reloadingUntil: number, nextShot: number }
 type Projectile = {
@@ -120,14 +121,12 @@ local function fire(player: Player, rawOrigin: unknown, rawDirection: unknown)
 		return
 	end
 
+	-- Same rules as the client's WeaponState: not reloading, ammo left, not faster than the rate
+	-- (with a little slack for network bunching; the average rate can't be beaten).
 	local state = ammoFor(player, name, weapon)
-	local now = os.clock()
-	local interval = 60 / weapon.Rpm
-	if now < state.reloadingUntil or now < state.nextShot - interval * 0.25 or state.magazine <= 0 then
+	if not WeaponState.ServerFire(state, weapon, os.clock(), CombatConfig.FireJitterTolerance) then
 		return
 	end
-	state.nextShot = math.max(state.nextShot, now) + interval -- 25% early allowed above, average rate kept
-	state.magazine -= 1
 
 	local params = rayParams({ character })
 	if weapon.Projectile then
@@ -170,7 +169,14 @@ local function reload(player: Player)
 		return
 	end
 	state.reloadingUntil = now + weapon.ReloadSeconds
+	local started = state.reloadingUntil
 	task.delay(weapon.ReloadSeconds, function()
+		-- Cancelled if the weapon was put away meanwhile (see ChildRemoved below).
+		local _, _, holding = equipped(player)
+		if state.reloadingUntil ~= started or holding ~= name then
+			return
+		end
+		state.reloadingUntil = 0
 		local moved = math.min(weapon.Magazine - state.magazine, state.reserve)
 		state.magazine += moved
 		state.reserve -= moved
@@ -217,6 +223,19 @@ function WeaponService:Start()
 			local weapon = typeof(name) == "string" and (CombatConfig.Weapons :: any)[name]
 			if weapon then
 				sendAmmo(player, name :: string, ammoFor(player, name :: string, weapon))
+			end
+		end)
+		-- Unequipping cancels a reload in progress (WeaponState:Unequip does the same on the client).
+		character.ChildRemoved:Connect(function(child)
+			local name = if child:IsA("Tool") then child:GetAttribute("Weapon") else nil
+			local perPlayer = ammo[player]
+			if typeof(name) ~= "string" or not perPlayer then
+				return
+			end
+			local state = perPlayer[name]
+			if state and state.reloadingUntil > 0 then
+				state.reloadingUntil = 0
+				sendAmmo(player, name, state)
 			end
 		end)
 	end

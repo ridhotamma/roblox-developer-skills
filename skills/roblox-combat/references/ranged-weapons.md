@@ -140,7 +140,9 @@ The impact tells the player what they hit:
 ## 12. Aim down sights and first person
 
 - ADS: tween `Camera.FieldOfView` from 70 to 50–60 (snipers ~20–30 with a scope overlay), reduce spread and recoil, slow walk speed (×0.6–0.8 on the server).
-- First person: `Player.CameraMode = LockFirstPerson` or a custom camera; a viewmodel (arms + gun rendered close to the camera) gives the best feel but is a big job; third-person shooters with an over-the-shoulder offset are simpler and common on Roblox.
+- First person: the kit's `CameraController` (`StartMode = "First"`) puts the camera at the eyes, hides the body (not the Tool) and keeps the character facing the crosshair. A viewmodel (arms + gun rendered close to the camera) gives the best feel but is a big job.
+- Over the shoulder (Resident Evil 4, The Last of Us, GTA): the camera sits behind and to the right of the head and looks **parallel** to the aim, so the character is left of the crosshair and never covers it. Aiming pulls it in (8 → 4 studs) with a narrower FOV (70 → 50) and slower look; `Q` swaps shoulders (eased, ~0.3 s) for peeking left corners. Walls: spherecast sideways to the shoulder first (squeezes the offset when hugging a wall), then backwards (pulls in at once, eases back out at ~18 studs/s) so the camera never enters geometry. Ignore CanCollide-off parts (`RespectCanCollide`) so foliage and glass don't shove it. The character turns to face the crosshair while aiming and for ~0.6 s after a hip-fire shot, otherwise it runs freely.
+- Third-person aim ray: start the crosshair raycast at the character, not the camera (`AimCamera:AimSkip()`), or a bush or teammate behind you eats the shot. The bullet still flies from the muzzle to that aim point; when something sits between the muzzle and the aim point (peeking a corner the camera sees around), the shot honestly hits it and the HUD shows a red dot there (`Ballistics.Obstruction`).
 - Mobile: a fire button on the right side (`ContextActionService` touch button), optional auto-fire when the crosshair is on an enemy (popular for touch shooters), ADS toggle button.
 
 ## 13. Security and networking

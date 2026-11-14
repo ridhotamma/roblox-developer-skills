@@ -30,6 +30,7 @@ local fovPunch = 0
 local baseFov: number? = nil
 local targetFov: number? = nil
 local bound = false
+local fovOwned = false
 
 local function step(dt: number)
 	local camera = workspace.CurrentCamera
@@ -66,10 +67,15 @@ local function step(dt: number)
 		camera.CFrame = camera.CFrame * offset
 	end
 
+	fovPunch *= math.exp(-FOV_PUNCH_DECAY * dt)
+	if fovOwned then
+		-- CameraController wrote this frame's FOV already (it handles aiming); only punch it.
+		camera.FieldOfView -= fovPunch
+		return
+	end
 	local base = baseFov :: number
 	base += ((targetFov :: number) - base) * math.min(1, dt * FOV_EASE)
 	baseFov = base
-	fovPunch *= math.exp(-FOV_PUNCH_DECAY * dt)
 	camera.FieldOfView = base - fovPunch
 end
 
@@ -115,6 +121,13 @@ function CameraFx.SetBaseFov(fov: number?)
 	end
 	CameraFx.DefaultFov = CameraFx.DefaultFov or baseFov
 	targetFov = fov or CameraFx.DefaultFov
+end
+
+-- True while another script (CameraController) sets Camera.FieldOfView every frame before this
+-- step; CameraFx then only subtracts the punch instead of owning the FOV.
+function CameraFx.SetFovOwned(owned: boolean)
+	fovOwned = owned
+	ensureBound()
 end
 
 -- 0 = no shake (accessibility setting), 1 = default.
