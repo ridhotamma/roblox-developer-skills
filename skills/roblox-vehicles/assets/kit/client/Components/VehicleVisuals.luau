@@ -21,6 +21,7 @@ local VehicleSpecs = require(ReplicatedStorage.Shared.Vehicle.VehicleSpecs)
 
 local DRAW_DISTANCE = 450 -- studs from the camera; farther cars skip casts and effects
 local CAST_RADIUS = 0.85 -- must match VehicleSim
+local CAST_LIFT = 1 -- must match VehicleSim
 local WALL_NORMAL = 0.35
 local SMOKE_TEXTURE = "rbxasset://textures/particles/smoke_main.dds"
 local SMOKE_MAX_RATE = 70 -- particles per second per wheel at full slip
@@ -222,11 +223,17 @@ local function setup(instance: Instance, trove: any)
 			if near then
 				local castRadius = wheel.radius * CAST_RADIUS
 				local inset = wheel.radius - castRadius
-				hit = workspace:Spherecast(wheel.mount.WorldPosition, castRadius, -up * (maxLength + inset), params)
+				local lift = wheel.radius * CAST_LIFT
+				hit = workspace:Spherecast(
+					wheel.mount.WorldPosition + up * lift,
+					castRadius,
+					-up * (maxLength + inset + lift),
+					params
+				)
 				if hit and hit.Normal:Dot(up) < WALL_NORMAL then
 					hit = nil
 				end
-				length = if hit then math.clamp(hit.Distance - inset, 0, maxLength) else maxLength
+				length = if hit then math.clamp(hit.Distance - inset - lift, 0, maxLength) else maxLength
 			end
 			wheel.spin -= forwardSpeed / wheel.radius * dt
 

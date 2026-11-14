@@ -5,16 +5,24 @@
 -- server while it's parked. Each physics step, per wheel:
 --   1. sphere-cast down from the suspension mount (a sphere almost the tire's size rolls over
 --      curbs, kerbs and terrain steps instead of catching them; steep walls are not "ground")
---   2. spring + damper force along the chassis up axis (Roblox units, frequency-tuned)
---   3. anti-roll bars move force between the left and right wheel of each axle
+--   2. spring + damper force (Roblox units, frequency-tuned), pushed along the ground normal
+--   3. real-world load transfer (see below) and anti-roll bars between left and right
 --   4. tire forces in real units: lateral grip from the slip angle (tire curve with slide
 --      grip), drive and brake force along the wheel, all limited by mu * load
 --   5. converted to Roblox force and written to that wheel's VectorForces
 -- plus drag and downforce at the centre of mass, and the never-get-stuck layer:
 --   * stuck assist: throttle held but not moving -> lift and push; repeated -> recover
 --   * flip recovery: on its side or roof and slow -> set upright
---   * air control: gently levels the car while airborne so it lands on its wheels
+--   * air control: levels the car while airborne and damps the kick off ramp lips
 -- Drift helpers: countersteer assist and a yaw stabilizer past the spec's max drift angle.
+--
+-- Roblox gravity (196.2 studs/s^2) is ~5.6x real gravity at 0.28 m per stud, while tires,
+-- engine and brakes work in real units. Two corrections keep the car behaving like the spec:
+--   * slopes: the excess gravity along the ground plane is cancelled, so hills hold and climb
+--     like real ones (otherwise anything past ~10 degrees slides even with the brakes on)
+--   * load transfer: the inertial couple that pitches and rolls the body is ~5.6x too small, so
+--     the missing part is added from the tire forces; the body squats, dives and leans, and the
+--     springs (which set tire load) carry the real-world transfer
 
 local Workspace = game:GetService("Workspace")
 
@@ -30,6 +38,13 @@ local STUCK_SECONDS = 1.0 -- throttle held with no movement before the assist ki
 local UNSTICK_SECONDS = 0.45
 local MAX_UNSTICK_TRIES = 3 -- then recover (lift, upright, small step back)
 local FLIP_SECONDS = 1.5
+local CAST_LIFT = 1 -- casts start this many wheel radii above the mount, so a hard landing or
+-- a deep compression never starts the sphere inside the ground (Spherecast ignores those parts)
+local STOP_GAIN = 0.4 -- "stop this corner in one step" gain at standstill; near 1 the yaw mode
+-- (much less effective mass than the corners) oscillates and parked cars never settle
+local HOLD_MS = 0.6 -- hill hold: no pedal below this speed (m/s) -> brakes on all four wheels
+local AIR_SUPPORT = 0.2 -- springs carrying less than this share of the weight = airborne
+local AIR_LEVEL, AIR_DAMP = 40, 14 -- air control gains, times Recovery.AirControl
 local DRIFT_MIN_ANGLE = 10 -- degrees of body slip that count as drifting
 local DRIFT_MIN_KMH = 25
 
@@ -68,6 +83,7 @@ type Wheel = {
 	grounded: boolean,
 	hit: RaycastResult?,
 	springForce: number,
+	transferForce: number,
 	slip: number,
 }
 
@@ -94,6 +110,13 @@ export type VehicleSim = typeof(setmetatable(
 		flipTimer: number,
 		lastRecover: number,
 		inertia: number,
+		frontCount: number,
+		wheelbaseM: number,
+		trackM: number,
+		accelLong: number,
+		accelLat: number,
+		tireLongN: number,
+		tireLatN: number,
 	},
 	VehicleSim
 ))
@@ -159,9 +182,34 @@ function VehicleSim.new(model: Model): VehicleSim?
 			grounded = false,
 			hit = nil,
 			springForce = 0,
+			transferForce = 0,
 			slip = 0,
 		})
 	end
+
+	-- Wheelbase and track (m) from the mounts, for load transfer.
+	local frontZ, rearZ, leftX, rightX = 0, 0, 0, 0
+	local leftCount, rightCount = 0, 0
+	for _, wheel in wheels do
+		local p = wheel.mount.Position
+		if wheel.front then
+			frontZ += p.Z / frontCount
+		else
+			rearZ += p.Z / rearCount
+		end
+		if wheel.left then
+			leftX += p.X
+			leftCount += 1
+		else
+			rightX += p.X
+			rightCount += 1
+		end
+	end
+	local wheelbaseM = math.max(math.abs(frontZ - rearZ) * VehicleMath.METERS_PER_STUD, 0.5)
+	local trackM = math.max(
+		math.abs(leftX / math.max(leftCount, 1) - rightX / math.max(rightCount, 1)) * VehicleMath.METERS_PER_STUD,
+		0.5
+	)
 
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -193,6 +241,13 @@ function VehicleSim.new(model: Model): VehicleSim?
 		flipTimer = 0,
 		lastRecover = -math.huge,
 		inertia = inertia,
+		frontCount = math.max(frontCount, 1),
+		wheelbaseM = wheelbaseM,
+		trackM = trackM,
+		accelLong = 0,
+		accelLat = 0,
+		tireLongN = 0,
+		tireLatN = 0,
 	}, VehicleSim)
 end
 
@@ -272,6 +327,13 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 		end
 	end
 
+	-- Hill hold: no pedal and (nearly) stopped -> service brakes on all four wheels, so parked and
+	-- waiting cars stay put on slopes.
+	local holding = math.abs(input.Throttle) <= 0.05 and math.abs(forwardMs) < HOLD_MS
+	if holding then
+		brake = 1
+	end
+
 	-- Gearbox.
 	if self.shiftTimer > 0 then
 		self.shiftTimer -= dt
@@ -297,13 +359,19 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 	for _, wheel in self.wheels do
 		local castRadius = wheel.radius * CAST_RADIUS
 		local inset = wheel.radius - castRadius -- sphere centre sits this far below the wheel centre
-		local hit = Workspace:Spherecast(wheel.mount.WorldPosition, castRadius, -up * (maxLength + inset), self.params)
+		local lift = wheel.radius * CAST_LIFT
+		local hit = Workspace:Spherecast(
+			wheel.mount.WorldPosition + up * lift,
+			castRadius,
+			-up * (maxLength + inset + lift),
+			self.params
+		)
 		if hit and hit.Normal:Dot(up) < WALL_NORMAL then
 			hit = nil -- a wall or the side of a curb: let the body hull deal with it, don't climb it
 		end
 		wheel.hit = hit
 		if hit then
-			local length = math.clamp(hit.Distance - inset, 0, maxLength)
+			local length = math.clamp(hit.Distance - inset - lift, 0, maxLength)
 			local compressionSpeed = (wheel.length - length) / dt
 			wheel.springForce = wheel.k * (wheel.restLength - length) + wheel.c * compressionSpeed
 			wheel.length = length
@@ -315,6 +383,46 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 			wheel.grounded = false
 		end
 	end
+
+	-- Ground plane under the car (average of the wheel hits).
+	local groundNormal = up
+	if grounded > 0 then
+		local sum = Vector3.zero
+		for _, wheel in self.wheels do
+			if wheel.hit then
+				sum += wheel.hit.Normal
+			end
+		end
+		groundNormal = sum.Unit
+	end
+	local groundAlong = Vector3.yAxis - groundNormal * groundNormal.Y -- uphill, magnitude sin(slope)
+
+	-- Pass 1b: real-world load transfer. The missing part of the inertial couple, from the tire
+	-- forces of the last step (not the body's motion, so body roll can't feed back into it):
+	-- outer and rear springs push that much less, inner and front that much more.
+	local smooth = math.min(1, dt * 15)
+	self.accelLong += (math.clamp(self.tireLongN / spec.Mass, -2.5 * G, 2.5 * G) - self.accelLong) * smooth
+	self.accelLat += (math.clamp(self.tireLatN / spec.Mass, -2.5 * G, 2.5 * G) - self.accelLat) * smooth
+	for _, wheel in self.wheels do
+		wheel.transferForce = 0
+	end
+	if grounded == #self.wheels then
+		local share = 1 - G / MPS / Workspace.Gravity
+		local longN = spec.Mass * self.accelLong * spec.ComHeight / self.wheelbaseM -- front -> rear
+		local latN = spec.Mass * self.accelLat * spec.ComHeight / self.trackM -- right -> left
+		for _, wheel in self.wheels do
+			local axleShare = if wheel.front then spec.FrontWeight else 1 - spec.FrontWeight
+			local axleCount = if wheel.front then self.frontCount else self.rearCount
+			local dN = (if wheel.front then -longN else longN) / axleCount
+				+ (if wheel.left then latN else -latN) * axleShare / (axleCount / 2)
+			wheel.transferForce = wheel.staticForce * (dN / wheel.axleWeightN) * share
+		end
+	end
+	local support = 0
+	for _, wheel in self.wheels do
+		support += math.max(0, wheel.springForce)
+	end
+	support /= root.AssemblyMass * Workspace.Gravity
 
 	-- Pass 2: anti-roll bars (per axle, left vs right compression).
 	local antiRoll = spec.Suspension.AntiRoll
@@ -350,6 +458,8 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 	local downforceN = VehicleMath.Downforce(spec, velocity.Magnitude * MPS)
 	local rollCenter = spec.Suspension.RollCenter
 	local worstSlip = 0
+	local sumLong, sumLat = 0, 0
+	local stopGain = STOP_GAIN + (1 - STOP_GAIN) * math.clamp(velocity.Magnitude * MPS / 4, 0, 1)
 	local steerRotation = CFrame.fromAxisAngle(up, -math.rad(self.steer))
 
 	-- Yaw stabilizer: past the spec's max drift angle, the rear finds grip again so the car
@@ -383,11 +493,17 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 		local contactVelocity = root:GetVelocityAtPosition(hit.Position)
 		local longMs = contactVelocity:Dot(wheelForward) * MPS
 		local latMs = contactVelocity:Dot(wheelRight) * MPS
-		local stopLimit = wheel.cornerMassKg / dt -- N per (m/s): never push past zero in one step
+		-- N per (m/s): never push a corner past zero speed in one step (gentler at standstill)
+		local stopLimit = wheel.cornerMassKg / dt * stopGain
 
 		local slipAngle = math.atan2(latMs, math.max(math.abs(longMs), 0.5))
 		local latN = -gripN * VehicleMath.TireCurve(slipAngle, tires.Stiffness, tires.Shape, tires.SlideGrip)
 		latN = math.clamp(latN, -stopLimit * math.abs(latMs), stopLimit * math.abs(latMs))
+		-- Holding still on a slope: carry this corner's share of the downhill pull outright.
+		local holdPull = if holding then wheel.cornerMassKg * G else 0
+		if holding then
+			latN += holdPull * groundAlong:Dot(wheelRight)
+		end
 
 		local longN = driveN * wheel.driveShare
 		local brakeN = brake * spec.Mass * G * brakes.DecelG * wheel.brakeShare
@@ -395,8 +511,12 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 			brakeN += spec.Mass * G * brakes.DecelG * 0.5 / self.rearCount
 		end
 		local resistN = brakeN + tires.RollingResistance * loadN
-		local direction = if longMs >= 0 then 1 else -1
-		longN -= direction * math.min(resistN, stopLimit * math.abs(longMs))
+		if holding then
+			longN += math.clamp(holdPull * groundAlong:Dot(wheelForward) - stopLimit * longMs, -resistN, resistN)
+		else
+			local direction = if longMs >= 0 then 1 else -1
+			longN -= direction * math.min(resistN, stopLimit * math.abs(longMs))
+		end
 
 		local total = math.sqrt(latN * latN + longN * longN)
 		wheel.slip = if gripN > 0 then total / gripN else 0
@@ -406,12 +526,19 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 			longN *= scale
 		end
 		worstSlip = math.max(worstSlip, wheel.slip)
+		local tireN = wheelForward * longN + wheelRight * latN
+		sumLong += tireN:Dot(forward)
+		sumLat += tireN:Dot(right)
 
 		local lift = (root.Position - hit.Position):Dot(up) * rollCenter
 		wheel.contact.WorldPosition = hit.Position + up * lift
-		wheel.spring.Force = up * springForce
+		-- Along the ground normal: along the chassis axis, a leaning body would get a sideways push
+		-- worth Roblox's (5.6x) weight times the lean.
+		wheel.spring.Force = groundNormal * math.max(0, wheel.springForce - wheel.transferForce)
 		wheel.tire.Force = (wheelForward * longN + wheelRight * latN) * toRoblox
 	end
+
+	self.tireLongN, self.tireLatN = sumLong, sumLat
 
 	-- Aero: drag against the motion, downforce as a share of real weight.
 	local speedMs = velocity.Magnitude * MPS
@@ -421,6 +548,12 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 	end
 	if downforceN > 0 then
 		extraForce -= up * (downforceN / (spec.Mass * G)) * root.AssemblyMass * Workspace.Gravity
+	end
+
+	-- Slopes: cancel the part of Roblox's gravity beyond real gravity along the ground plane.
+	if grounded > 0 then
+		local excess = Workspace.Gravity - G / MPS
+		extraForce += groundAlong * root.AssemblyMass * excess * (grounded / #self.wheels)
 	end
 
 	-- Never stuck, part 1: throttle held but going nowhere (beached on a kerb, wedged against a
@@ -466,14 +599,18 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 		self.flipTimer = 0
 	end
 
-	-- Never stuck, part 3: in the air, gently level the car so it lands on its wheels.
+	-- Never stuck, part 3: in the air, level the car so it lands on its wheels. Partly off the
+	-- ground at speed (cresting a ramp lip, one axle in the air), only damp pitch and roll rate,
+	-- so Roblox's strong gravity doesn't kick the nose down off every jump.
 	local stabilizer = self.stabilizer
 	if stabilizer then
-		if grounded == 0 and recovery.AirControl > 0 then
+		local angular = root.AssemblyAngularVelocity
+		local tilt = angular - Vector3.yAxis * angular.Y
+		if (grounded == 0 or support < AIR_SUPPORT) and recovery.AirControl > 0 then
 			local axis = up:Cross(Vector3.yAxis) -- rotation that brings "up" back to world up
-			local angular = root.AssemblyAngularVelocity
-			local level = axis * 10 - (angular - Vector3.yAxis * angular.Y) * 3
-			stabilizer.Torque = level * self.inertia * recovery.AirControl
+			stabilizer.Torque = (axis * AIR_LEVEL - tilt * AIR_DAMP) * self.inertia * recovery.AirControl
+		elseif grounded < #self.wheels and recovery.AirControl > 0 and speedMs > 5 then
+			stabilizer.Torque = -tilt * AIR_DAMP * self.inertia * recovery.AirControl
 		else
 			stabilizer.Torque = Vector3.zero
 		end

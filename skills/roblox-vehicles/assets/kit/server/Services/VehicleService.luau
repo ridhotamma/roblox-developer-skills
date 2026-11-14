@@ -35,6 +35,7 @@ local SLEEP_AFTER = 2 -- seconds settled before a parked car is anchored
 local SPEED_MARGIN = 1.35 -- flag drivers going this much over the spec's top speed
 local COLLISION_GROUP = "VehicleHull"
 local IGNORE_GROUP = "VehicleIgnore"
+local MIN_ROOT_MASS = 150 -- assembly mass units for the chassis root (see build)
 
 
 -- Optional: roblox-security's Sanctions for implausible speeds.
@@ -217,7 +218,12 @@ local function build(model: Model, spec: any): boolean
 	root.CanCollide = false
 	root.CanQuery = false
 	root.CanTouch = false
-	root.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5)
+	-- At least MIN_ROOT_MASS, so a seated character (welded in, and not massless) stays a small
+	-- share of the assembly: on a light kart it would otherwise be half the mass, up high and to
+	-- one side, leaning the car and shifting its balance. Performance doesn't depend on this mass.
+	local volume = root.Size.X * root.Size.Y * root.Size.Z
+	local density = math.clamp(MIN_ROOT_MASS / volume, 0.7, 100)
+	root.CustomPhysicalProperties = PhysicalProperties.new(density, 0.3, 0.5)
 	root.CollisionGroup = COLLISION_GROUP -- VehicleSim's casts use this group's rules
 	root.Parent = model
 
@@ -465,7 +471,9 @@ function VehicleService:Start()
 		task.spawn(bind, model)
 	end
 
-	local idle = { Throttle = 0, Steer = 0, Handbrake = true }
+	-- No pedal: VehicleSim's hill hold brakes all four wheels once stopped. (The handbrake would
+	-- only lower rear grip - it's a drift control - and let parked cars slide off slopes.)
+	local idle = { Throttle = 0, Steer = 0, Handbrake = false }
 	RunService.PreSimulation:Connect(function(dt)
 		for model, entry in parked do
 			local root = model.PrimaryPart

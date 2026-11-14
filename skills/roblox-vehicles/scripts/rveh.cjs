@@ -177,18 +177,35 @@ function topSpeed(s) {
   return { kmh: best, limiter };
 }
 
+// Straight-line braking with load transfer: each axle brakes with its share (frontBias) of
+// decelG, capped by that axle's grip under the transfer the deceleration itself causes. No ABS
+// redistribution, same as the kit: a badly biased car locks one axle and stops longer.
+function brakeDecel(s) {
+  const W = s.mass * G, hl = s.comHeight / wheelbaseMeters(s);
+  let a = s.brakes.decelG * G, front = 0, rear = 0;
+  for (let i = 0; i < 30; i++) {
+    const transfer = s.mass * a * hl;
+    const fLoad = Math.max(0, W * s.frontWeight + transfer), rLoad = Math.max(0, W * (1 - s.frontWeight) - transfer);
+    front = Math.min(s.brakes.frontBias * s.brakes.decelG * W, s.tires.gripFront * fLoad);
+    rear = Math.min((1 - s.brakes.frontBias) * s.brakes.decelG * W, s.tires.gripRear * rLoad);
+    a += ((front + rear) / s.mass - a) * 0.5;
+  }
+  const idealBias = s.frontWeight + (a / G) * hl; // front share of load at this deceleration
+  return { g: a / G, frontLocked: front < s.brakes.frontBias * s.brakes.decelG * W - 1, rearLocked: rear < (1 - s.brakes.frontBias) * s.brakes.decelG * W - 1, idealBias };
+}
+
 function braking(s) {
   const v0 = 100 / 3.6;
   const dt = 0.002;
   let v = v0, d = 0, t = 0;
-  const grip = Math.min(s.brakes.decelG, s.brakes.frontBias * s.tires.gripFront + (1 - s.brakes.frontBias) * s.tires.gripRear);
+  const b = brakeDecel(s);
   while (v > 0) {
-    const a = grip * G + (dragForce(s, v) + downforce(s, v) * 0) / s.mass + s.tires.rollingResistance * G;
+    const a = b.g * G + dragForce(s, v) / s.mass + s.tires.rollingResistance * G;
     v -= a * dt;
     d += Math.max(v, 0) * dt;
     t += dt;
   }
-  return { meters: d, seconds: t, decelG: grip };
+  return { meters: d, seconds: t, decelG: b.g, frontLocked: b.frontLocked, rearLocked: b.rearLocked, idealBias: b.idealBias };
 }
 
 function peakPower(s) {
@@ -224,6 +241,7 @@ function report(s) {
     const a = susp[axle];
     if (a.bumpTravelStuds < a.sagStuds) warnings.push(`${axle} suspension can bottom out on a 1 g bump (bump travel ${a.bumpTravelStuds.toFixed(2)} < sag ${a.sagStuds.toFixed(2)} studs): raise frequency${axle === 'front' ? 'Front' : 'Rear'}, maxLength or rideHeight`);
   }
+  if ((brake.rearLocked || brake.frontLocked) && brake.decelG < s.brakes.decelG * 0.97) warnings.push(`${brake.rearLocked ? 'rear' : 'front'} brakes lock before ${s.brakes.decelG} g (frontBias ${s.brakes.frontBias}, load transfer wants ~${brake.idealBias.toFixed(2)}): stops at ${brake.decelG.toFixed(2)} g`);
   if (s.suspension.dampingRatio < 0.2) warnings.push('dampingRatio below 0.2 bounces; 0.25-0.45 is typical');
   if (s.suspension.dampingRatio > 0.8) warnings.push('dampingRatio above 0.8 feels stiff and skips over bumps');
   if (s.tires.slideGrip < 0.6) warnings.push('tires.slideGrip below 0.6: slides collapse into spins; 0.75-0.85 keeps drifts controllable');

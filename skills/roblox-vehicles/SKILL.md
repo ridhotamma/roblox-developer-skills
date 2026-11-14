@@ -16,15 +16,15 @@ That separation is what makes chassis reusable across meshes: performance never 
 
 Per wheel, every physics step, on whoever owns the car (the driver's client, or the server when parked):
 
-1. Sphere-cast down from the suspension mount (a sphere almost the tire's size, so wheels roll over kerbs and terrain steps; steep walls don't count as ground) → spring length.
-2. Spring + damper force, tuned by **natural frequency (Hz)** and **damping ratio**, so suspension feel doesn't depend on the model's mass.
-3. Anti-roll bars move force between left and right wheels.
+1. Sphere-cast down from a wheel radius above the suspension mount (a sphere almost the tire's size, so wheels roll over kerbs and terrain steps; steep walls don't count as ground; starting high means a hard landing never starts the cast inside the ground) → spring length.
+2. Spring + damper force, tuned by **natural frequency (Hz)** and **damping ratio**, so suspension feel doesn't depend on the model's mass, pushed along the ground normal.
+3. Real-world load transfer (squat, dive, lean) and anti-roll bars move force between the wheels.
 4. Tire forces in real units: lateral grip from the **slip angle** through a simplified Pacejka curve, drive force from **torque curve × gear × final drive ÷ wheel radius**, brake force from **deceleration in g**, all capped by **grip × load** (friction circle).
 5. Converted to Roblox forces on VectorForces; drag and downforce at the centre of mass.
 
 Tires keep `slideGrip` of their grip while sliding, so drifts are holdable instead of collapsing into spins. Around all of it sits the never-stuck layer (below).
 
-Engine, brakes, tires and drag use the spec's real mass and real gravity, then convert to Roblox units, so a car with 0–100 km/h in 4.2 s in the report does that in game. Suspension uses Roblox's own gravity. `references/vehicle-physics.md` has the full model and the unit bridge.
+Engine, brakes, tires and drag use the spec's real mass and real gravity, then convert to Roblox units, so a car with 0–100 km/h in 4.2 s in the report does that in game. Suspension uses Roblox's own gravity, which is ~5.6× real gravity at 0.28 m per stud, so the sim corrects the two places where that would show: it cancels the excess gravity along the ground (hills hold and climb like real ones instead of sliding past ~10°) and adds the missing part of the load transfer (so braking, launches and cornering get real weight shift and the body visibly pitches and rolls). Stopped with no pedal, a hill hold brakes all four wheels. `references/vehicle-physics.md` has the full model and the unit bridge.
 
 ## Never stuck (hard requirement)
 
@@ -57,16 +57,16 @@ node <skill>/scripts/rveh.cjs report specs/sports_car.json      # or a whole fol
 node <skill>/scripts/rveh.cjs luau specs --out src/shared/Vehicle/VehicleSpecs.luau
 ```
 
-A spec is plain JSON with real units (kg, m, N·m, rpm, km/h, g, Hz, degrees). Omitted fields use defaults. The report prints power (kW/hp, W/kg), 0–100 km/h, 0–60 mph, 0–60 km/h, quarter mile, top speed and what limits it (drag, redline, limiter), 100–0 km/h distance, cornering g, top speed per gear at redline, and suspension sag versus bump travel. Its `WARN` lines catch suspension that will bottom out, bouncy or over-damped settings, too-short first gear, and gearing that wastes the engine.
+A spec is plain JSON with real units (kg, m, N·m, rpm, km/h, g, Hz, degrees). Omitted fields use defaults. The report prints power (kW/hp, W/kg), 0–100 km/h, 0–60 mph, 0–60 km/h, quarter mile, top speed and what limits it (drag, redline, limiter), 100–0 km/h distance, cornering g, top speed per gear at redline, and suspension sag versus bump travel. Braking is modelled per axle with load transfer, so a brake bias (`frontBias`) that locks one axle stops short of `decelG`. Its `WARN` lines catch suspension that will bottom out, bouncy or over-damped settings, brake bias that locks an axle, too-short first gear, and gearing that wastes the engine.
 
 Bundled specs (verified by `scripts/selftest.cjs` to land in realistic ranges):
 
 | Spec | Drive | 0–100 km/h | Top speed | 100–0 km/h |
 |---|---|---|---|---|
-| `Hatchback` | FWD, 117 hp, 1200 kg | 9.8 s | 197 km/h (drag) | 40 m |
-| `SportsCar` | RWD, 411 hp, 1450 kg | 4.2 s | 290 km/h (limiter) | 34 m |
+| `Hatchback` | FWD, 117 hp, 1200 kg | 9.8 s | 197 km/h (drag) | 41 m |
+| `SportsCar` | RWD, 411 hp, 1450 kg | 4.2 s | 290 km/h (limiter) | 35 m |
 | `PickupTruck` | AWD, 379 hp, 2300 kg | 6.1 s | 180 km/h (limiter) | 45 m |
-| `Kart` | RWD, 17 hp, 160 kg | 0–60 km/h 4.6 s | 88 km/h (redline) | 30 m |
+| `Kart` | RWD, 20 hp, 160 kg | 0–60 km/h 4.6 s | 88 km/h (redline) | 30 m |
 | `DriftCar` | RWD, 374 hp, 1250 kg | 5.5 s | 251 km/h (redline) | 38 m |
 
 Spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m above ground), `wheelRadius` (m, used for gearing; the mesh's wheel size is only visual), `wheelbase` (m, report only), `drivetrain`, `awdFrontSplit`, `engine` {`idleRpm`, `redlineRpm`, `launchRpm`, `efficiency`, `speedLimitKmh`, `torqueCurve` [[rpm, N·m]...]}, `gearbox` {`ratios`, `reverse`, `finalDrive`, `shiftUpRpm`, `shiftDownRpm`, `shiftTime`}, `brakes` {`decelG`, `frontBias`, `handbrakeGripScale`}, `steering` {`maxAngle`, `speed`, `highSpeedScale`, `highSpeedKmh`}, `tires` {`gripFront`, `gripRear`, `stiffness`, `shape`, `slideGrip`, `rollingResistance`}, `drift` {`countersteer`, `maxAngle`, `stabilizer`}, `recovery` {`airControl`, `autoFlip`, `stuckAssist`}, `body` {`autoHull`, `hullFriction`}, `suspension` {`frequencyFront`, `frequencyRear`, `dampingRatio`, `maxLength` (studs), `rideHeight` (0–1), `antiRoll`, `rollCenter` (0–1)}, `aero` {`cd`, `area` (m²), `downforceCl`}.
@@ -104,10 +104,10 @@ Install steps to give the user:
 
 ## Limits to be honest about
 
-- The Node report covers straight-line performance and braking on flat ground; cornering, roll and stability are checked by driving in Studio.
+- The Node report covers straight-line performance and braking on flat ground; cornering, roll and stability are checked by driving in Studio. A Three.js lab in the repo (`examples/roblox-vehicles`, `node lab/run-tests.cjs`) runs a JS port of `VehicleSim` against every bundled spec (launch, top speed, braking, skidpad, drift, the stuck test course, flips, jumps, slopes and hill starts) and replays each run in 3D. Re-port and re-run it after changing the sim.
 - Simplifications: no wheel rotational inertia or clutch model beyond launch rpm (so no true burnouts), a single slip curve per axle, and no tire temperature or wear. They're deliberate: they keep the car stable and tunable at Roblox physics rates.
-- The kit's Luau is reviewed but has not been run in Studio as part of building this skill. Test with Studio's Play (and a second client) before shipping, and adjust `METERS_PER_STUD` only if the game uses a different world scale.
-- Roblox gravity (196.2 studs/s²) is stronger than real gravity at 0.28 m per stud, so jumps arc faster than a real car's; the suspension is tuned for Roblox's gravity on purpose.
+- The kit's Luau has been checked through that JS port, not run in Studio as part of building this skill. Test with Studio's Play (and a second client) before shipping, and adjust `METERS_PER_STUD` only if the game uses a different world scale.
+- Roblox gravity (196.2 studs/s²) is stronger than real gravity at 0.28 m per stud, so jumps arc faster and shorter than a real car's; the suspension is tuned for Roblox's gravity on purpose, and the slope and load-transfer corrections above keep it from changing how the car grips. If a game changes `Workspace.Gravity`, the corrections follow it.
 
 ## References
 

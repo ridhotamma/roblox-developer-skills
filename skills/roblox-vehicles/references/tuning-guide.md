@@ -63,7 +63,8 @@ Change one thing at a time and drive the same corner before and after.
 | Slow off the line | launchRpm in a weak part of the curve, 1st gear too tall | launchRpm near peak torque, shorter 1st |
 | Hits redline long before top speed | gears too short | taller final drive or top gear |
 | Top speed too high | drag too low, no limiter | realistic Cd × A or speedLimitKmh |
-| Can't stop on hills when parked | low-speed force cap | the server sleeps parked cars after 2 s settled; or add a parking brake that anchors |
+| Rolls on hills when parked or waiting | hill hold or slope correction missing (old kit), or slope steeper than the tires' grip (tan θ > μ) | hill hold brakes all wheels below 0.6 m/s with no pedal; don't idle parked cars with the handbrake on (it lowers rear grip); the server sleeps them after 2 s settled |
+| Stops short of `decelG`, report warns brakes lock | `frontBias` far from the load-transfer ideal | set `frontBias` ≈ frontWeight + decelG × comHeight ÷ wheelbase (the warning prints it) |
 | Jitters when standing still | normal raycast noise at very low speed | already capped; make sure body parts don't collide with the ground at rest (ride height) |
 | Sinks into the ground | rest length solved for wrong gravity, or Workspace.Gravity changed after build | keep gravity constant, rebuild, or raise frequency |
 | Wheels float above/below the road | wheel radius detected wrong | set `WheelRadius` attribute on the wheel |

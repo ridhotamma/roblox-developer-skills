@@ -37,7 +37,7 @@ return table.freeze({
 		}),
 		Brakes = table.freeze({
 			DecelG = 1.05,
-			FrontBias = 0.6,
+			FrontBias = 0.72,
 			HandbrakeGripScale = 0.3,
 		}),
 		Steering = table.freeze({
@@ -115,7 +115,7 @@ return table.freeze({
 		}),
 		Brakes = table.freeze({
 			DecelG = 0.95,
-			FrontBias = 0.68,
+			FrontBias = 0.81,
 			HandbrakeGripScale = 0.55,
 		}),
 		Steering = table.freeze({
@@ -192,7 +192,7 @@ return table.freeze({
 		}),
 		Brakes = table.freeze({
 			DecelG = 1.2,
-			FrontBias = 0.4,
+			FrontBias = 0.71,
 			HandbrakeGripScale = 0.35,
 		}),
 		Steering = table.freeze({
@@ -270,7 +270,7 @@ return table.freeze({
 		}),
 		Brakes = table.freeze({
 			DecelG = 0.85,
-			FrontBias = 0.7,
+			FrontBias = 0.75,
 			HandbrakeGripScale = 0.6,
 		}),
 		Steering = table.freeze({
@@ -348,7 +348,7 @@ return table.freeze({
 		}),
 		Brakes = table.freeze({
 			DecelG = 1.15,
-			FrontBias = 0.62,
+			FrontBias = 0.72,
 			HandbrakeGripScale = 0.4,
 		}),
 		Steering = table.freeze({

@@ -36,6 +36,13 @@ check('top speed reports the limiter', R.topSpeed(limited).limiter === 'speed li
 // Drag grows with v^2.
 check('drag quadratic', near(R.dragForce(base, 20) / R.dragForce(base, 10), 4, 1e-9));
 
+// Braking with load transfer: a rear-biased car locks its rears and stops shorter of decelG.
+const rearBiased = R.normalize({ name: 'B', brakes: { decelG: 1.1, frontBias: 0.4 } });
+const balanced = R.normalize({ name: 'C', brakes: { decelG: 1.1, frontBias: 0.73 } });
+check('rear-biased brakes lock and lose decel', R.braking(rearBiased).rearLocked && R.braking(rearBiased).decelG < 0.95);
+check('balanced brakes reach decelG', near(R.braking(balanced).decelG, 1.0, 0.02) || R.braking(balanced).decelG >= 0.98);
+check('warns on brake bias that locks an axle', R.report(rearBiased).warnings.some((w) => w.includes('brakes lock')));
+
 // Validation.
 const bad = (spec, msg) => { try { R.normalize(spec); return false; } catch (e) { return e.message.includes(msg); } };
 check('rejects bad name', bad({ name: '1x' }, 'identifier'));

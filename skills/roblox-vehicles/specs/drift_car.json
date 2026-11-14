@@ -52,7 +52,7 @@
   },
   "brakes": {
     "decelG": 1.05,
-    "frontBias": 0.6,
+    "frontBias": 0.72,
     "handbrakeGripScale": 0.3
   },
   "steering": {

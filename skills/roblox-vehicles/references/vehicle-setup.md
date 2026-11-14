@@ -65,7 +65,7 @@ SportsCarBlue (Model)              attribute Vehicle = "SportsCar", tag "Vehicle
 ## 5. Ownership and multiplayer
 
 - When someone sits in the driver seat the server calls `root:SetNetworkOwner(player)`; that player's client runs `VehicleSim` every physics step, so driving has no input lag.
-- When the seat empties, ownership returns to the server, which simulates the parked car with the handbrake on and anchors it after 2 s settled (zero cost while parked). It wakes when someone sits again.
+- When the seat empties, ownership returns to the server, which simulates the parked car with no pedal (the hill hold brakes all four wheels) and anchors it after 2 s settled (zero cost while parked). It wakes when someone sits again.
 - Other players see the car through normal physics replication; their clients place, steer and spin wheels locally (`VehicleVisuals`) and pitch the engine from estimated rpm.
 - Collisions between two player-owned cars are resolved by Roblox's physics ownership; fast car-to-car contact can look rough at high ping. Racing games often reduce damage from collisions or use collision groups so cars ghost through each other during races.
 - Server-side gameplay (laps, checkpoints, finish lines) should use server checks of the car's position (region queries on a timer), not client-reported lap times.

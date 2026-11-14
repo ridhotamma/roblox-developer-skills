@@ -43,6 +43,10 @@ robloxForce = newtons × (assemblyMass / spec.Mass) / METERS_PER_STUD
   This turns a force into "the acceleration it would give the real car", expressed in studs/s² on whatever mass the Roblox assembly has. Part masses and densities don't matter.
 - Vertical dynamics (suspension) live in **Roblox's gravity** (`Workspace.Gravity`, 196.2 studs/s² by default). Springs are tuned by frequency, which is mass-independent, and the rest length is solved so the car sits at its ride height under Roblox gravity.
 - Tire load is measured from the spring force relative to its static value (`loadRatio`), then applied to the real static weight on that wheel. Weight transfer from braking, cornering and bumps comes out of the physics automatically.
+- **The gravity mismatch.** 196.2 studs/s² × 0.28 m = 54.9 m/s², about 5.6× real gravity, while every horizontal force is real. Left alone that breaks two things, and the sim corrects both:
+  - *Slopes.* The downhill pull would be 5.6× too strong relative to tire grip: past ~10° nothing holds, even on four locked wheels, and hill starts slide backwards. While grounded, the sim adds `mass × (Workspace.Gravity − 9.81 / 0.28) × (ŷ − n (n·ŷ))` (n = average ground normal), scaled by the share of wheels touching, so gravity along the ground is real gravity. Suspension load (along n) is untouched.
+  - *Load transfer.* The inertial couple that pitches and rolls the body comes from real-unit tire forces against Roblox-weight springs, so it's ~18% (9.81 / 54.9) of a real car's: no squat, dive or lean, and the report's traction and braking (which assume real transfer) would be optimistic. The sim measures the acceleration the tires produced last step (from the tire forces, not the body's motion, so roll can't feed back) and adds the missing 82% as a couple on the springs: `transfer = m a h / wheelbase` front-to-rear and `m a h / track` side-to-side. Springs push that much less on the loaded side, the body leans into its springs, and the spring compression - which sets tire load - then carries the real transfer.
+- Spring force is applied along the average ground normal, not the chassis up axis: on a leaning body, a chassis-axis force has a sideways part worth Roblox's (5.6×) weight times the lean, which would push the car out of corners.
 
 ## 3. Chassis and centre of mass
 
@@ -50,7 +54,7 @@ The builder creates `ChassisRoot`, an invisible box the size of the wheelbase ×
 - along the wheelbase: `FrontWeight` of the way from the rear axle to the front (55% front weight = CoM 55% of the way forward)
 - height: `ComHeight` metres above the ground under the wheels
 
-The box's size gives sensible rotational inertia. Low and centred CoM = stable; high CoM (trucks) = more roll and pitch, and a real rollover risk if grip is high.
+Its density is raised so it weighs at least 150 mass units (`MIN_ROOT_MASS` in `VehicleService`): a seated character is welded into the assembly and isn't massless, and on a light kart it would otherwise be half the mass, high up and to one side. Performance doesn't depend on this mass (forces scale with `AssemblyMass`). The box's size gives sensible rotational inertia. Low and centred CoM = stable; high CoM (trucks) = more roll and pitch, and a real rollover risk if grip is high.
 
 ## 4. Suspension
 
@@ -102,7 +106,9 @@ lateral force = −μ × load × sin(C × atan(B × slipAngle))
 
 **Slide grip.** Past the peak the curve never drops below `SlideGrip` (0.75–0.86). The plain formula falls to under half of peak grip at 30° of slip, which turns every slide into a spin; real tires keep most of their grip while sliding, which is what makes drifting possible (see drifting.md).
 
-**Low speed.** At near-zero speed slip angles become meaningless, so forces are capped to what stops the sideways or forward motion in one step (no jitter when parked).
+**Low speed.** At near-zero speed slip angles become meaningless, so forces are capped to what stops the sideways or forward motion in one step. At standstill that cap uses 40% of the corner mass (`STOP_GAIN`), rising to 100% by 4 m/s: the yaw mode has only about a third of the corners' effective mass (the root box's inertia), and a full-strength cap makes a stopped car shimmy in yaw and never settle.
+
+**Hill hold.** No pedal and slower than 0.6 m/s (`HOLD_MS`): service brakes on all four wheels, each tire carrying its share of the downhill pull outright. Parked cars (the server's idle input) and cars waiting at a junction stay put on slopes up to about the tires' grip (tan θ < μ).
 
 ## 7. Powertrain
 
@@ -145,7 +151,7 @@ Typical `Cd × A` (m²): hatchback 0.65, sports car 0.62, pickup 1.45, kart 0.5.
 
 ## 11. Sphere casts, hull and recovery
 
-Suspension uses `Workspace:Spherecast` with a sphere of 85% of the wheel radius, starting at the mount; the wheel length is the cast distance minus the radius difference. Hits on surfaces steeper than ~70° are ignored (walls are for the hull). The body's collision is a generated hull (box with rounded nose and tail cylinders, bottom at axle height, friction 0.08). Stuck assist, auto-flip, air control and `Recover()` are described in anti-stuck.md.
+Suspension uses `Workspace:Spherecast` with a sphere of 85% of the wheel radius, starting one wheel radius above the mount (`CAST_LIFT`); the wheel length is the cast distance minus that lift and the radius difference. Spherecast ignores parts the sphere starts inside, so a cast that started at the mount would lose the ground after a hard landing or a drop from `Recover()` (the body sinks a stud below ride height, the sphere starts in the ground, the wheel reads as airborne and stays that way). Hits on surfaces steeper than ~70° are ignored (walls are for the hull). The body's collision is a generated hull (box with rounded nose and tail cylinders, bottom at axle height, friction 0.08). Stuck assist, auto-flip, air control and `Recover()` are described in anti-stuck.md.
 
 ## 12. What's simplified
 

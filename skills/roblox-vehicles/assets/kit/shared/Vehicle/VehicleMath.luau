@@ -138,11 +138,14 @@ function VehicleMath.TopSpeedKmh(spec: any): number
 				maxDrive = math.max(maxDrive, (VehicleMath.Drive(spec, v, gear, 1)))
 			end
 		end
-		if not anyBelowRedline or maxDrive <= resist then
+		if not anyBelowRedline then
 			break
 		end
 		if spec.Engine.SpeedLimitKmh > 0 and kmh >= spec.Engine.SpeedLimitKmh then
 			return spec.Engine.SpeedLimitKmh
+		end
+		if maxDrive <= resist then
+			break
 		end
 		best = kmh
 	end

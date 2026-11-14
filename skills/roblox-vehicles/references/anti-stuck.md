@@ -35,9 +35,9 @@ A car that wedges on a kerb, beaches on a terrain ridge, snags on a tree or ends
 | **Low hull friction** | `VehicleService` (`Body.HullFriction`) | Friction 0.08 with a high friction weight, so scraping a wall, barrier or tree slides the car along it. |
 | **Ignore group** | `VehicleService` | Parts in collision group `VehicleIgnore` don't collide with vehicle hulls and are invisible to the suspension casts. Put grass, flowers, small rocks, bushes, debris and decals' backing parts in it. |
 | **Stuck assist** | `VehicleSim` (`Recovery.StuckAssist`) | Throttle held (forward or reverse) but the car moves less than 0.4 m/s for 1 s: for 0.45 s the car is lifted (60% of its weight) and pushed (0.45 g) in the throttle direction. After 3 failed tries it recovers. |
-| **Recovery** | `VehicleSim:Recover()` | Sets the car upright above the ground under it, 3 studs back from the obstacle (or forward if it was reversing), velocity zeroed. 2 s minimum between recoveries. |
+| **Recovery** | `VehicleSim:Recover()` | Sets the car upright above the ground under it (the suspension casts start a wheel radius above the mounts, so the drop never leaves a wheel unable to find the ground), 3 studs back from the obstacle (or forward if it was reversing), velocity zeroed. 2 s minimum between recoveries. |
 | **Auto-flip** | `VehicleSim` (`Recovery.AutoFlip`) | Tilted more than ~73° (side or roof) and nearly stopped for 1.5 s: recover. Also runs on the server for parked cars knocked over. |
-| **Air control** | `VehicleSim` (`Recovery.AirControl`) + `Stabilizer` Torque | With all wheels airborne, a torque levels the car (and damps tumbling) so it lands on its wheels after jumps and drops. |
+| **Air control** | `VehicleSim` (`Recovery.AirControl`) + `Stabilizer` Torque | Airborne (no wheel touching, or the springs carrying under 20% of the weight), a torque levels the car and damps tumbling so it lands on its wheels after jumps and drops. With some wheels off the ground at speed (cresting a ramp lip), it only damps pitch and roll rate: in Roblox gravity the rear springs would otherwise flip the nose down off every lip. |
 | **Reset button** | `VehicleController` | R / gamepad Y / touch "Reset", 3 s cooldown, always available as the last resort. |
 
 ## 3. Rules for vehicles (prohibited patterns)
@@ -58,7 +58,7 @@ Also avoid:
 ## 4. Rules for maps and roads
 
 The map matters as much as the car:
-- **Kerbs**: no taller than about 0.5× the wheel radius where players drive (roughly 0.5–0.8 studs for cars). Bevel them (wedge or a chamfered edge) where cars cross them.
+- **Kerbs**: no taller than about 0.5× the wheel radius of the smallest vehicle that drives there (roughly 0.5–0.6 studs for cars, 0.25 for karts). Bevel them (wedge or a chamfered edge) where cars cross them. No wheel climbs a kerb taller than its own radius; small-wheeled vehicles need lower kerbs or ramps.
 - **Road edges**: avoid knee-high lips between road and terrain; blend terrain up to the road surface.
 - **Trees and poles**: collision as simple cylinders, not detailed meshes with low branches; foliage on the `VehicleIgnore` group.
 - **Small props**: rocks under ~1 stud, grass, flowers, litter, debris → `VehicleIgnore` (or `CanCollide = false`).
@@ -71,7 +71,7 @@ The map matters as much as the car:
 
 Build it once in a test place and drive every vehicle through it before shipping. Each item must be passable or escapable in under 5 seconds **without the reset button**:
 
-1. Kerbs of 0.3, 0.6 and 1.0 studs, approached straight at 20 km/h and at 30° at 40 km/h.
+1. Kerbs of 0.25, 0.5 and 0.85 × the wheel radius (0.3, 0.6 and 1.0 studs for a car's ~1.2-stud wheels; 0.13, 0.25 and 0.43 for a kart), approached straight at 20 km/h and at 30° at 40 km/h.
 2. A kerb running alongside the road: steer into it at a shallow angle at 60 km/h and continue.
 3. A tree row and lamp posts: hit a trunk head-on at 30 km/h, then reverse away; scrape along a row at 50 km/h.
 4. A concrete barrier and a wall: scrape along at 80 km/h; nose into it and reverse out.
@@ -80,6 +80,7 @@ Build it once in a test place and drive every vehicle through it before shipping
 7. Rough terrain: hills, rocks, a dry river bed; drive at speed.
 8. A ramp jump at full speed: must land on the wheels most of the time.
 9. A slope steep enough to roll the car: roll it; it must right itself.
+12. Slopes of 5°, 10° and 15°: park on each (leave the seat) and it stays put; hill start up 8°, 12° and 18° from a standstill.
 10. A field of `VehicleIgnore` props (grass, pebbles): drive through without hitting anything.
 11. A narrow alley with parked cars: three-point turn without wedging.
 
@@ -95,6 +96,8 @@ Then drive the real map's worst spots. Any failure: fix the map (section 4) or t
 | `Body.AutoHull` | spec | true | Model attribute `KeepCollision = true` opts one model out. |
 | `STUCK_SECONDS` / `UNSTICK_SECONDS` / `MAX_UNSTICK_TRIES` | VehicleSim | 1 / 0.45 / 3 | Faster assist for arcade games; slower for sims. |
 | `FLIP_SECONDS` | VehicleSim | 1.5 | |
+| `CAST_LIFT` | VehicleSim / VehicleVisuals | 1 | Wheel radii above the mount where casts start. Keep both files equal; lower only if wheels catch ceilings in tight tunnels. |
+| `AIR_LEVEL` / `AIR_DAMP` | VehicleSim | 40 / 14 | Air-control gains (× `Recovery.AirControl`). |
 | `Recovery.AirControl` | spec | 0.3 | 0.2–0.4 road cars, 0.4–0.6 arcade/off-road jumpers; 0 for realism (with auto-flip on). |
 
 If players report getting stuck somewhere specific, log the car's position when the stuck assist triggers 3 times (the `Stuck` telemetry) and fix those places on the map.
