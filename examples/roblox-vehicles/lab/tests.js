@@ -260,6 +260,88 @@
     return { pass: ok, measured: `air ${f(airMax)} s · pitch at landing ${f(worstPitchAtLanding, 1)}° · ${upAfter > 0.5 ? 'stays on wheels' : 'ROLLED OVER'} · ${wheelsAfter}/4 wheels on ground after`, expected: 'air control lands it within ±20° pitch, 4 wheels', frames, world: w };
   });
 
+  // GTA-style stunt jump: a tall kicker off a long run-up, a gap lined with parked cars, a bus
+  // and crates, then a descending landing ramp and a runout. The gap is sized from the vehicle's
+  // own launch speed (at 85% of it, so a slightly slow car still makes the ramp) and each obstacle
+  // is kept under that slow arc with clearance for the body, so the test is about the car: does it
+  // leave the lip cleanly, hold its attitude in the air without dropping the nose into the
+  // obstacles, and absorb the landing on 4 wheels without bouncing, rolling, or a reset.
+  test('stunt', 'Stunt jump over parked cars, bus and crates', 'Never stuck', (raw) => {
+    const w = new World(); w.box('Ground', [0, -5, 0], [400, 10, 2400], M.I(), { color: 0x3b4252 });
+    const probe = new Car(new World(), raw);
+    const kart = raw.name === 'Kart';
+    const vKmh = kart ? 65 : 105; const vS = vKmh / 3.6 / MPS; // studs/s
+    const kAng = (20 * Math.PI) / 180, kH = kart ? 12 : 14, kLen = kH / Math.sin(kAng);
+    const lipZ = -kLen * Math.cos(kAng); // kicker starts at z=0 and rises toward -Z
+    w.box('Kicker', [0, (kH - 1.6) / 2, lipZ / 2], [24, 1.6, kLen], M.rotX(kAng), { color: 0xd08770 });
+    // Ballistic arc of the car's rest point at 85% speed (Roblox gravity), from the lip.
+    const g = w.gravity, vs = vS * 0.85, vy = vs * Math.sin(kAng), vz = vs * Math.cos(kAng);
+    const lH = kH * 0.5; // the landing ramp starts lower than the lip, so the car drops onto it
+    const tLand = (vy + Math.sqrt(vy * vy + 2 * g * (kH - lH))) / g;
+    const gapStart = lipZ, gap = vz * tLand; // the landing ramp's top edge sits where the slow car comes down
+    const arcY = (dz) => { const t = dz / vz; return kH + vy * t - 0.5 * g * t * t; };
+    const bodyDrop = (probe.hull ? probe.hull.box.size[1] : 5) * 0.5 + 1.5; // half the body + margin under the car's origin path
+    // Fill the gap with obstacles, front to back, each kept under the slow arc.
+    const kinds = kart
+      ? [['Crate', 3, 3.5, 0x8f6a3e], ['ParkedKart', 4, 2.5, 0x5e81ac], ['Barrel', 2.5, 3, 0xbf616a], ['Crate', 3, 3.5, 0x8f6a3e]]
+      : [['ParkedCar', 6.5, 5, 0x5e81ac], ['Bus', 9, 10, 0xebcb8b], ['ParkedCar', 6.5, 5, 0xa3be8c], ['CrateStack', 5, 7, 0x8f6a3e], ['ParkedCar', 6.5, 5, 0xb48ead], ['Van', 7, 7, 0x88c0d0]];
+    const obstacles = []; let z = gapStart - 2; let k = 0;
+    while (true) {
+      const [name, depth, want, color] = kinds[k % kinds.length];
+      if (gapStart - z + depth > gap - 2) break;
+      const zFar = z - depth;
+      const under = Math.min(arcY(gapStart - z), arcY(gapStart - zFar)) - bodyDrop; // lowest arc point over this obstacle
+      const h = Math.min(want, under);
+      if (h >= 2) obstacles.push(w.box(name, [0, h / 2, z - depth / 2], [kart ? 10 : 16, h, depth], M.I(), { color }));
+      z = zFar - (kart ? 1 : 1.5); k++;
+    }
+    const deckZ = gapStart - gap;
+    const lAng = (12 * Math.PI) / 180, lLen = lH / Math.sin(lAng);
+    // One descending landing ramp from the gap edge down to the runout (rotX(-a) tilts -Z down).
+    // No flat deck in front of it: a low car bottoming out on a deck/ramp crest catches the
+    // ramp box's end face in the lab's contact solver and gets a false yaw kick.
+    const lz0 = deckZ, lz1 = lz0 - lLen * Math.cos(lAng);
+    w.box('LandingRamp', [0, lH / 2 - 0.8 * Math.cos(lAng), (lz0 + lz1) / 2], [24, 1.6, lLen], M.rotX(-lAng), { color: 0xd08770 });
+
+    const car = new Car(w, raw, { position: [0, 0, 1000] });
+    const frames = []; const obsSet = new Set(obstacles);
+    let lipKmh = null, air = 0, airMax = 0, wasAir = false, landed = null, landZ = null, landPitch = 0;
+    let hits = new Set(), minUp = 1, wheelsAfter = 4, kmhAfter = null, maxX = 0, maxYaw = 0, lipT = null;
+    const hullTouches = (c) => {
+      if (!c.hull) return null;
+      for (const p of c.hull.samples.map((l) => c.body.toWorld(l))) for (const b of obstacles) {
+        const l = M.tmulV(b.R, V.sub(p, b.c));
+        if (Math.abs(l[0]) < b.h[0] + 0.05 && Math.abs(l[1]) < b.h[1] + 0.05 && Math.abs(l[2]) < b.h[2] + 0.05) return b;
+      }
+      return null;
+    };
+    drive(car, 30, (t, c, tel) => ({ throttle: lipT === null ? speedHold(vKmh)(tel) : landed !== null && t > landed + 0.4 ? speedHold(vKmh * 0.6)(tel) : 0.4, steer: 0, handbrake: false }), frames, 2, (t, c, tel) => {
+      const pz = c.body.pos[2];
+      if (lipT === null && pz < lipZ + 1) { lipT = t; lipKmh = tel.speedKmh; }
+      for (const wh of c.wheels) if (wh.hit && obsSet.has(wh.hit.part)) hits.add(wh.hit.part.name);
+      const hb = hullTouches(c); if (hb) hits.add(hb.name);
+      if (pz > lz1) maxX = Math.max(maxX, Math.abs(c.body.pos[0])); // on the run-up, kicker, in the air or on the landing ramp
+      if (lipT !== null) maxYaw = Math.max(maxYaw, Math.abs((Math.atan2(-c.cf.look[0], -c.cf.look[2]) * 180) / Math.PI));
+      if (lipT !== null) minUp = Math.min(minUp, pitchRoll(c).upY);
+      if (tel.grounded === 0 && lipT !== null) { air += DT; airMax = Math.max(airMax, air); wasAir = true; }
+      else { if (wasAir && air > 0.1 && landed === null) { landed = t; landZ = pz; landPitch = pitchRoll(c).pitch; } air = 0; }
+      if (landed !== null && t > landed + 0.8 && t < landed + 2) wheelsAfter = Math.min(wheelsAfter, tel.grounded);
+      if (landed !== null && t > landed + 2) { kmhAfter = tel.speedKmh; return true; }
+    });
+    const lastObsZ = obstacles.length ? Math.min(...obstacles.map((b) => b.c[2] - b.h[2])) : gapStart;
+    const cleared = landZ !== null && landZ < lastObsZ;
+    const flight = landZ !== null ? (gapStart - landZ) * MPS : null;
+    const ok = obstacles.length >= 3 && lipKmh !== null && lipKmh >= vKmh * 0.85 && hits.size === 0 && cleared &&
+      Math.abs(landPitch) < 25 && minUp > 0.7 && wheelsAfter === 4 && car.recoveries === 0 && kmhAfter !== null && kmhAfter > 20 && maxX < 9 && maxYaw < 15;
+    const names = obstacles.map((b) => b.name).join(', ');
+    return {
+      pass: ok,
+      measured: `lip ${f(lipKmh, 0)} km/h · air ${f(airMax)} s · ${f(flight, 1)} m · over ${obstacles.length} (${names}) · ${hits.size ? 'HIT ' + [...hits].join(', ') : cleared ? 'clean' : 'SHORT, landed in the gap'} · landing pitch ${f(landPitch, 1)}° · ${minUp > 0.7 ? 'upright' : 'ROLLED'} · ${wheelsAfter}/4 wheels · ${f(kmhAfter, 0)} km/h after · off line ${f(maxX, 1)} studs, heading ±${f(maxYaw, 0)}° · ${car.recoveries} resets`,
+      expected: `≥ ${f(vKmh * 0.85, 0)} km/h at the lip, ≥3 obstacles, touches none, lands past them within ±25°, 4 wheels, no reset, stays on the 24-stud ramp (< 9 studs off line, < 15° heading), drives on`,
+      frames, world: w,
+    };
+  });
+
   for (const deg of [5, 10, 15]) test(`park${deg}`, `Parked on a ${deg}° slope (server idle input)`, 'Slopes', (raw) => {
     const w = new World(); const ang = (deg * Math.PI) / 180;
     w.box('Slope', [0, -5, 0], [200, 10, 400], M.rotX(ang), { color: 0x4c566a });
