@@ -5,6 +5,84 @@
 -- angles degrees, frequency Hz. Everything performance-related is independent of the mesh.
 
 return table.freeze({
+	ArcadeCar = table.freeze({
+		Title = "Arcade street car, AWD, planted and forgiving",
+		Mass = 1300,
+		FrontWeight = 0.55,
+		ComHeight = 0.42,
+		WheelRadius = 0.33,
+		Drivetrain = "AWD",
+		AwdFrontSplit = 0.45,
+		Engine = table.freeze({
+			IdleRpm = 900,
+			RedlineRpm = 6800,
+			LaunchRpm = 3000,
+			Efficiency = 0.88,
+			SpeedLimitKmh = 240,
+			TorqueCurve = table.freeze({
+				table.freeze({ 1000, 220 }),
+				table.freeze({ 2500, 330 }),
+				table.freeze({ 4500, 360 }),
+				table.freeze({ 6000, 330 }),
+				table.freeze({ 6800, 290 }),
+			}),
+		}),
+		Gearbox = table.freeze({
+			Ratios = table.freeze({ 3.5, 2.2, 1.6, 1.25, 1, 0.82 }),
+			Reverse = 3.4,
+			FinalDrive = 3.7,
+			ShiftUpRpm = 6500,
+			ShiftDownRpm = 3200,
+			ShiftTime = 0.15,
+		}),
+		Brakes = table.freeze({
+			DecelG = 1.2,
+			FrontBias = 0.7,
+			HandbrakeGripScale = 0.65,
+		}),
+		Steering = table.freeze({
+			MaxAngle = 34,
+			Speed = 3,
+			HighSpeedScale = 0.35,
+			HighSpeedKmh = 160,
+		}),
+		Tires = table.freeze({
+			GripFront = 1.45,
+			GripRear = 1.65,
+			Stiffness = 9,
+			Shape = 1.6,
+			SlideGrip = 0.93,
+			RollingResistance = 0.012,
+		}),
+		Drift = table.freeze({
+			Countersteer = 0.2,
+			MaxAngle = 15,
+			Stabilizer = 1,
+		}),
+		Recovery = table.freeze({
+			AirControl = 0.5,
+			AutoFlip = true,
+			StuckAssist = true,
+		}),
+		Body = table.freeze({
+			AutoHull = true,
+			HullFriction = 0.08,
+		}),
+		Suspension = table.freeze({
+			FrequencyFront = 2.8,
+			FrequencyRear = 3,
+			DampingRatio = 0.42,
+			MaxLength = 1.4,
+			RideHeight = 0.6,
+			AntiRoll = 0.7,
+			RollCenter = 0.65,
+		}),
+		Aero = table.freeze({
+			Cd = 0.32,
+			Area = 2.05,
+			DownforceCl = 0.4,
+		}),
+	}),
 	DriftCar = table.freeze({
 		Title = "Rear-drive drift build, 2.0 L turbo",
 		Mass = 1250,

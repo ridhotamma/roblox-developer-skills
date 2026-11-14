@@ -63,6 +63,7 @@ const expect = {
   PickupTruck: { t100: [5.5, 8.5], top: [160, 200], brake: [40, 50] },
   Kart: { t60kmh: [3, 6.5], top: [70, 100], brake: [25, 40] },
   DriftCar: { t100: [4, 6], top: [230, 270], brake: [32, 40] },
+  ArcadeCar: { t100: [3.5, 5], top: [230, 250], brake: [28, 36] },
 };
 for (const [name, e] of Object.entries(expect)) {
   const r = byName[name];

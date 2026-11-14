@@ -180,7 +180,7 @@
   // ---------------------------------------------------------------- car geometry (a stand-in "mesh")
   // The kit only reads wheel positions/sizes and the body's bounding corners, so a car here is
   // just that: 4 wheels from the spec and a body box. Track widths are typical for the class.
-  const TRACK_M = { Hatchback: 1.5, SportsCar: 1.6, PickupTruck: 1.7, Kart: 1.1, DriftCar: 1.5 };
+  const TRACK_M = { Hatchback: 1.5, SportsCar: 1.6, PickupTruck: 1.7, Kart: 1.1, DriftCar: 1.5, ArcadeCar: 1.6 };
   function carGeometry(spec) {
     const MPS = VM.METERS_PER_STUD;
     const wb = (spec.wheelbase || 2.6) / MPS;

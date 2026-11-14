@@ -68,6 +68,9 @@ Bundled specs (verified by `scripts/selftest.cjs` to land in realistic ranges):
 | `PickupTruck` | AWD, 379 hp, 2300 kg | 6.1 s | 180 km/h (limiter) | 45 m |
 | `Kart` | RWD, 20 hp, 160 kg | 0–60 km/h 4.6 s | 88 km/h (redline) | 30 m |
 | `DriftCar` | RWD, 374 hp, 1250 kg | 5.5 s | 251 km/h (redline) | 38 m |
+| `ArcadeCar` | AWD, 279 hp, 1300 kg | 4.2 s | 240 km/h (limiter) | 32 m |
+
+`ArcadeCar` is the planted, keyboard-friendly tune: high grip with the rear 14% above the front, high slide grip, and a stabilizer that catches slides past 15°. Start from it when players say the cars feel slippery (tuning-guide.md, "Arcade / stable").
 
 Spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m above ground), `wheelRadius` (m, used for gearing; the mesh's wheel size is only visual), `wheelbase` (m, report only), `drivetrain`, `awdFrontSplit`, `engine` {`idleRpm`, `redlineRpm`, `launchRpm`, `efficiency`, `speedLimitKmh`, `torqueCurve` [[rpm, N·m]...]}, `gearbox` {`ratios`, `reverse`, `finalDrive`, `shiftUpRpm`, `shiftDownRpm`, `shiftTime`}, `brakes` {`decelG`, `frontBias`, `handbrakeGripScale`}, `steering` {`maxAngle`, `speed`, `highSpeedScale`, `highSpeedKmh`}, `tires` {`gripFront`, `gripRear`, `stiffness`, `shape`, `slideGrip`, `rollingResistance`}, `drift` {`countersteer`, `maxAngle`, `stabilizer`}, `recovery` {`airControl`, `autoFlip`, `stuckAssist`}, `body` {`autoHull`, `hullFriction`}, `suspension` {`frequencyFront`, `frequencyRear`, `dampingRatio`, `maxLength` (studs), `rideHeight` (0–1), `antiRoll`, `rollCenter` (0–1)}, `aero` {`cd`, `area` (m²), `downforceCl`}.
 
@@ -104,7 +107,7 @@ Install steps to give the user:
 
 ## Limits to be honest about
 
-- The Node report covers straight-line performance and braking on flat ground; cornering, roll and stability are checked by driving in Studio. A Three.js lab in the repo (`examples/roblox-vehicles`, `node lab/run-tests.cjs`) runs a JS port of `VehicleSim` against every bundled spec (launch, top speed, braking, skidpad, drift, the stuck test course, flips, jumps, slopes and hill starts) and replays each run in 3D. Re-port and re-run it after changing the sim.
+- The Node report covers straight-line performance and braking on flat ground; cornering, roll and stability are checked by driving in Studio. A Three.js lab in the repo (`examples/roblox-vehicles`, `node lab/run-tests.cjs`) runs a JS port of `VehicleSim` against every bundled spec (launch, top speed, braking, skidpad, drift, a keyboard slalom, the stuck test course, flips, jumps, a stunt jump over obstacles, slopes and hill starts) and replays each run in 3D. Re-port and re-run it after changing the sim.
 - Simplifications: no wheel rotational inertia or clutch model beyond launch rpm (so no true burnouts), a single slip curve per axle, and no tire temperature or wear. They're deliberate: they keep the car stable and tunable at Roblox physics rates.
 - The kit's Luau has been checked through that JS port, not run in Studio as part of building this skill. Test with Studio's Play (and a second client) before shipping, and adjust `METERS_PER_STUD` only if the game uses a different world scale.
 - Roblox gravity (196.2 studs/s²) is stronger than real gravity at 0.28 m per stud, so jumps arc faster and shorter than a real car's; the suspension is tuned for Roblox's gravity on purpose, and the slope and load-transfer corrections above keep it from changing how the car grips. If a game changes `Workspace.Gravity`, the corrections follow it.

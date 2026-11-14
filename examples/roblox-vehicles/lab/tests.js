@@ -162,6 +162,32 @@
     return { pass: ok, measured: `peak ${f(maxAngle, 0)}° · drifting ${f(driftTime, 1)} s · ${spun ? 'SPUN OUT' : 'recovered'}`, expected: drifter ? `≥15°, ≥0.6 s, peak < maxAngle+25 (${(raw.drift && raw.drift.maxAngle || 50) + 25}°, the HUD's spin-out line)` : 'not a drift setup (countersteer < 0.3): just no spin-out', frames, world: w };
   });
 
+  // What "slippery" feels like on a keyboard: a keyboard can only ask for all of the steering,
+  // so quick left/right flicks at speed swing the weight across and the rear lets go. Whether a
+  // given car spins depends on exactly when the keys flip, so this drives a grid of speeds and
+  // flick timings and reports spins and the worst slide. Every tune must stay off its roof; a
+  // tune that asks for stability (drift.maxAngle ≤ 20, the stabilizer catches slides early, as
+  // in specs/arcade_car.json) must also never spin and stay under 30° of slide.
+  test('slalom', 'Keyboard slalom grid (55/65/80 km/h × flick every 0.5/0.7/0.9 s)', 'Handling', (raw) => {
+    const stable = ((raw.drift && raw.drift.maxAngle) || 50) <= 20;
+    let spins = 0, worst = 0, rolled = false, frames = [], world = null; const spunAt = [];
+    for (const kmh of [55, 65, 80]) for (const per of [0.5, 0.7, 0.9]) {
+      const w = flatWorld(200); w.boxes[0].h = [3000, 5, 3000]; w.boxes[0].c = [0, -5, 0];
+      const car = new Car(w, raw); const rec = kmh === 65 && per === 0.7 ? frames : null; if (rec) world = w;
+      const v0 = raw.name === 'Kart' ? Math.min(kmh, 70) : kmh;
+      drive(car, 20, (t, c, tel) => ({ throttle: speedHold(v0)(tel), steer: 0, handbrake: false }), rec, 3, (t, c, tel) => tel.speedKmh >= v0 - 1);
+      let spun = false;
+      drive(car, 9, (t) => ({ throttle: t < 6 ? 0.8 : 0.4, steer: t < 6 ? (Math.floor(t / per) % 2 ? -1 : 1) : 0, handbrake: false }), rec, 2, (t, c, tel) => {
+        worst = Math.max(worst, Math.abs(tel.driftAngle));
+        if (V.len(c.body.v) > 3 && V.dot(V.unit(c.body.v), c.cf.look) < -0.3) spun = true;
+        if (pitchRoll(c).upY < 0.7) rolled = true;
+      });
+      if (spun) { spins++; spunAt.push(`${v0}@${per}`); }
+    }
+    const ok = !rolled && (!stable || (spins === 0 && worst < 30));
+    return { pass: ok, measured: `spun ${spins}/9${spins ? ' (' + spunAt.join(', ') + ' km/h@s)' : ''} · worst slide ${f(worst, 0)}° · ${rolled ? 'ROLLED' : 'upright'}`, expected: stable ? 'stable tune: 0/9 spins, worst slide < 30°, upright' : 'upright (spins and slide are reported: lower = more planted on a keyboard)', frames, world };
+  });
+
   // The skill's stuck test course (anti-stuck.md §5, item 1): 0.3 / 0.6 / 1.0 stud kerbs straight
   // at 20 km/h and at 30° at 40 km/h. Must pass or escape in < 5 s without the reset button.
   // Heights are 0.25 / 0.5 / 0.85 × the wheel radius (0.3 / 0.6 / 1.0 studs for a car's ~1.2 stud
