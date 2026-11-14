@@ -35,7 +35,7 @@ const DEFAULTS = {
   steering: { maxAngle: 34, speed: 4, highSpeedScale: 0.4, highSpeedKmh: 160 },
   tires: { gripFront: 1.0, gripRear: 1.0, stiffness: 10, shape: 1.9, slideGrip: 0.8, rollingResistance: 0.013 },
   drift: { countersteer: 0.15, maxAngle: 50, stabilizer: 0.5 },
-  recovery: { airControl: 0.3, airGravity: 2.5, autoFlip: true, stuckAssist: true },
+  recovery: { airControl: 0.3, airGravity: 2.5, airInput: 120, autoFlip: true, stuckAssist: true },
   assists: { stability: 0.6 },
   body: { autoHull: true, hullFriction: 0.08 },
   suspension: { frequencyFront: 2.4, frequencyRear: 2.6, dampingRatio: 0.35, maxLength: 1.6, rideHeight: 0.6, antiRoll: 0.3, rollCenter: 0.5 },
@@ -68,6 +68,7 @@ function normalize(raw) {
   if (!(s.drift.countersteer >= 0 && s.drift.countersteer <= 1)) errors.push('drift.countersteer must be between 0 and 1');
   if (!(s.recovery.airControl >= 0 && s.recovery.airControl <= 1)) errors.push('recovery.airControl must be between 0 and 1');
   if (!(s.recovery.airGravity >= 0 && s.recovery.airGravity <= 6)) errors.push('recovery.airGravity must be between 0 (Roblox gravity) and 6 g');
+  if (!(s.recovery.airInput >= 0 && s.recovery.airInput <= 360)) errors.push('recovery.airInput must be between 0 (off) and 360 deg/s');
   if (!(s.assists.stability >= 0 && s.assists.stability <= 1)) errors.push('assists.stability must be between 0 and 1');
   if (errors.length) throw new Error(`${s.name || '(unnamed)'}: ${errors.join('; ')}`);
   return s;

@@ -62,6 +62,7 @@ return table.freeze({
 		Recovery = table.freeze({
 			AirControl = 0.5,
 			AirGravity = 2,
+			AirInput = 120,
 			AutoFlip = true,
 			StuckAssist = true,
 		}),
@@ -144,6 +145,7 @@ return table.freeze({
 		Recovery = table.freeze({
 			AirControl = 0.3,
 			AirGravity = 2.5,
+			AirInput = 120,
 			AutoFlip = true,
 			StuckAssist = true,
 		}),
@@ -226,6 +228,7 @@ return table.freeze({
 		Recovery = table.freeze({
 			AirControl = 0.3,
 			AirGravity = 2.5,
+			AirInput = 120,
 			AutoFlip = true,
 			StuckAssist = true,
 		}),
@@ -307,6 +310,7 @@ return table.freeze({
 		Recovery = table.freeze({
 			AirControl = 0.5,
 			AirGravity = 2.5,
+			AirInput = 120,
 			AutoFlip = true,
 			StuckAssist = true,
 		}),
@@ -389,6 +393,7 @@ return table.freeze({
 		Recovery = table.freeze({
 			AirControl = 0.4,
 			AirGravity = 2.5,
+			AirInput = 120,
 			AutoFlip = true,
 			StuckAssist = true,
 		}),
@@ -471,6 +476,7 @@ return table.freeze({
 		Recovery = table.freeze({
 			AirControl = 0.3,
 			AirGravity = 2.5,
+			AirInput = 120,
 			AutoFlip = true,
 			StuckAssist = true,
 		}),

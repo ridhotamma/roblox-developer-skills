@@ -15,6 +15,11 @@
 --   * flip recovery: on its side or roof and slow -> set upright
 --   * air control: lighter gravity in the air (Recovery.AirGravity, real g) for hang time, a
 --     rate-capped turn toward the ground below while airborne, and pitch damping on ramp lips
+-- Air steering, GTA-style (Recovery.AirInput, deg/s): throttle axis (W/S, stick) pitches, steer
+-- axis (A/D) rolls, handbrake + steer spins. Keys held at take-off are ignored until released.
+-- Impact softening: a hit on a wall, pole or car keeps the stop or deflection the collision gave,
+-- but limits the side effects a stiff solver adds at Roblox's gravity scale (yaw kick, pitch/roll
+-- flip, upward hop, bounce-back), and the stuck assist never lifts and pushes into a wall.
 -- Stability assist (Assists.Stability, like ESC and GTA's hidden helpers): yaw beyond what the
 -- steering asks for is taken out, so keyboard flicks and lift-off don't swing the rear out.
 -- Drift helpers: countersteer assist and a yaw stabilizer past the spec's max drift angle.
@@ -52,6 +57,13 @@ local AIR_MAX_RATE = 1.2 -- rad/s (~70°/s): the car never snaps around in the a
 local AIR_DAMP = 14 -- airborne rate tracking (1/s), times Recovery.AirControl
 local LIP_DAMP = 60 -- partly airborne at speed: pitch/roll rate damping (1/s), times Recovery.AirControl
 local LIP_MIN_MS = 8 -- partly airborne above this speed (m/s) gets the air-gravity relief per wheel off
+local AIR_INPUT_GAIN = 8 -- air steering: rate tracking (1/s) while the player holds a key
+local IMPACT_G = 8 -- horizontal velocity change beyond this (real g) in one step = a hit, not tires
+local IMPACT_YAW = 1.5 -- rad/s: most yaw-rate change one hit may add
+local IMPACT_TILT = 0.2 -- share of a hit's pitch/roll-rate change that is kept
+local IMPACT_HOP = 1 -- m/s: most upward speed one hit may add
+local IMPACT_RESTITUTION, IMPACT_REBOUND = 0.1, 0.5 -- bounce-back: share of approach speed + m/s
+local IMPACT_WINDOW = 0.4 -- s after a hit in which the yaw rate may not grow (no scrape spin-up)
 local ESC_GAIN = 10 -- stability assist: yaw-rate correction (1/s), times Assists.Stability
 local ESC_HANDBRAKE_GRACE = 0.6 -- s after the handbrake is released before the assist returns
 local DRIFT_MIN_ANGLE = 10 -- degrees of body slip that count as drifting
@@ -127,6 +139,14 @@ export type VehicleSim = typeof(setmetatable(
 		tireLongN: number,
 		tireLatN: number,
 		handbrakeAt: number,
+		prevV: Vector3?,
+		prevW: Vector3,
+		impactUntil: number,
+		impactYawCap: number,
+		wasAirborne: boolean,
+		latchPitch: number,
+		latchRoll: number,
+		reach: number,
 	},
 	VehicleSim
 ))
@@ -231,6 +251,10 @@ function VehicleSim.new(model: Model): VehicleSim?
 	local size = root.Size
 	local inertia = mass * (size.X * size.X + size.Z * size.Z) / 12
 
+	-- Root to the bumper plus a margin, for the stuck assist's "is a wall in the way" check.
+	local boxCFrame, boxSize = model:GetBoundingBox()
+	local reach = boxSize.Z / 2 + math.abs(root.CFrame:PointToObjectSpace(boxCFrame.Position).Z) + 1.5
+
 	local aeroAttachment = root:FindFirstChild("AeroAttachment") :: Attachment
 	return setmetatable({
 		model = model,
@@ -259,6 +283,14 @@ function VehicleSim.new(model: Model): VehicleSim?
 		tireLongN = 0,
 		tireLatN = 0,
 		handbrakeAt = -math.huge,
+		prevV = nil,
+		prevW = Vector3.zero,
+		impactUntil = -math.huge,
+		impactYawCap = 0,
+		wasAirborne = false,
+		latchPitch = 0,
+		latchRoll = 0,
+		reach = reach,
 	}, VehicleSim)
 end
 
@@ -285,11 +317,60 @@ function VehicleSim.Recover(self: VehicleSim, stepBack: number?)
 	self.stuckTimer = 0
 	self.unstickTries = 0
 	self.flipTimer = 0
+	self.prevV = nil -- a teleport is not a hit
+end
+
+-- Impact softening, from the velocities Roblox's collision solver left at the start of a step.
+-- A hit changes velocity far faster than tires can (> IMPACT_G); keep the stop or deflection it
+-- gave, but not the yaw kick that spins the car away, the pitch/roll flip, the upward hop (the
+-- "bump") or a bounce back off the wall. Like restoring a scaled angular velocity in a collision
+-- callback, without needing touch events on the hull.
+local function softenImpacts(self: VehicleSim, dt: number, now: number)
+	local root = self.root
+	local v = root.AssemblyLinearVelocity
+	local w = root.AssemblyAngularVelocity
+	local prevV = self.prevV
+	if prevV then
+		local dv = v - prevV
+		local dvFlat = Vector3.new(dv.X, 0, dv.Z)
+		if dvFlat.Magnitude / dt * MPS > IMPACT_G * G then
+			local dw = w - self.prevW
+			w = self.prevW
+				+ Vector3.new(dw.X * IMPACT_TILT, math.clamp(dw.Y, -IMPACT_YAW, IMPACT_YAW), dw.Z * IMPACT_TILT)
+			-- No bounce-back: a car that was closing in (> 1 m/s) comes away along the hit direction
+			-- at only a fraction of its approach speed. Being shoved from standstill is untouched.
+			local n = dvFlat.Unit
+			local approach = prevV:Dot(n)
+			if approach < -1 / MPS then
+				local allowed = -approach * IMPACT_RESTITUTION + IMPACT_REBOUND / MPS
+				local away = v:Dot(n)
+				if away > allowed then
+					v -= n * (away - allowed)
+				end
+			end
+			local maxVy = math.max(prevV.Y, 0) + IMPACT_HOP / MPS
+			if v.Y > maxVy then
+				v = Vector3.new(v.X, maxVy, v.Z)
+			end
+			root.AssemblyLinearVelocity = v
+			root.AssemblyAngularVelocity = w
+			self.impactUntil = now + IMPACT_WINDOW
+			self.impactYawCap = math.max(math.abs(w.Y), 0.5)
+		elseif now < self.impactUntil and math.abs(w.Y) > self.impactYawCap then
+			-- Still scraping along the wall: the contact keeps levering the nose round. Don't let it
+			-- wind the car up past the yaw the hit itself left, so it glances off.
+			w = Vector3.new(w.X, math.sign(w.Y) * self.impactYawCap, w.Z)
+			root.AssemblyAngularVelocity = w
+		end
+	end
+	self.prevV = v
+	self.prevW = w
 end
 
 function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 	local spec = self.spec
 	local root = self.root
+	softenImpacts(self, dt, os.clock())
 	local cf = root.CFrame
 	local up = cf.UpVector
 	local forward = cf.LookVector
@@ -585,7 +666,14 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 	-- tree, wheels hanging in a ditch) -> lift and push for a moment; after several tries, recover.
 	local stuck = false
 	if recovery.StuckAssist then
-		local trying = math.abs(input.Throttle) > 0.5
+		-- Pressing into a wall is not stuck: lifting and pushing would only bump the car against it
+		-- (and the 4th try would teleport it). The driver backs off with reverse instead.
+		local pushDirection = if input.Throttle >= 0 then forward else -forward
+		local wallHit = if math.abs(input.Throttle) > 0.5
+			then Workspace:Spherecast(root.Position, 1, pushDirection * self.reach, self.params)
+			else nil
+		local blocked = wallHit ~= nil and wallHit.Normal.Y < WALL_NORMAL
+		local trying = math.abs(input.Throttle) > 0.5 and not blocked
 		if trying and velocity.Magnitude * MPS < 0.4 and now >= self.unstickUntil then
 			self.stuckTimer += dt
 		elseif not trying or velocity.Magnitude * MPS > 1.5 then
@@ -624,21 +712,53 @@ function VehicleSim.Step(self: VehicleSim, dt: number, input: Input): Telemetry
 	end
 
 	-- Never stuck, part 3: fully airborne, turn the car smoothly (rate-capped, no snap) until its
-	-- wheels face the ground below it, a landing ramp's slope included. Partly off the ground at
-	-- speed (cresting a ramp lip, one axle in the air), only damp pitch and roll rate.
+	-- wheels face the ground below it, a landing ramp's slope included. The player can steer it
+	-- GTA-style: throttle axis (W/S, stick up/down) pitches, steer axis (A/D) rolls, and with the
+	-- handbrake held, steer spins (yaw). Keys already held at take-off are ignored until released,
+	-- so holding W off a ramp doesn't dive the nose. Partly off the ground at speed (cresting a
+	-- ramp lip, one axle in the air), only damp pitch and roll rate.
+	local airborne = grounded == 0
+	if airborne and not self.wasAirborne then
+		self.latchPitch = if math.abs(input.Throttle) > 0.05 then math.sign(input.Throttle) else 0
+		self.latchRoll = if math.abs(input.Steer) > 0.05 then math.sign(input.Steer) else 0
+	end
+	self.wasAirborne = airborne
+	if math.abs(input.Throttle) < 0.05 then
+		self.latchPitch = 0
+	end
+	if math.abs(input.Steer) < 0.05 then
+		self.latchRoll = 0
+	end
+	local airInput = airborne and recovery.AirInput > 0
+	local pitchIn = if airInput and math.sign(input.Throttle) ~= self.latchPitch then input.Throttle else 0
+	local rollIn = if airInput and math.sign(input.Steer) ~= self.latchRoll then input.Steer else 0
+
 	local stabilizer = self.stabilizer
 	if stabilizer then
 		local angular = root.AssemblyAngularVelocity
 		local tilt = angular - Vector3.yAxis * angular.Y
 		local torque = Vector3.zero
-		if (grounded == 0 or support < AIR_SUPPORT) and recovery.AirControl > 0 then
+		local keyed = pitchIn ~= 0 or rollIn ~= 0
+		if (grounded == 0 or support < AIR_SUPPORT) and (recovery.AirControl > 0 or keyed) then
 			local below = Workspace:Raycast(root.Position, Vector3.yAxis * -80, self.params)
 			local targetUp = if below and below.Normal.Y > 0.5 then below.Normal else Vector3.yAxis
 			local rate = up:Cross(targetUp) * AIR_LEVEL -- axis * sin(angle) that turns up onto targetUp
 			if rate.Magnitude > AIR_MAX_RATE then
 				rate = rate.Unit * AIR_MAX_RATE
 			end
-			torque = (rate - tilt) * AIR_DAMP * self.inertia * recovery.AirControl
+			local current = tilt
+			local inputRate = math.rad(recovery.AirInput)
+			if pitchIn ~= 0 then -- W = nose down, S = nose up
+				rate += right * (-pitchIn * inputRate - rate:Dot(right))
+			end
+			if rollIn ~= 0 and not input.Handbrake then -- D = roll right
+				rate += forward * (rollIn * inputRate - rate:Dot(forward))
+			elseif rollIn ~= 0 then -- handbrake + D = spin right
+				rate += up * (-rollIn * inputRate)
+				current = angular
+			end
+			local gain = AIR_DAMP * recovery.AirControl + (if keyed then AIR_INPUT_GAIN else 0)
+			torque = (rate - current) * gain * self.inertia
 		elseif grounded < #self.wheels and recovery.AirControl > 0 and speedMs > 5 then
 			torque = -tilt * LIP_DAMP * self.inertia * recovery.AirControl
 		end

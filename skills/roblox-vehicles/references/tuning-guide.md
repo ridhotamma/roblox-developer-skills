@@ -72,6 +72,8 @@ Change one thing at a time and drive the same corner before and after.
 | Spins out of every slide | slide grip too low | tires.slideGrip 0.8–0.86, drift stabilizer ↑ |
 | Slippery on keyboard: the tail swings out on every left/right flick, quick lane changes turn into slides | stability assist off or low; rear grip equal to or below the front | `assists.stability` 0.6–1.0 (the biggest single fix: a 100 km/h keyboard lane change slides the SportsCar 68° at 0 and 4° at 0.6), rear grip 10–15% above front, drift.maxAngle 15–20 with stabilizer 0.9–1.0, slideGrip 0.9+; see the Arcade / stable setup below |
 | Lands on its roof after jumps | no air control | recovery.airControl 0.3–0.5 |
+| Hitting a wall bumps the car up, spins it away or bounces it back | hull elasticity mixing with the wall's; collision solver side effects | kit defaults: the hull is elasticity 0 at weight 100 and VehicleSim softens impacts (anti-stuck.md). If you build your own hull, keep `ElasticityWeight` high |
+| Can't line up the landing in the air | no air steering | `recovery.airInput` 90–150 deg/s: W/S pitch, A/D roll, handbrake + A/D spin, like GTA. Keys held at take-off are ignored until released |
 | Jumps over too fast to line up a landing, nose snaps down off the lip | Roblox gravity (~5.6 g) in the air | `recovery.airGravity` 2–3 g (default 2.5: ~2× the hang time of Roblox gravity); 1 = real-world, 0 = Roblox gravity |
 
 ## 4. Arcade vs simulation

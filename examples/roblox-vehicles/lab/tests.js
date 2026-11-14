@@ -268,6 +268,53 @@
     });
   }
 
+  // Wall hits (VehicleSim impact softening + a zero-bounce hull): a 45° hit at speed must glance
+  // the car along the wall, not spin it away, flip it or hop it, and holding the throttle into a
+  // wall afterwards must not fire the stuck assist (its lift-and-push bumps the car against it).
+  for (const [ang, kmh] of [[45, 70], [45, 120], [90, 50]]) {
+    test(`wallhit${ang}_${kmh}`, `Wall hit at ${ang}°, ${kmh} km/h, throttle held into it`, 'Never stuck', (raw) => {
+      const w = flatWorld(1200); w.boxes[0].h = [3000, 5, 3000]; w.boxes[0].c = [0, -5, 0];
+      w.box('Wall', [0, 6, -200], [600, 12, 4], M.I(), { color: 0x81a1c1 });
+      const yaw = ((90 - ang) * Math.PI) / 180;
+      const car = new Car(w, raw, { position: [0, 0, 0], yaw }); const lk = car.cf.look; car.place([-lk[0] * 220, 0, -198 - lk[2] * 220], yaw);
+      const v = raw.name === 'Kart' ? Math.min(kmh, 80) : kmh; const frames = [];
+      let hit = null, hop = 0, tilt = 0, turned = 0, rebound = 0; const assists0 = car.unsticks + car.recoveries;
+      drive(car, 14, (t, c, tel) => ({ throttle: hit === null ? clamp((v - tel.speedKmh) * 0.2, -1, 1) : 1, steer: 0, handbrake: false }), frames, 2, (t, c) => {
+        if (hit === null && c.hullContacts) hit = t;
+        c.hullContacts = 0;
+        if (hit === null) return false;
+        const dt = t - hit;
+        if (dt < 1.5) { hop = Math.max(hop, c.body.v[1] * MPS); tilt = Math.max(tilt, (Math.acos(clamp(c.cf.up[1], -1, 1)) * 180) / Math.PI); }
+        if (dt > 0.02 && dt < 0.3) rebound = Math.max(rebound, c.body.v[2] * MPS); // bounce that lasts (the sim corrects the collision frame next step), not driving away later
+        if (dt < 0.5) turned += (Math.abs(c.body.w[1]) * 180 / Math.PI) * DT;
+        return dt > 4;
+      });
+      const assists = car.unsticks + car.recoveries - assists0;
+      const ok = hit !== null && hop < 1.5 && tilt < 20 && turned < (ang === 90 ? 15 : 75) && rebound < 3 && assists === 0;
+      return { pass: ok, measured: hit === null ? 'never touched the wall' : `hop ${f(hop)} m/s · tilt ${f(tilt, 0)}° · turned ${f(turned, 0)}° in 0.5 s · rebound ${f(rebound, 1)} m/s · ${assists} assists`, expected: `hop < 1.5 m/s, tilt < 20°, turned < ${ang === 90 ? 15 : 75}° (glances along, no spin-away), rebound < 3 m/s, no stuck assist`, frames, world: w };
+    });
+  }
+
+  // GTA-style air control: W/S pitch, A/D roll, handbrake + A/D spin. Keys held at take-off are
+  // ignored until released (holding W off a ramp must not dive the nose).
+  test('airinput', 'Air control keys: hold W, S nose up, D roll, handbrake+D spin', 'Handling', (raw) => {
+    if (!(Lab.normalize(raw).recovery.airInput > 0)) return { pass: true, measured: 'air input off (recovery.airInput 0)', expected: '—', frames: [], world: flatWorld(10) };
+    const res = {}; let frames = [], world = null;
+    for (const [key, air] of [['W', { throttle: 1, steer: 0 }], ['S', { throttle: -1, steer: 0 }], ['D', { throttle: 0, steer: 1 }], ['HD', { throttle: 0, steer: 1, handbrake: true }]]) {
+      const w = flatWorld(3000); w.boxes[0].h = [200, 5, 1500];
+      const a = (20 * Math.PI) / 180, L = 40; w.box('Kick', [0, (Math.sin(a) * L) / 2 - 1, -60], [30, 2, L], M.rotX(a), { color: 0xd08770 });
+      const car = new Car(w, raw, { position: [0, 0, 300] }); const rec = key === 'S' ? frames : null; if (rec) world = w;
+      const vk = raw.name === 'Kart' ? 65 : 100; let tAir = null, p0 = 0, y0 = 0;
+      const ang = (c) => ({ pitch: pitchRoll(c).pitch, roll: pitchRoll(c).roll, yaw: (Math.atan2(-c.cf.look[0], -c.cf.look[2]) * 180) / Math.PI });
+      drive(car, 12, (t, c, tel) => (tAir === null ? { throttle: key === 'W' ? 1 : speedHold(vk)(tel), steer: 0, handbrake: false } : { handbrake: false, ...air }), rec, 2, (t, c, tel) => {
+        if (tAir === null && tel.grounded === 0 && t > 1) { tAir = t; p0 = ang(c).pitch; y0 = ang(c).yaw; }
+        if (tAir !== null && t - tAir >= 0.4) { const n = ang(c); res[key] = { dp: n.pitch - p0, roll: n.roll, dy: ((n.yaw - y0 + 540) % 360) - 180 }; return true; }
+      });
+    }
+    const ok = res.W && res.W.dp > -25 && res.S && res.S.dp > 20 && res.D && res.D.roll < -20 && res.HD && res.HD.dy < -20;
+    return { pass: !!ok, measured: res.HD ? `held W: pitch ${f(res.W.dp, 0)}° · S: ${f(res.S.dp, 0)}° · D: roll ${f(res.D.roll, 0)}° · handbrake+D: yaw ${f(res.HD.dy, 0)}° (0.4 s)` : 'did not get airborne', expected: 'held W ≥ -25° (no dive), S nose up > 20°, D rolls right > 20°, handbrake+D spins right > 20°', frames, world };
+  });
+
   test('jump', 'Ramp jump at 80 km/h, air control', 'Never stuck', (raw) => {
     const w = flatWorld(1200);
     const ang = (14 * Math.PI) / 180, rl = 24;

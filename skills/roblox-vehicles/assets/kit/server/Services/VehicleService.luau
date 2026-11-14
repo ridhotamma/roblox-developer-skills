@@ -125,7 +125,9 @@ local function buildHull(root: BasePart, minCorner: Vector3, maxCorner: Vector3,
 	local radius = math.min(height / 2, length / 4)
 	local centerX = (minCorner.X + maxCorner.X) / 2
 	local centerZ = (minCorner.Z + maxCorner.Z) / 2
-	local physics = PhysicalProperties.new(0.7, friction, 0.05, 100, 1) -- friction weight 100: ours wins
+	-- Weight 100 on both: Roblox mixes two parts' friction and elasticity as weighted averages, so at
+	-- weight 1 a 0.05 hull against a plastic wall (0.5) would bounce at ~0.28.
+	local physics = PhysicalProperties.new(0.7, friction, 0, 100, 100)
 
 	local function hullPart(name: string, shape: Enum.PartType, size: Vector3, offset: Vector3)
 		local part = Instance.new("Part")

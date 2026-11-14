@@ -54,9 +54,21 @@
   const AIR_SUPPORT = 0.2;
   const STOP_GAIN = 0.4; // share of 'stop this corner in one step': above ~0.65 the yaw mode oscillates at standstill
   const AIR_LEVEL = 2.5, AIR_DAMP = 14, AIR_MAX_RATE = 1.2, LIP_DAMP = 60; // air control: leveling rate per rad of tilt (1/s), rate-tracking gain (1/s, × Recovery.AirControl), max pitch/roll rate (rad/s)
+  const AIR_INPUT_GAIN = 8; // air steering: rate tracking (1/s) while the player holds a key
+  const IMPACT_G = 8; // horizontal velocity change beyond this (real g) in one step = a hit, not tires
+  const IMPACT_YAW = 1.5; // rad/s: most yaw-rate change one hit may add
+  const IMPACT_TILT = 0.2; // share of a hit's pitch/roll-rate change that is kept
+  const IMPACT_HOP = 1; // m/s: most upward speed one hit may add
+  const IMPACT_RESTITUTION = 0.1, IMPACT_REBOUND = 0.5; // a hit sends the car back at most 10% of its approach speed + 0.5 m/s
+  const IMPACT_WINDOW = 0.4; // s after a hit in which the yaw rate may not grow (no scrape spin-up)
   const ESC_GAIN = 10; // stability assist: yaw-rate correction (1/s, × Assists.Stability)
   const ESC_HANDBRAKE_GRACE = 0.6; // s after the handbrake is released before the assist returns
   const HOLD_MS = 0.6; // hill hold below this speed (m/s) with no pedal
+  // Hull PhysicalProperties (VehicleService.buildHull). Roblox mixes two parts' elasticity as a
+  // weighted average, (eA*wA + eB*wB)/(wA + wB); world parts default to weight 1 (plastic e 0.5).
+  const HULL = { elasticity: 0, elasticityWeight: 100 }; // exported so experiments can compare settings
+  const EXPERIMENT = { impactSoftening: true, wallAwareStuck: true }; // switch fixes off to compare
+  const mixElasticity = (box) => { const e = box.elasticity ?? 0.5, w = box.elasticityWeight ?? 1; return (HULL.elasticity * HULL.elasticityWeight + e * w) / (HULL.elasticityWeight + w); };
   const MIN_ROOT_MASS = 150; // RMU: keeps a seated character a small share of the assembly // springs carrying less than this share of weight = airborne
 
   // ---------------------------------------------------------------- spec (rveh.cjs DEFAULTS)
@@ -68,7 +80,7 @@
     steering: { maxAngle: 34, speed: 4, highSpeedScale: 0.4, highSpeedKmh: 160 },
     tires: { gripFront: 1.0, gripRear: 1.0, stiffness: 10, shape: 1.9, slideGrip: 0.8, rollingResistance: 0.013 },
     drift: { countersteer: 0.15, maxAngle: 50, stabilizer: 0.5 },
-    recovery: { airControl: 0.3, airGravity: 2.5, autoFlip: true, stuckAssist: true },
+    recovery: { airControl: 0.3, airGravity: 2.5, airInput: 120, autoFlip: true, stuckAssist: true },
     assists: { stability: 0.6 },
     body: { autoHull: true, hullFriction: 0.08 },
     suspension: { frequencyFront: 2.4, frequencyRear: 2.6, dampingRatio: 0.35, maxLength: 1.6, rideHeight: 0.6, antiRoll: 0.3, rollCenter: 0.5 },
@@ -296,7 +308,7 @@
       this.assemblyMass = mass;
 
       // Hull (buildHull), in root space.
-      this.hull = null;
+      this.hull = null; this.reach = 8;
       if (spec.body.autoHull) {
         const corners = [];
         for (const sx of [0, 1]) for (const sy of [0, 1]) for (const sz of [0, 1]) corners.push(toRootLocal([sx ? geo.body.max[0] : geo.body.min[0], sy ? geo.body.max[1] : geo.body.min[1], sz ? geo.body.max[2] : geo.body.min[2]]));
@@ -313,6 +325,7 @@
           cyl: [mn[2] + radius, mx[2] - radius].map((z) => ({ c: [cx, bottom + radius, z], radius, width })),
         };
         this.hull.samples = hullSamples(this.hull);
+        this.reach = length / 2 + Math.abs(cz) + 1.5; // root to bumper + margin (Luau: model extents)
       }
 
       // Mounts and contacts (attachments on the root).
@@ -347,6 +360,7 @@
       this.gear = 1; this.shiftTimer = 0; this.steer = 0; this.rpm = spec.engine.idleRpm;
       this.stuckTimer = 0; this.unstickUntil = 0; this.unstickTries = 0; this.flipTimer = 0; this.lastRecover = -Infinity;
       this.accelLong = 0; this.accelLat = 0; this.tireLongN = 0; this.tireLatN = 0; this.handbrakeAt = -Infinity;
+      this.prevV = null; this.prevW = null; this.wasAirborne = false; this.airLatch = { pitch: 0, roll: 0 }; this.impacts = 0; this.impactUntil = -Infinity; this.impactYawCap = 0;
       this.frontCount = Math.max(fronts.length, 1);
       this.wheelbaseM = (wheelbase * MPS); this.trackM = (track * MPS);
       this.clock = 0; this.recoveries = 0; this.unsticks = 0; this.events = [];
@@ -380,7 +394,7 @@
       const height = this.spec.comHeight / MPS + this.spec.suspension.maxLength + 1.5;
       this.body.setCFrame([position[0], groundY + height, position[2]], lookAtR(fwd));
       this.body.v = [0, 0, 0]; this.body.w = [0, 0, 0];
-      this.stuckTimer = 0; this.unstickTries = 0; this.flipTimer = 0;
+      this.stuckTimer = 0; this.unstickTries = 0; this.flipTimer = 0; this.prevV = null;
     }
 
     // VehicleSim.Step — the port. input: { throttle -1..1, steer -1..1, handbrake }
@@ -389,6 +403,37 @@
       this.clock += dt;
       const now = this.clock;
       const { up, look: forward, right } = this.cf;
+      // Impact softening: a hit on a wall, pole or car changes velocity far faster than tires can
+      // (> IMPACT_G). Keep the stop or deflection the collision gave, but not the side effects a
+      // stiff collision solver adds at Roblox's 5.6x gravity scale: a big yaw kick that spins the
+      // car away, a pitch/roll flip and an upward hop (the "bump"). Like restoring a scaled
+      // angular velocity in a collision callback, done from the velocities the sim sees each step.
+      if (this.prevV && EXPERIMENT.impactSoftening) {
+        const dv = V.sub(body.v, this.prevV);
+        if (Math.hypot(dv[0], dv[2]) / dt * MPS > IMPACT_G * G) {
+          this.impacts++;
+          const dw = V.sub(body.w, this.prevW);
+          body.w = V.add(this.prevW, [dw[0] * IMPACT_TILT, clamp(dw[1], -IMPACT_YAW, IMPACT_YAW), dw[2] * IMPACT_TILT]);
+          // No bounce-back: along the hit direction, a car that was closing in may come away at only
+          // a fraction of its approach speed (being shoved from standstill is untouched).
+          const n = V.unit([dv[0], 0, dv[2]]);
+          const approach = V.dot(this.prevV, n);
+          if (approach < -1 / MPS) { // was closing in at > 1 m/s
+            const allowed = -approach * IMPACT_RESTITUTION + IMPACT_REBOUND / MPS;
+            const away = V.dot(body.v, n);
+            if (away > allowed) body.v = V.sub(body.v, V.mul(n, away - allowed));
+          }
+          const maxVy = Math.max(this.prevV[1], 0) + IMPACT_HOP / MPS;
+          if (body.v[1] > maxVy) body.v = [body.v[0], maxVy, body.v[2]];
+          this.impactUntil = now + IMPACT_WINDOW; this.impactYawCap = Math.max(Math.abs(body.w[1]), 0.5);
+        } else if (now < this.impactUntil && Math.abs(body.w[1]) > this.impactYawCap) {
+          // Still scraping along the wall: the contact keeps levering the nose round. Don't let it
+          // wind the car up past the yaw the hit itself left, so it glances off instead of turning
+          // away from the wall.
+          body.w = [body.w[0], Math.sign(body.w[1]) * this.impactYawCap, body.w[2]];
+        }
+      }
+      this.prevV = body.v.slice(); this.prevW = body.w.slice();
       const velocity = body.velAt(body.pos); // root.AssemblyLinearVelocity (velocity at the root part's position)
       const forwardMs = V.dot(velocity, forward) * MPS;
       const lateralMs = V.dot(velocity, right) * MPS;
@@ -558,7 +603,12 @@
       const rec = spec.recovery;
       let stuck = false;
       if (rec.stuckAssist) {
-        const trying = Math.abs(input.throttle) > 0.5;
+        // Pressing into a wall is not stuck: lifting and pushing would only bump the car against
+        // it (and the 4th try would teleport it). Back off with reverse instead.
+        const pushDir = input.throttle >= 0 ? forward : V.mul(forward, -1);
+        const wallHit = Math.abs(input.throttle) > 0.5 ? world.spherecast(body.pos, 1, V.mul(pushDir, this.reach)) : null;
+        const blocked = EXPERIMENT.wallAwareStuck && !!(wallHit && wallHit.normal[1] < 0.35);
+        const trying = Math.abs(input.throttle) > 0.5 && !blocked;
         if (trying && V.len(velocity) * MPS < 0.4 && now >= this.unstickUntil) this.stuckTimer += dt;
         else if (!trying || V.len(velocity) * MPS > 1.5) { this.stuckTimer = 0; if (V.len(velocity) * MPS > 3) this.unstickTries = 0; }
         if (this.stuckTimer >= 1.0) {
@@ -608,16 +658,36 @@
       // face the ground below it, a ramp's slope included. Partly off the ground at speed (cresting
       // a ramp lip, one axle in the air): damp pitch/roll rate only, so the nose doesn't drop off
       // every jump.
+      // Air control. Fully airborne: turn the car smoothly (rate-capped, no snap) until its wheels
+      // face the ground below it, a ramp's slope included; the player can steer it GTA-style:
+      // throttle axis (W/S, stick up/down) pitches, steer axis (A/D, stick) rolls, or with the
+      // handbrake held, spins (yaw). Keys already held at take-off are ignored until released, so
+      // holding W off a ramp doesn't dive the nose. Partly off the ground at speed (cresting a ramp
+      // lip, one axle in the air): damp pitch/roll rate only, so the nose doesn't drop off the lip.
       const ang = body.w;
       const tilt = [ang[0], 0, ang[2]];
-      if ((grounded === 0 || support < AIR_SUPPORT) && rec.airControl > 0) {
+      const airborne = grounded === 0;
+      const latch = this.airLatch;
+      if (airborne && !this.wasAirborne) { latch.pitch = Math.abs(input.throttle) > 0.05 ? Math.sign(input.throttle) : 0; latch.roll = Math.abs(input.steer) > 0.05 ? Math.sign(input.steer) : 0; }
+      this.wasAirborne = airborne;
+      if (Math.abs(input.throttle) < 0.05) latch.pitch = 0;
+      if (Math.abs(input.steer) < 0.05) latch.roll = 0;
+      const pitchIn = airborne && rec.airInput > 0 && Math.sign(input.throttle) !== latch.pitch ? input.throttle : 0;
+      const rollIn = airborne && rec.airInput > 0 && Math.sign(input.steer) !== latch.roll ? input.steer : 0;
+      if ((grounded === 0 || support < AIR_SUPPORT) && (rec.airControl > 0 || pitchIn || rollIn)) {
         const below = world.raycast(body.pos, [0, -80, 0]);
         const targetUp = below && below.normal[1] > 0.5 ? below.normal : [0, 1, 0];
         const err = V.cross(up, targetUp); // axis × sin(angle) that turns "up" onto targetUp
         let rate = V.mul(err, AIR_LEVEL);
         const rl = V.len(rate);
         if (rl > AIR_MAX_RATE) rate = V.mul(rate, AIR_MAX_RATE / rl);
-        this.stabT = V.mul(V.sub(rate, tilt), AIR_DAMP * this.inertiaAir * rec.airControl);
+        let current = tilt;
+        const inputRate = (rec.airInput * Math.PI) / 180;
+        if (pitchIn) rate = V.add(V.sub(rate, V.mul(right, V.dot(rate, right))), V.mul(right, -pitchIn * inputRate));
+        if (rollIn && !input.handbrake) rate = V.add(V.sub(rate, V.mul(forward, V.dot(rate, forward))), V.mul(forward, rollIn * inputRate));
+        if (rollIn && input.handbrake) { rate = V.add(rate, V.mul(up, -rollIn * inputRate)); current = ang; }
+        const gain = AIR_DAMP * rec.airControl + (pitchIn || rollIn ? AIR_INPUT_GAIN : 0);
+        this.stabT = V.mul(V.sub(rate, current), gain * this.inertiaAir);
       } else if (grounded < this.wheels.length && rec.airControl > 0 && speedMs > 5) {
         this.stabT = V.mul(tilt, -LIP_DAMP * this.inertiaAir * rec.airControl);
       } else this.stabT = [0, 0, 0];
@@ -677,7 +747,7 @@
     return pts;
   }
 
-  // Hull vs world boxes: penetrating sample points get a normal impulse (elasticity 0.05) and
+  // Hull vs world boxes: penetrating sample points get a normal impulse (Roblox-mixed elasticity) and
   // Coulomb friction at the hull's friction, plus positional correction.
   function collide(car, h) {
     const b = car.body, world = car.world, mu = car.hull.friction;
@@ -695,7 +765,7 @@
         // exit along the axis of least penetration, but prefer the face the point moved through
         let ax = 0; if (pen[1] < pen[ax]) ax = 1; if (pen[2] < pen[ax]) ax = 2;
         const nl = [0, 0, 0]; nl[ax] = l[ax] >= 0 ? 1 : -1;
-        contacts.push({ p, n: M.mulV(box.R, nl), depth: pen[ax] });
+        contacts.push({ p, n: M.mulV(box.R, nl), depth: pen[ax], e: mixElasticity(box) });
       }
     }
     if (!contacts.length) return;
@@ -707,7 +777,7 @@
         const vn = V.dot(vp, c.n);
         if (vn >= 0) continue;
         const kn = 1 / b.mass + V.dot(c.n, V.cross(b.worldInvI(V.cross(r, c.n)), r));
-        const e = it === 0 ? 0.05 : 0;
+        const e = it === 0 ? c.e : 0;
         const jn = (-(1 + e) * vn) / kn / contacts.length * 2;
         applyImpulse(b, V.mul(c.n, jn), r);
         const vp2 = b.velAt(c.p);
@@ -730,5 +800,5 @@
   }
   function applyImpulse(b, j, r) { b.v = V.add(b.v, V.mul(j, 1 / b.mass)); b.w = V.add(b.w, b.worldInvI(V.cross(r, j))); }
 
-  return { V, M, VM, World, Car, normalize, carGeometry, clamp, lookAtR };
+  return { V, M, VM, World, Car, normalize, carGeometry, clamp, lookAtR, HULL, EXPERIMENT };
 });

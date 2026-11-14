@@ -3,6 +3,8 @@
 --   * input from the VehicleSeat (keyboard WASD/arrows, gamepad stick, mobile thumbstick all
 --     come for free), plus handbrake on LeftShift / gamepad X / a touch button
 --   * runs VehicleSim every physics step (the server gave this client network ownership)
+--   * in the air the same keys steer the car, GTA-style (VehicleSim): W/S pitch, A/D roll,
+--     handbrake + A/D spin; keys held at take-off are ignored until released
 --   * speed-dependent field of view and a small HUD: speed, gear, rpm bar
 --   * Reset (R / gamepad Y / touch button) puts the car back on its wheels, with a cooldown
 --   * drift score: points build while sliding (angle x speed), banked shortly after the slide
