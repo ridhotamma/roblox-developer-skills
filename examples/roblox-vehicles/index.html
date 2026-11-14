@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vehicle Lab</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: #ffffff; --ink: #1d2230; --muted: #667085; --line: #e3e6ec;
+    --pass: #1a7f4b; --pass-bg: #e3f4ea; --fail: #b42318; --fail-bg: #fde8e6; --accent: #3355dd; --sel: #eef2ff;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #12141a; --panel: #1a1d25; --ink: #e6e8ee; --muted: #9098a9; --line: #2a2f3b;
+    --pass: #4cc38a; --pass-bg: #15301f; --fail: #ff7a6b; --fail-bg: #3a1b18; --accent: #8ea2ff; --sel: #232a40; } }
+  :root[data-theme="dark"] { --bg: #12141a; --panel: #1a1d25; --ink: #e6e8ee; --muted: #9098a9; --line: #2a2f3b;
+    --pass: #4cc38a; --pass-bg: #15301f; --fail: #ff7a6b; --fail-bg: #3a1b18; --accent: #8ea2ff; --sel: #232a40; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; }
+  .app { display: grid; grid-template-columns: 420px 1fr; height: 100vh; }
+  aside { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+  header { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  h1 { font-size: 16px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+  select, button { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  button { cursor: pointer; } button.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .tabs button.on { background: var(--sel); border-color: var(--accent); }
+  .summary { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { padding: 2px 8px; border-radius: 99px; font-size: 12px; background: var(--bg); border: 1px solid var(--line); cursor: pointer; }
+  .chip.on { border-color: var(--accent); background: var(--sel); }
+  .chip b.p { color: var(--pass); } .chip b.f { color: var(--fail); }
+  .list { overflow: auto; flex: 1; padding: 6px 8px 16px; }
+  .group { margin: 12px 8px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+  .t { display: grid; grid-template-columns: 44px 1fr; gap: 8px; padding: 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .t:hover { background: var(--bg); } .t.sel { background: var(--sel); border-color: var(--accent); }
+  .badge { font-size: 11px; font-weight: 700; text-align: center; border-radius: 6px; padding: 2px 0; height: fit-content; }
+  .badge.p { color: var(--pass); background: var(--pass-bg); } .badge.f { color: var(--fail); background: var(--fail-bg); }
+  .t .title { font-weight: 600; } .t .m { color: var(--ink); font-size: 12px; } .t .e { color: var(--muted); font-size: 12px; }
+  main { position: relative; min-width: 0; }
+  canvas { display: block; width: 100%; height: 100%; }
+  .hud { position: absolute; left: 16px; bottom: 16px; background: rgba(15,17,22,.78); color: #fff; padding: 10px 14px; border-radius: 12px; font: 12px/1.5 ui-monospace, Menlo, monospace; min-width: 250px; }
+  .hud .big { font: 800 26px system-ui; }
+  .bar { height: 6px; background: #333a48; border-radius: 3px; margin-top: 4px; } .bar > i { display: block; height: 100%; background: #5ac878; border-radius: 3px; }
+  .wheels { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; margin-top: 6px; }
+  .wheels span { padding: 1px 6px; border-radius: 4px; background: #2a3040; }
+  .top { position: absolute; left: 16px; top: 12px; right: 16px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .top .card { background: rgba(15,17,22,.78); color: #fff; padding: 8px 12px; border-radius: 10px; }
+  .timeline { position: absolute; left: 16px; right: 16px; top: 64px; display: flex; gap: 8px; align-items: center; background: rgba(15,17,22,.78); padding: 8px 12px; border-radius: 12px; color: #fff; }
+  .timeline input { flex: 1; }
+  .timeline button { background: #2a3040; color: #fff; border-color: #3a4256; }
+  .keys { position: absolute; right: 16px; bottom: 16px; background: rgba(15,17,22,.78); color: #fff; padding: 8px 12px; border-radius: 10px; font-size: 12px; }
+  .hidden { display: none !important; }
+  .findings { padding: 8px 16px 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); max-height: 28vh; overflow: auto; }
+  .findings b { color: var(--ink); }
+  @media (max-width: 900px) { .app { grid-template-columns: 1fr; grid-template-rows: 50vh 50vh; } aside { order: 2; } .timeline { left: 16px; bottom: 150px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <header>
+      <h1>roblox-vehicles · Vehicle Lab</h1>
+      <div class="sub">The kit's <code>VehicleSim</code>, <code>VehicleMath</code> and chassis builder, ported line by line to JS and run on a Roblox-like rigid body (240 Hz physics, 60 Hz sim step, 196.2 studs/s² gravity, Spherecast semantics). Each check compares against <code>rveh.cjs report</code> or what the skill promises.</div>
+      <div class="row tabs">
+        <button id="tabTests" class="on">Test replays</button>
+        <button id="tabDrive">Drive it</button>
+        <select id="spec"></select>
+        <button id="runAll" class="primary">Run all specs</button>
+      </div>
+      <div class="summary" id="summary"></div>
+    </header>
+    <div class="list" id="list"></div>
+    <div class="findings" id="findings"></div>
+  </aside>
+  <main id="main">
+    <div class="top"><div class="card" id="caption">—</div></div>
+    <div class="hud" id="hud"></div>
+    <div class="timeline" id="timeline"><button id="play">❚❚</button><input type="range" id="scrub" min="0" max="0" value="0"><span id="time">0.0 s</span><button id="speedBtn">1×</button></div>
+    <div class="keys hidden" id="keys">W/S throttle · A/D steer · Shift handbrake · R reset · C camera</div>
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="lab/physics.js"></script>
+<script src="lab/specs.js"></script>
+<script src="lab/tests.js"></script>
+<script>
+'use strict';
+const { V, M, VM, World, Car } = VehicleLab;
+const SPECS = VEHICLE_SPECS, { TESTS, runOne } = VehicleTests;
+const MPS = VM.METERS_PER_STUD;
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- three.js scene
+const main = $('main');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+main.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fb6cc);
+scene.fog = new THREE.Fog(0x9fb6cc, 250, 900);
+const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 3000);
+scene.add(new THREE.HemisphereLight(0xdde8ff, 0x445060, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+sun.position.set(60, 120, 40); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -60, right: 60, top: 60, bottom: -60, far: 400 });
+scene.add(sun, sun.target);
+function resize() { const r = main.getBoundingClientRect(); renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize);
+
+const worldGroup = new THREE.Group(); scene.add(worldGroup);
+function gridTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+  g.fillStyle = '#5b6474'; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#6d7789'; g.lineWidth = 2; g.strokeRect(0, 0, 128, 128);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const gridTex = gridTexture();
+function buildWorld(boxes) {
+  while (worldGroup.children.length) { const o = worldGroup.children.pop(); o.geometry && o.geometry.dispose(); }
+  for (const b of boxes) {
+    const size = b.h.map((x) => x * 2);
+    let mat;
+    if (!b.color) { const t = gridTex.clone(); t.needsUpdate = true; t.repeat.set(size[0] / 10, size[2] / 10); mat = new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); }
+    else mat = new THREE.MeshStandardMaterial({ color: b.color, roughness: 0.9 });
+    if (b.color === 0x3b4252 || b.color === 0x4c566a) { const t = gridTex.clone(); t.needsUpdate = true; t.repeat.set(size[0] / 10, size[2] / 10); mat = new THREE.MeshStandardMaterial({ map: t, roughness: 1 }); }
+    const m = new THREE.Mesh(new THREE.BoxGeometry(...size), mat);
+    m.position.set(...b.c);
+    const R = b.R; m.setRotationFromMatrix(new THREE.Matrix4().set(R[0][0], R[0][1], R[0][2], 0, R[1][0], R[1][1], R[1][2], 0, R[2][0], R[2][1], R[2][2], 0, 0, 0, 0, 1));
+    m.receiveShadow = true; m.castShadow = size[1] < 50;
+    worldGroup.add(m);
+  }
+}
+
+// ------------------------------------------------------------- car visual (built from the same Car geometry)
+const COLORS = { Hatchback: 0x2f80ed, SportsCar: 0xe0453a, PickupTruck: 0x3a8f5c, Kart: 0xf2b134, DriftCar: 0x9b51e0 };
+let carVis = null;
+function buildCarVisual(specName) {
+  if (carVis) scene.remove(carVis.group);
+  const probe = new Car(new World(), SPECS[specName].raw);
+  const group = new THREE.Group();
+  const body = probe.geo.body, com = probe.comModel;
+  const bmin = V.sub(body.min, com), bmax = V.sub(body.max, com);
+  const bodyH = bmax[1] - bmin[1];
+  const paint = new THREE.MeshStandardMaterial({ color: COLORS[specName] || 0x888888, roughness: 0.45, metalness: 0.2 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x1b2330, roughness: 0.2, metalness: 0.5 });
+  const lower = new THREE.Mesh(new THREE.BoxGeometry(bmax[0] - bmin[0], bodyH * (specName === 'Kart' ? 0.5 : 0.45), bmax[2] - bmin[2]), paint);
+  lower.position.set(0, bmin[1] + bodyH * 0.22, (bmin[2] + bmax[2]) / 2); lower.castShadow = true; group.add(lower);
+  if (specName !== 'Kart') {
+    const cabLen = (bmax[2] - bmin[2]) * (specName === 'PickupTruck' ? 0.35 : 0.5);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry((bmax[0] - bmin[0]) * 0.86, bodyH * 0.45, cabLen), glass);
+    cab.position.set(0, bmin[1] + bodyH * 0.67, (bmin[2] + bmax[2]) / 2 + (specName === 'PickupTruck' ? -cabLen * 0.35 : cabLen * 0.1)); cab.castShadow = true; group.add(cab);
+  } else {
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.6, 1.2), glass); seat.position.set(0, bmin[1] + 1.2, 0.8); group.add(seat);
+  }
+  // hull (what actually collides) as wireframe
+  const hullGroup = new THREE.Group(); hullGroup.visible = false;
+  if (probe.hull) {
+    const wm = new THREE.MeshBasicMaterial({ color: 0x00e0ff, wireframe: true });
+    const hb = new THREE.Mesh(new THREE.BoxGeometry(...probe.hull.box.size), wm); hb.position.set(...probe.hull.box.c); hullGroup.add(hb);
+    for (const c of probe.hull.cyl) { const cy = new THREE.Mesh(new THREE.CylinderGeometry(c.radius, c.radius, c.width, 16), wm); cy.rotation.z = Math.PI / 2; cy.position.set(...c.c); hullGroup.add(cy); }
+  }
+  group.add(hullGroup);
+  const wheels = probe.wheels.map((w) => {
+    const pivot = new THREE.Group(); const spin = new THREE.Group(); pivot.add(spin);
+    const tyreMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+    const tyre = new THREE.Mesh(new THREE.CylinderGeometry(w.radius, w.radius, w.radius * 0.7, 20), tyreMat);
+    tyre.rotation.z = Math.PI / 2; tyre.castShadow = true; spin.add(tyre);
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(w.radius * 0.72, w.radius * 1.3, 0.15), new THREE.MeshStandardMaterial({ color: 0xcfd6e0 }));
+    spin.add(rim);
+    group.add(pivot);
+    return { pivot, spin, tyreMat, mount: w.mountLocal, front: w.front };
+  });
+  scene.add(group);
+  carVis = { group, wheels, hullGroup, probe };
+}
+function poseCar(fr) {
+  if (!carVis) return;
+  const g = carVis.group;
+  g.position.set(...fr.p);
+  g.quaternion.set(fr.q[1], fr.q[2], fr.q[3], fr.q[0]);
+  carVis.wheels.forEach((w, i) => {
+    w.pivot.position.set(w.mount[0], w.mount[1] - fr.wl[i], w.mount[2]);
+    w.pivot.rotation.y = w.front ? (-fr.st * Math.PI) / 180 : 0;
+    w.spin.rotation.x = -fr.ws[i];
+    const s = fr.slip[i];
+    w.tyreMat.color.setHex(!fr.wg[i] ? 0x404a5a : s > 1.02 ? 0xd2452f : s > 0.85 ? 0xd99a2b : 0x1a1a1a);
+  });
+}
+
+// skid marks: small quads where a tyre slides
+const skidGeo = new THREE.PlaneGeometry(0.7, 0.7); skidGeo.rotateX(-Math.PI / 2);
+const skidMat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.55, depthWrite: false });
+const MAX_SKIDS = 4000;
+const skids = new THREE.InstancedMesh(skidGeo, skidMat, MAX_SKIDS); skids.count = 0; scene.add(skids);
+let skidIdx = 0;
+function clearSkids() { skids.count = 0; skidIdx = 0; skids.instanceMatrix.needsUpdate = true; }
+function addSkids(fr) {
+  if (!carVis) return;
+  const q = new THREE.Quaternion(fr.q[1], fr.q[2], fr.q[3], fr.q[0]);
+  carVis.wheels.forEach((w, i) => {
+    if (!fr.wg[i] || fr.slip[i] < 1.02 || Math.abs(fr.kmh) < 8) return;
+    const p = new THREE.Vector3(w.mount[0], w.mount[1] - fr.wl[i] - carVis.probe.wheels[i].radius + 0.06, w.mount[2]).applyQuaternion(q).add(new THREE.Vector3(...fr.p));
+    skids.setMatrixAt(skidIdx % MAX_SKIDS, new THREE.Matrix4().makeTranslation(p.x, p.y, p.z));
+    skidIdx++; skids.count = Math.min(skidIdx, MAX_SKIDS);
+  });
+  skids.instanceMatrix.needsUpdate = true;
+}
+
+// ------------------------------------------------------------- camera
+let camMode = 0; // 0 chase, 1 side, 2 top
+let orbitYaw = 0, orbitPitch = 0.25, dragging = false, lastX = 0, lastY = 0;
+renderer.domElement.addEventListener('pointerdown', (e) => { dragging = true; lastX = e.clientX; lastY = e.clientY; });
+addEventListener('pointerup', () => (dragging = false));
+addEventListener('pointermove', (e) => { if (!dragging) return; orbitYaw -= (e.clientX - lastX) * 0.006; orbitPitch = Math.min(1.3, Math.max(-0.1, orbitPitch + (e.clientY - lastY) * 0.004)); lastX = e.clientX; lastY = e.clientY; });
+let camDist = 26;
+renderer.domElement.addEventListener('wheel', (e) => { camDist = Math.min(120, Math.max(8, camDist * (1 + e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
+const camPos = new THREE.Vector3(0, 10, 30);
+function updateCamera(fr, snap) {
+  const p = new THREE.Vector3(...fr.p);
+  const q = new THREE.Quaternion(fr.q[1], fr.q[2], fr.q[3], fr.q[0]);
+  const back = new THREE.Vector3(0, 0, 1).applyQuaternion(q); back.y = 0; if (back.lengthSq() < 1e-4) back.set(0, 0, 1); back.normalize();
+  let base = Math.atan2(back.x, back.z);
+  if (camMode === 1) base += Math.PI / 2;
+  const yaw = base + orbitYaw, pitch = camMode === 2 ? 1.35 : orbitPitch;
+  const target = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).multiplyScalar(camDist).add(p);
+  if (snap) camPos.copy(target); else camPos.lerp(target, 0.12);
+  camera.position.copy(camPos); camera.lookAt(p.x, p.y + 1, p.z);
+  sun.position.set(p.x + 60, p.y + 120, p.z + 40); sun.target.position.copy(p);
+}
+
+// ------------------------------------------------------------- HUD
+function showHud(fr, spec, extra = '') {
+  const red = SPECS[spec].raw.engine.redlineRpm;
+  const names = ['FL', 'FR', 'RL', 'RR'];
+  $('hud').innerHTML = `<div class="big">${Math.round(Math.abs(fr.kmh))} km/h <span style="font-size:16px;color:#ffc43d">${fr.g < 0 ? 'R' : fr.g}</span></div>
+    rpm ${fr.rpm} · steer ${fr.st.toFixed(1)}° · drift ${fr.da.toFixed(0)}°${fr.stuck ? ' · <b style="color:#ffc43d">STUCK ASSIST</b>' : ''}
+    <div class="bar"><i style="width:${Math.min(100, (fr.rpm / red) * 100)}%;background:${fr.rpm / red > 0.9 ? '#ff5046' : '#5ac878'}"></i></div>
+    <div class="wheels">${names.map((n, i) => `<span style="color:${!fr.wg[i] ? '#8893a7' : fr.slip[i] > 1.02 ? '#ff7a6b' : '#c6f0d4'}">${n} ${fr.wg[i] ? 'len ' + fr.wl[i].toFixed(2) + ' slip ' + fr.slip[i].toFixed(2) : 'in air'}</span>`).join('')}</div>${extra}`;
+}
+
+// ------------------------------------------------------------- results list
+const results = {}; // spec -> [result]
+let selSpec = 'SportsCar', selTest = null, filter = 'all';
+const specSel = $('spec');
+for (const n of Object.keys(SPECS)) specSel.add(new Option(`${n} — ${SPECS[n].raw.title || ''}`, n));
+specSel.value = selSpec;
+specSel.onchange = () => { selSpec = specSel.value; if (mode === 'drive') startDrive(); else ensureResults(selSpec).then(() => { renderList(); selectTest(results[selSpec].find((r) => !r.pass) || results[selSpec][0]); }); };
+
+async function ensureResults(spec) {
+  if (results[spec]) return;
+  results[spec] = [];
+  $('caption').textContent = `Running ${spec}…`;
+  for (const t of TESTS) { results[spec].push(runOne(t, spec, SPECS)); renderList(); await new Promise((r) => setTimeout(r, 0)); }
+}
+function renderSummary() {
+  const chips = [];
+  let tp = 0, tf = 0;
+  for (const n of Object.keys(SPECS)) {
+    const r = results[n]; if (!r) { chips.push(`<span class="chip" data-s="${n}">${n} ·</span>`); continue; }
+    const p = r.filter((x) => x.pass).length, f = r.length - p; tp += p; tf += f;
+    chips.push(`<span class="chip ${n === selSpec ? 'on' : ''}" data-s="${n}">${n} <b class="p">${p}</b>/<b class="f">${f}</b></span>`);
+  }
+  $('summary').innerHTML = chips.join('') + `<span class="chip ${filter === 'fail' ? 'on' : ''}" id="onlyFail">failures only</span>`;
+  $('summary').querySelectorAll('[data-s]').forEach((el) => (el.onclick = () => { specSel.value = el.dataset.s; specSel.onchange(); }));
+  $('onlyFail').onclick = () => { filter = filter === 'fail' ? 'all' : 'fail'; renderList(); };
+}
+function renderList() {
+  renderSummary();
+  const r = results[selSpec] || [];
+  let html = '', group = null;
+  r.forEach((x, i) => {
+    if (filter === 'fail' && x.pass) return;
+    if (x.group !== group) { group = x.group; html += `<div class="group">${group}</div>`; }
+    html += `<div class="t ${selTest === x ? 'sel' : ''}" data-i="${i}"><div class="badge ${x.pass ? 'p' : 'f'}">${x.pass ? 'PASS' : 'FAIL'}</div><div><div class="title">${x.title}</div><div class="m">${x.measured}</div><div class="e">want: ${x.expected}</div></div></div>`;
+  });
+  $('list').innerHTML = html;
+  $('list').querySelectorAll('.t').forEach((el) => (el.onclick = () => selectTest(r[+el.dataset.i])));
+}
+
+// ------------------------------------------------------------- replay
+let frames = [], fi = 0, playing = true, rate = 1, acc = 0;
+function selectTest(r) {
+  if (!r) return;
+  selTest = r; renderList();
+  buildWorld(r.world); buildCarVisual(r.spec); clearSkids();
+  frames = r.frames; fi = 0; playing = true; acc = 0;
+  $('scrub').max = Math.max(0, frames.length - 1);
+  $('caption').innerHTML = `<b>${r.spec}</b> · ${r.title} — <span style="color:${r.pass ? '#7be0a5' : '#ff8f80'}">${r.pass ? 'PASS' : 'FAIL'}</span> · ${r.measured}`;
+  if (frames.length) { poseCar(frames[0]); updateCamera(frames[0], true); }
+}
+$('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '❚❚' : '▶'; };
+$('scrub').oninput = (e) => { fi = +e.target.value; playing = false; $('play').textContent = '▶'; clearSkids(); };
+const RATES = [1, 0.25, 0.5, 2, 4];
+$('speedBtn').onclick = () => { rate = RATES[(RATES.indexOf(rate) + 1) % RATES.length]; $('speedBtn').textContent = rate + '×'; };
+
+// ------------------------------------------------------------- drive mode
+let mode = 'tests', live = null, keys = {};
+addEventListener('keydown', (e) => { keys[e.code] = true; if (mode === 'drive' && e.code === 'KeyR') live.recover(); if (e.code === 'KeyC') camMode = (camMode + 1) % 3; if (e.code === 'KeyH' && carVis) carVis.hullGroup.visible = !carVis.hullGroup.visible; });
+addEventListener('keyup', (e) => (keys[e.code] = false));
+function trackWorld() {
+  const w = new World();
+  w.box('Ground', [0, -5, 0], [1400, 10, 1400], M.I(), { color: 0x3b4252 });
+  [0.3, 0.6, 1.0].forEach((h, i) => w.box(`Kerb${h}`, [-60 + i * 30, h / 2, -80], [20, h, 6], M.I(), { color: 0xa3a3a3 }));
+  const ang = (14 * Math.PI) / 180; w.box('Ramp', [60, Math.sin(ang) * 12 - 0.8, -120], [24, 1.6, 24], M.rotX(ang), { color: 0xd08770 });
+  [5, 10, 15].forEach((d, i) => { const a = (d * Math.PI) / 180, L = 120; w.box(`Slope${d}`, [-200 + i * 60, Math.sin(a) * L / 2 - 1, -200], [40, 2, L], M.rotX(a), { color: 0x81a1c1 }); });
+  w.box('Wall', [120, 4, -60], [2, 8, 200], M.I(), { color: 0x88c0d0 });
+  for (let i = 0; i < 6; i++) w.box(`Pole${i}`, [-20 + i * 8, 6, -30], [0.8, 12, 0.8], M.I(), { color: 0xebcb8b });
+  w.box('Ridge', [-120, 0.9, 40], [30, 1.8, 2.5], M.I(), { color: 0xb48ead });
+  return w;
+}
+function startDrive() {
+  const w = trackWorld();
+  live = new Car(w, SPECS[selSpec].raw, { position: [0, 0, 40] });
+  buildWorld(w.boxes); buildCarVisual(selSpec); clearSkids();
+  $('caption').innerHTML = `<b>Driving ${selSpec}</b> · kerbs 0.3/0.6/1.0 ahead-left, ramp ahead-right, 5°/10°/15° slopes far left, poles, wall, ridge. H toggles the collision hull.`;
+}
+function setMode(m) {
+  mode = m;
+  $('tabTests').classList.toggle('on', m === 'tests'); $('tabDrive').classList.toggle('on', m === 'drive');
+  $('timeline').classList.toggle('hidden', m === 'drive'); $('keys').classList.toggle('hidden', m !== 'drive');
+  if (m === 'drive') startDrive(); else if (selTest) selectTest(selTest);
+}
+$('tabTests').onclick = () => setMode('tests');
+$('tabDrive').onclick = () => setMode('drive');
+$('runAll').onclick = async () => { for (const n of Object.keys(SPECS)) await ensureResults(n); renderList(); $('caption').textContent = 'All specs done.'; };
+
+let liveFrame = null, lastT = performance.now();
+function loop(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (mode === 'tests' && frames.length) {
+    const fps = frames.length > 1 ? 1 / Math.max(1e-3, frames[1].t - frames[0].t) : 30;
+    if (playing) { acc += dt * rate * fps; while (acc >= 1) { acc -= 1; fi++; if (fi >= frames.length) { fi = 0; clearSkids(); } addSkids(frames[fi]); } }
+    const fr = frames[fi]; poseCar(fr); updateCamera(fr); showHud(fr, selTest.spec);
+    $('scrub').value = fi; $('time').textContent = fr.t.toFixed(1) + ' s';
+  } else if (mode === 'drive' && live) {
+    const input = { throttle: (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), steer: (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), handbrake: !!(keys.ShiftLeft || keys.ShiftRight) };
+    let n = Math.round(dt * 60);
+    for (let i = 0; i < Math.max(1, n); i++) live.frame(1 / 60, input);
+    const b = live.body, tel = live.telemetry;
+    liveFrame = { t: live.clock, p: b.pos, q: b.q, wl: live.wheels.map((w) => w.length), ws: live.wheels.map((w) => w.spin), wg: live.wheels.map((w) => (w.grounded ? 1 : 0)), slip: live.wheels.map((w) => w.slip), st: live.steer, kmh: tel.speedKmh, g: tel.gear, rpm: Math.round(tel.rpm), da: tel.driftAngle, stuck: tel.stuck };
+    poseCar(liveFrame); addSkids(liveFrame); updateCamera(liveFrame); showHud(liveFrame, selSpec, `<div style="margin-top:4px;color:#aab">assists ${live.unsticks} · resets ${live.recoveries}</div>`);
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+
+$('findings').innerHTML = `<b>How to read this.</b> PASS/FAIL thresholds: launch ±15% and top speed ±4% of the report, braking ±15%, cornering 70–120% of the report's lateral g. The kerb, beached, roof and side checks come from the skill's own stuck test course (anti-stuck.md §5). Click any row to replay it. Tyres turn amber near the grip limit and red while sliding; skid marks show slides. Mouse drag orbits the camera, the scroll wheel zooms, C changes the view, H shows the collision hull.`;
+
+resize();
+ensureResults(selSpec).then(() => { renderList(); selectTest(results[selSpec].find((r) => !r.pass) || results[selSpec][0]); });
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
