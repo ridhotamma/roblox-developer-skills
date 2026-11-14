@@ -1,0 +1,710 @@
+{
+ "name": "TreasureChest",
+ "title": "Low-poly treasure chest",
+ "description": "Pirate chest with an arched lid, iron straps, ring handles and a lock plate. The lid hinges at the back edge and opens to about 105\u00b0 with a little overshoot; Close slams it shut with a small bounce.",
+ "reference": {
+  "sources": [
+   {
+    "url": "https://www.flickr.com/photos/8873441@N06/53181716709",
+    "note": "closed stylised chest, 3/4 front: arched lid, two straps, gold trim"
+   },
+   {
+    "url": "https://www.flickr.com/photos/8873441@N06/53180935617",
+    "note": "same chest open: lid swings back ~105\u00b0 around the rear edge"
+   },
+   {
+    "url": "https://www.flickr.com/photos/94846844@N04/25429563664",
+    "note": "front and back views: base about 2/3 of the total height, lid arch the rest"
+   }
+  ],
+  "dimensions": {
+   "width": 0.92,
+   "height": 0.63,
+   "depth": 0.56,
+   "tolerance": 0.05
+  },
+  "notes": "Width:height about 1.45 in the front views. Base 0.40 m tall, lid arch rises 0.22 m. Straps sit about 1/3 in from each side; handles are rings on the short sides, below the rim."
+ },
+ "palette": {
+  "wood": "#9a6236",
+  "woodDark": "#6e4426",
+  "iron": "#4b5058",
+  "gold": "#e2b13c",
+  "hole": "#1b1b1f"
+ },
+ "budget": 1500,
+ "camera": {
+  "yaw": 32,
+  "pitch": 24
+ },
+ "parts": [
+  {
+   "name": "Plinth",
+   "shape": "box",
+   "size": [
+    0.9,
+    0.05,
+    0.55
+   ],
+   "at": [
+    0,
+    0.025,
+    0
+   ],
+   "color": "woodDark",
+   "note": "slightly larger footprint than the base so their faces never coincide"
+  },
+  {
+   "name": "Base",
+   "shape": "box",
+   "size": [
+    0.86,
+    0.345,
+    0.52
+   ],
+   "at": [
+    0,
+    0.2225,
+    0
+   ],
+   "color": "wood",
+   "hollow": 0.035
+  },
+  {
+   "name": "Rim",
+   "shape": "box",
+   "size": [
+    0.88,
+    0.035,
+    0.54
+   ],
+   "at": [
+    0,
+    0.3825,
+    0
+   ],
+   "color": "gold",
+   "material": {
+    "metalness": 0.6,
+    "roughness": 0.45
+   },
+   "hollow": 0.03,
+   "open": "both"
+  },
+  {
+   "name": "StrapL",
+   "shape": "extrude",
+   "color": "iron",
+   "mirror": "x",
+   "material": {
+    "metalness": 0.5,
+    "roughness": 0.6
+   },
+   "plane": "zy",
+   "depth": 0.07,
+   "at": [
+    -0.28,
+    0,
+    0
+   ],
+   "outline": [
+    [
+     0.268,
+     0.37
+    ],
+    [
+     0.268,
+     0.02
+    ],
+    [
+     -0.268,
+     0.02
+    ],
+    [
+     -0.268,
+     0.37
+    ],
+    [
+     -0.255,
+     0.37
+    ],
+    [
+     -0.255,
+     0.033
+    ],
+    [
+     0.255,
+     0.033
+    ],
+    [
+     0.255,
+     0.37
+    ]
+   ],
+   "note": "U-shaped band: front, bottom and back only, so it never crosses the open interior"
+  },
+  {
+   "name": "LockPlate",
+   "shape": "box",
+   "size": [
+    0.12,
+    0.13,
+    0.03
+   ],
+   "at": [
+    0,
+    0.31,
+    0.27
+   ],
+   "color": "gold",
+   "material": {
+    "metalness": 0.6,
+    "roughness": 0.45
+   }
+  },
+  {
+   "name": "Keyhole",
+   "shape": "box",
+   "size": [
+    0.022,
+    0.045,
+    0.01
+   ],
+   "at": [
+    0,
+    0.3,
+    0.287
+   ],
+   "color": "hole"
+  },
+  {
+   "name": "HandlePlateL",
+   "shape": "box",
+   "size": [
+    0.02,
+    0.08,
+    0.1
+   ],
+   "at": [
+    -0.435,
+    0.3,
+    0
+   ],
+   "color": "iron",
+   "mirror": "x"
+  },
+  {
+   "name": "HandleL",
+   "shape": "torus",
+   "radius": 0.055,
+   "tube": 0.012,
+   "segments": [
+    8,
+    4
+   ],
+   "axis": "x",
+   "at": [
+    -0.447,
+    0.25,
+    0
+   ],
+   "color": "iron",
+   "mirror": "x",
+   "material": {
+    "metalness": 0.6,
+    "roughness": 0.5
+   }
+  },
+  {
+   "name": "Gold",
+   "shape": "hull",
+   "jitter": 0.008,
+   "color": "gold",
+   "material": {
+    "metalness": 0.7,
+    "roughness": 0.35
+   },
+   "points": [
+    [
+     -0.37,
+     0.085,
+     -0.22
+    ],
+    [
+     0.37,
+     0.085,
+     -0.22
+    ],
+    [
+     0.37,
+     0.085,
+     0.22
+    ],
+    [
+     -0.37,
+     0.085,
+     0.22
+    ],
+    [
+     -0.3,
+     0.25,
+     -0.16
+    ],
+    [
+     0.3,
+     0.25,
+     -0.16
+    ],
+    [
+     0.3,
+     0.25,
+     0.16
+    ],
+    [
+     -0.3,
+     0.25,
+     0.16
+    ],
+    [
+     0,
+     0.335,
+     -0.08
+    ],
+    [
+     0,
+     0.335,
+     0.08
+    ],
+    [
+     -0.16,
+     0.34,
+     0
+    ],
+    [
+     0.16,
+     0.33,
+     0
+    ]
+   ],
+   "note": "coin mound inside the hollow base"
+  },
+  {
+   "name": "RubyGem",
+   "shape": "sphere",
+   "detail": 0,
+   "radius": 0.032,
+   "at": [
+    0.12,
+    0.335,
+    0.05
+   ],
+   "color": "#d8283c",
+   "material": {
+    "roughness": 0.2
+   }
+  },
+  {
+   "name": "SapphireGem",
+   "shape": "sphere",
+   "detail": 0,
+   "radius": 0.026,
+   "at": [
+    -0.17,
+    0.325,
+    -0.03
+   ],
+   "color": "#2f6fe0",
+   "material": {
+    "roughness": 0.2
+   }
+  },
+  {
+   "name": "Coin1",
+   "shape": "cylinder",
+   "radius": 0.03,
+   "height": 0.007,
+   "segments": 8,
+   "at": [
+    -0.04,
+    0.332,
+    0.07
+   ],
+   "rot": [
+    18,
+    0,
+    10
+   ],
+   "color": "gold",
+   "material": {
+    "metalness": 0.7,
+    "roughness": 0.35
+   }
+  },
+  {
+   "name": "Coin2",
+   "shape": "cylinder",
+   "radius": 0.03,
+   "height": 0.007,
+   "segments": 8,
+   "at": [
+    0.24,
+    0.3,
+    -0.05
+   ],
+   "rot": [
+    -12,
+    0,
+    -25
+   ],
+   "color": "gold",
+   "material": {
+    "metalness": 0.7,
+    "roughness": 0.35
+   }
+  },
+  {
+   "name": "Lid",
+   "shape": "extrude",
+   "plane": "zy",
+   "depth": 0.86,
+   "outline": [
+    [
+     0.26,
+     0.404
+    ],
+    [
+     0.2252,
+     0.51
+    ],
+    [
+     0.13,
+     0.5905
+    ],
+    [
+     0.0,
+     0.62
+    ],
+    [
+     -0.13,
+     0.5905
+    ],
+    [
+     -0.2252,
+     0.51
+    ],
+    [
+     -0.26,
+     0.404
+    ]
+   ],
+   "pivot": [
+    0,
+    0.4,
+    -0.27
+   ],
+   "color": "wood",
+   "note": "hinge on the back edge of the rim"
+  },
+  {
+   "name": "LidRim",
+   "parent": "Lid",
+   "shape": "box",
+   "size": [
+    0.88,
+    0.036,
+    0.54
+   ],
+   "at": [
+    0,
+    0.418,
+    0
+   ],
+   "color": "gold",
+   "material": {
+    "metalness": 0.6,
+    "roughness": 0.45
+   },
+   "hollow": 0.03,
+   "open": "both"
+  },
+  {
+   "name": "LidStrapL",
+   "parent": "Lid",
+   "shape": "extrude",
+   "plane": "zy",
+   "depth": 0.07,
+   "outline": [
+    [
+     0.272,
+     0.41
+    ],
+    [
+     0.2356,
+     0.516
+    ],
+    [
+     0.136,
+     0.6009
+    ],
+    [
+     0.0,
+     0.632
+    ],
+    [
+     -0.136,
+     0.6009
+    ],
+    [
+     -0.2356,
+     0.516
+    ],
+    [
+     -0.272,
+     0.41
+    ],
+    [
+     -0.256,
+     0.41
+    ],
+    [
+     -0.2217,
+     0.506
+    ],
+    [
+     -0.128,
+     0.5836
+    ],
+    [
+     0.0,
+     0.612
+    ],
+    [
+     0.128,
+     0.5836
+    ],
+    [
+     0.2217,
+     0.506
+    ],
+    [
+     0.256,
+     0.41
+    ]
+   ],
+   "at": [
+    -0.28,
+    0,
+    0
+   ],
+   "color": "iron",
+   "mirror": "x",
+   "material": {
+    "metalness": 0.5,
+    "roughness": 0.6
+   },
+   "note": "arched band hugging the lid (outer arch out, inner arch back)"
+  },
+  {
+   "name": "Hasp",
+   "parent": "Lid",
+   "shape": "box",
+   "size": [
+    0.06,
+    0.1,
+    0.025
+   ],
+   "at": [
+    0,
+    0.42,
+    0.27
+   ],
+   "color": "gold",
+   "material": {
+    "metalness": 0.6,
+    "roughness": 0.45
+   }
+  }
+ ],
+ "animations": [
+  {
+   "name": "Open",
+   "duration": 0.9,
+   "description": "Lid swings up and back, overshoots a little and settles open.",
+   "tracks": [
+    {
+     "part": "Lid",
+     "rot": [
+      [
+       0,
+       [
+        0,
+        0,
+        0
+       ]
+      ],
+      [
+       0.12,
+       [
+        -4,
+        0,
+        0
+       ],
+       "out"
+      ],
+      [
+       0.9,
+       [
+        -105,
+        0,
+        0
+       ],
+       "backOut"
+      ]
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "t": 0.12,
+     "name": "Creak"
+    }
+   ]
+  },
+  {
+   "name": "Close",
+   "duration": 0.7,
+   "description": "Lid falls shut and bounces once.",
+   "tracks": [
+    {
+     "part": "Lid",
+     "rot": [
+      [
+       0,
+       [
+        -105,
+        0,
+        0
+       ]
+      ],
+      [
+       0.38,
+       [
+        0,
+        0,
+        0
+       ],
+       "in"
+      ],
+      [
+       0.48,
+       [
+        -5,
+        0,
+        0
+       ],
+       "out"
+      ],
+      [
+       0.6,
+       [
+        0,
+        0,
+        0
+       ],
+       "in"
+      ]
+     ]
+    }
+   ],
+   "markers": [
+    {
+     "t": 0.38,
+     "name": "Slam"
+    }
+   ]
+  },
+  {
+   "name": "Rattle",
+   "duration": 0.8,
+   "loop": true,
+   "description": "Locked chest shaking: the lid chatters on its hinge.",
+   "tracks": [
+    {
+     "part": "Lid",
+     "rot": {
+      "wave": {
+       "axis": "x",
+       "amp": 1.5,
+       "offset": [
+        -1.5,
+        0,
+        0
+       ],
+       "cycles": 6
+      }
+     }
+    },
+    {
+     "part": "TreasureChest",
+     "pos": {
+      "wave": {
+       "axis": "x",
+       "amp": 0.004,
+       "cycles": 4
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "checks": [
+  {
+   "type": "contact",
+   "a": "LidRim",
+   "b": "Rim",
+   "label": "lid seats on the rim when closed"
+  },
+  {
+   "type": "angle",
+   "clip": "Open",
+   "at": "end",
+   "part": "Lid",
+   "axis": "x",
+   "min": -110,
+   "max": -100,
+   "label": "opens ~105\u00b0"
+  },
+  {
+   "type": "pose",
+   "clip": "Close",
+   "at": "end",
+   "equals": "rest",
+   "label": "Close ends fully shut"
+  },
+  {
+   "type": "pose",
+   "clip": "Close",
+   "at": "start",
+   "equals": {
+    "clip": "Open",
+    "at": "end"
+   },
+   "label": "Close starts where Open ends"
+  },
+  {
+   "type": "apart",
+   "a": "Lid",
+   "b": "Base",
+   "clip": "Open",
+   "label": "lid clears the base while opening"
+  },
+  {
+   "type": "ratio",
+   "a": "x",
+   "b": "y",
+   "expect": 1.45,
+   "tol": 0.06,
+   "label": "front width:height"
+  }
+ ]
+}

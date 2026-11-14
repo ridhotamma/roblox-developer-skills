@@ -5,6 +5,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | Skill | Makes |
 |---|---|
 | [roblox-animation](skills/roblox-animation/) | R6 / R15 character animations, exported as a `KeyframeSequence` |
+| [roblox-modeling](skills/roblox-modeling/) | Low-poly 3D models measured from real reference images (searched, traced and compared by silhouette), with hinges, skinned spines and animation clips, an automatic test suite (watertight, z-fighting, floating parts, clipping, seamless loops, reference proportions) and review renders; exported as `.glb` for Blender, three.js and Roblox's 3D Importer, plus `.obj`, a Blender import script, a three.js loader and a three.js preview |
 | [roblox-vfx](skills/roblox-vfx/) | Particle, beam and light effects, exported as a `ModuleScript` plus textures |
 | [roblox-atmosphere](skills/roblox-atmosphere/) | Genre atmospheres (horror, cozy, sci-fi, cyberpunk and 20 more): lighting, fog, grading, weather and ambience presets, a Luau kit with zones and day/night, and a browser preview lab |
 | [roblox-ragdoll](skills/roblox-ragdoll/) | Ragdoll physics and procedural hit reactions: knockdowns from any animation (cars, falls, finishers, death) with a blended get-up, flinches by body part, limping and limb injuries, and a server-authoritative Luau kit that plugs into the combat and vehicles kits |
@@ -35,7 +36,7 @@ npx skills add ridhotamma/roblox-developer-skills --skill roblox-animation
 
 For the Claude apps, upload the packaged `.skill` file from [`dist/`](dist/) in Claude's skills settings.
 
-Then ask for what you want, for example "make an R15 uppercut animation", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
+Then ask for what you want, for example "make an R15 uppercut animation", "build me a low poly fish with swimming, idle and dying animation", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
 
 ## Layout
 

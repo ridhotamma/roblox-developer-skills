@@ -1,0 +1,130 @@
+{
+ "name": "Fish",
+ "title": "Low-poly fish",
+ "triangles": 322,
+ "parts": 16,
+ "size": [
+  0.07202399902040366,
+  0.14795229793365128,
+  0.3
+ ],
+ "results": [
+  {
+   "id": "budget",
+   "status": "pass",
+   "msg": "322 triangles (budget 1200)"
+  },
+  {
+   "id": "geometry",
+   "status": "pass",
+   "msg": "12 parts watertight, outward-facing, no degenerate triangles"
+  },
+  {
+   "id": "z-fighting",
+   "status": "pass",
+   "msg": "no coplanar overlapping faces between parts"
+  },
+  {
+   "id": "assembly",
+   "status": "pass",
+   "msg": "every part touches the assembly"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "width (x): 0.072 m vs reference 0.07 m (+2.9%, tolerance 8%)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "height (y): 0.148 m vs reference 0.15 m (-1.4%, tolerance 8%)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "depth (z): 0.300 m vs reference 0.3 m (+0.0%, tolerance 8%)"
+  },
+  {
+   "id": "anim:Swim",
+   "status": "pass",
+   "msg": "moves (largest displacement 0.048 m)"
+  },
+  {
+   "id": "anim:Swim",
+   "status": "pass",
+   "msg": "loops seamlessly (first pose = last pose)"
+  },
+  {
+   "id": "anim:Swim",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "anim:Idle",
+   "status": "pass",
+   "msg": "moves (largest displacement 0.023 m)"
+  },
+  {
+   "id": "anim:Idle",
+   "status": "pass",
+   "msg": "loops seamlessly (first pose = last pose)"
+  },
+  {
+   "id": "anim:Idle",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "anim:Die",
+   "status": "pass",
+   "msg": "moves (largest displacement 0.180 m)"
+  },
+  {
+   "id": "anim:Die",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "check:side profile matches the reference (low-poly fins drop the spines, so ~80% is the ceiling)",
+   "status": "pass",
+   "msg": "side silhouette vs sea-perch-side.jpg: 79% match (min 78%), aspect 1% (reference faces the other way)"
+  },
+  {
+   "id": "check:length:height like the reference",
+   "status": "pass",
+   "msg": "z/y = 2.028 vs reference 2 (1.4%)"
+  },
+  {
+   "id": "check:ends belly-up",
+   "status": "pass",
+   "msg": "Fish rot z = 180.0° in Die @ 2.60 s (want 175..185)"
+  },
+  {
+   "id": "check:tail stays attached at full bend",
+   "status": "pass",
+   "msg": "Tail ↔ Body gap 0.0000 m in Swim @ 0.13 s (want 0..0.0021)"
+  },
+  {
+   "id": "check:dorsal fin stays attached",
+   "status": "pass",
+   "msg": "Dorsal ↔ Body gap 0.0000 m in Swim @ 0.13 s (want 0..0.0021)"
+  }
+ ],
+ "clips": [
+  {
+   "name": "Swim",
+   "duration": 1,
+   "loop": true
+  },
+  {
+   "name": "Idle",
+   "duration": 2,
+   "loop": true
+  },
+  {
+   "name": "Die",
+   "duration": 2.6,
+   "loop": false
+  }
+ ]
+}

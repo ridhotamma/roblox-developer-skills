@@ -1,0 +1,146 @@
+newmtl Plinth_mat
+Kd 0.4314 0.2667 0.1490
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Base_mat
+Kd 0.6039 0.3843 0.2118
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Rim_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl StrapL_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl StrapR_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl LockPlate_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Keyhole_mat
+Kd 0.1059 0.1059 0.1216
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl HandlePlateL_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl HandlePlateR_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl HandleL_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl HandleR_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Gold_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl RubyGem_mat
+Kd 0.8471 0.1569 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl SapphireGem_mat
+Kd 0.1843 0.4353 0.8784
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Coin1_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Coin2_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Lid_mat
+Kd 0.6039 0.3843 0.2118
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl LidRim_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl LidStrapL_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl LidStrapR_mat
+Kd 0.2941 0.3137 0.3451
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Hasp_mat
+Kd 0.8863 0.6941 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2

@@ -1,0 +1,83 @@
+newmtl Tail_mat
+Kd 0.9412 0.6039 0.3333
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Anal_mat
+Kd 0.8157 0.3451 0.1725
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Dorsal_mat
+Kd 0.8157 0.3451 0.1725
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl PelvicL_mat
+Kd 0.9412 0.6039 0.3333
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl PelvicR_mat
+Kd 0.9412 0.6039 0.3333
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl PectoralL_mat
+Kd 0.9412 0.6039 0.3333
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl PectoralR_mat
+Kd 0.9412 0.6039 0.3333
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl EyeL_mat
+Kd 0.9569 0.9451 0.9176
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl EyeR_mat
+Kd 0.9569 0.9451 0.9176
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl PupilL_mat
+Kd 0.0863 0.0863 0.1020
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl PupilR_mat
+Kd 0.0863 0.0863 0.1020
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Body_mat
+Kd 0.8980 0.4627 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2

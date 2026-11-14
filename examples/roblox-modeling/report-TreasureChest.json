@@ -1,0 +1,135 @@
+{
+ "name": "TreasureChest",
+ "title": "Low-poly treasure chest",
+ "triangles": 592,
+ "parts": 21,
+ "size": [
+  0.9109705627484772,
+  0.632,
+  0.567
+ ],
+ "results": [
+  {
+   "id": "budget",
+   "status": "pass",
+   "msg": "592 triangles (budget 1500)"
+  },
+  {
+   "id": "geometry",
+   "status": "pass",
+   "msg": "21 parts watertight, outward-facing, no degenerate triangles"
+  },
+  {
+   "id": "z-fighting",
+   "status": "pass",
+   "msg": "no coplanar overlapping faces between parts"
+  },
+  {
+   "id": "assembly",
+   "status": "pass",
+   "msg": "every part touches the assembly"
+  },
+  {
+   "id": "ground",
+   "status": "pass",
+   "msg": "sits on the ground (y = 0)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "width (x): 0.911 m vs reference 0.92 m (-1.0%, tolerance 5%)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "height (y): 0.632 m vs reference 0.63 m (+0.3%, tolerance 5%)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "depth (z): 0.567 m vs reference 0.56 m (+1.2%, tolerance 5%)"
+  },
+  {
+   "id": "anim:Open",
+   "status": "pass",
+   "msg": "moves (largest displacement 0.940 m)"
+  },
+  {
+   "id": "anim:Open",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "anim:Close",
+   "status": "pass",
+   "msg": "moves (largest displacement 0.884 m)"
+  },
+  {
+   "id": "anim:Close",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "anim:Rattle",
+   "status": "pass",
+   "msg": "moves (largest displacement 0.029 m)"
+  },
+  {
+   "id": "anim:Rattle",
+   "status": "pass",
+   "msg": "loops seamlessly (first pose = last pose)"
+  },
+  {
+   "id": "anim:Rattle",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "check:lid seats on the rim when closed",
+   "status": "pass",
+   "msg": "LidRim ↔ Rim gap 0.0000 m (want 0..0.0075)"
+  },
+  {
+   "id": "check:opens ~105°",
+   "status": "pass",
+   "msg": "Lid rot x = -105.0° in Open @ 0.90 s (want -110..-100)"
+  },
+  {
+   "id": "check:Close ends fully shut",
+   "status": "pass",
+   "msg": "Close @ end vs rest pose: max difference 0.0000 m"
+  },
+  {
+   "id": "check:Close starts where Open ends",
+   "status": "pass",
+   "msg": "Close @ start vs Open @ end: max difference 0.0000 m"
+  },
+  {
+   "id": "check:lid clears the base while opening",
+   "status": "pass",
+   "msg": "Lid / Base in Open: deepest overlap 0.0000 m"
+  },
+  {
+   "id": "check:front width:height",
+   "status": "pass",
+   "msg": "x/y = 1.441 vs reference 1.45 (-0.6%)"
+  }
+ ],
+ "clips": [
+  {
+   "name": "Open",
+   "duration": 0.9,
+   "loop": false
+  },
+  {
+   "name": "Close",
+   "duration": 0.7,
+   "loop": false
+  },
+  {
+   "name": "Rattle",
+   "duration": 0.8,
+   "loop": true
+  }
+ ]
+}
