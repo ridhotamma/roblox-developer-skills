@@ -45,6 +45,92 @@ function buildPartMesh(p, E, warn) {
   return m;
 }
 
+// ---------------------------------------------------------------- skinning helpers
+// Half-width of the blend zone around each joint (a bone pivot along the skin axis). cs: ascending pivot coordinates,
+// lo / hi: the mesh's extent along the axis. "smooth" weights bend across the whole segment (half-width = half the
+// shorter neighbouring segment); "joints" weights keep segments rigid and blend over 25% of it on each side, or
+// skin.blend (full zone width, metres). Zones never overlap.
+function jointHalfWidths(cs, skin, lo, hi) {
+  return cs.map((c, k) => {
+    const segs = [k > 0 ? c - cs[k - 1] : c - lo, k + 1 < cs.length ? cs[k + 1] - c : hi - c].filter(s => s > 1e-9);
+    const seg = segs.length ? Math.min(...segs) : 0;
+    const want = skin.blend != null ? skin.blend / 2 : ((skin.weights || 'smooth') === 'joints' ? 0.25 : 0.5) * seg;
+    return Math.max(0, Math.min(want, 0.5 * seg));
+  });
+}
+function lerpStation(a, b, t, at) {
+  const g = (s, k, d) => (s[k] == null ? d : s[k]), L = (k, d) => g(a, k, d) + (g(b, k, d) - g(a, k, d)) * t;
+  const out = { at, w: L('w', 1), h: L('h', 1), dx: L('dx', 0), dy: L('dy', 0) };
+  const apex = s => g(s, 'w', 1) <= 1e-9 && g(s, 'h', 1) <= 1e-9;
+  const shape = apex(a) ? b.shape : apex(b) ? a.shape : t < 0.5 ? a.shape : b.shape;
+  if (shape != null) out.shape = shape;
+  return out;
+}
+// skin.loops on a loft: insert interpolated stations (edge loops) around every bone pivot inside the body, so the
+// surface has vertices where it bends. 1 = a ring on the joint; 2 = one each side; 3 = on the joint and each side.
+function withJointLoops(p, pivotOf, W) {
+  const sk = p.skin, ax = sk.axis || 'z', where = `part "${p.name}"`, L = Math.max(1, Math.round(sk.loops));
+  if ((p.axis || 'z') !== ax) { W.push(`${where}: skin.loops needs the loft axis and the skin axis to match; no loops added`); return p; }
+  if ((p.rot && p.rot.some(v => v)) || (p.scale != null && [].concat(p.scale).some(v => v !== 1))) {
+    W.push(`${where}: skin.loops works on lofts without rot / scale; no loops added (add the stations by hand)`); return p;
+  }
+  const off = p.at ? p.at[G.AX[ax]] : 0, st = (p.stations || []).slice().sort((a, b) => a.at - b.at);
+  if (st.length < 2) return p;
+  const lo = st[0].at + off, hi = st[st.length - 1].at + off;
+  const cs = (sk.bones || []).map(b => pivotOf.get(b)).filter(Boolean).map(v => v[G.AX[ax]]).sort((a, b) => a - b);
+  const r = jointHalfWidths(cs, sk, lo, hi), added = [];
+  cs.forEach((c, k) => {
+    if (c <= lo + 1e-9 || c >= hi - 1e-9) return;
+    const pts = L === 1 || r[k] <= 1e-9 ? [c] : Array.from({ length: L }, (_, i) => c - r[k] + (2 * r[k] * i) / (L - 1));
+    const eps = Math.max(1e-4, 0.3 * (L > 1 ? (2 * r[k]) / (L - 1) : r[k]));
+    for (const z of pts) {
+      const at = z - off;
+      if (st.some(s => Math.abs(s.at - at) < eps)) continue;          // an existing station already serves as this loop
+      const i = st.findIndex(s => s.at > at); if (i <= 0) continue;
+      st.splice(i, 0, lerpStation(st[i - 1], st[i], (at - st[i - 1].at) / (st[i].at - st[i - 1].at), at));
+      added.push(+z.toFixed(4));
+    }
+  });
+  return Object.assign({}, p, { stations: st, _loopsAdded: added });
+}
+const smoothstep = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+// Per-vertex bone weights along the skin axis.
+//  smooth: piecewise linear "hat" weights between neighbouring pivots: the bend spreads over whole segments
+//          (tails, spines, snakes, tentacles, hair).
+//  joints: each segment follows one bone rigidly (the bone at the segment's parent end) and blends to the next one
+//          with a smoothstep over the joint zone (limbs, necks, fingers: rigid between joints, a clean bend at them).
+function skinWeights(n, bones, E) {
+  const ax = G.AX[n.skin.axis || 'z'], mode = n.skin.weights || 'smooth';
+  if (mode !== 'smooth' && mode !== 'joints') E.push(`part "${n.name}": skin.weights must be "smooth" or "joints"`);
+  const sorted = bones.map((b, i) => ({ i, c: b.pivot[ax] })).sort((a, b) => a.c - b.c), cs = sorted.map(s => s.c), m = sorted.length;
+  const hat = c => {
+    const w = new Array(bones.length).fill(0);
+    if (c <= cs[0]) w[sorted[0].i] = 1;
+    else if (c >= cs[m - 1]) w[sorted[m - 1].i] = 1;
+    else for (let k = 0; k + 1 < m; k++) if (c >= cs[k] && c <= cs[k + 1]) {
+      const t = (c - cs[k]) / ((cs[k + 1] - cs[k]) || 1); w[sorted[k].i] = 1 - t; w[sorted[k + 1].i] = t; break;
+    }
+    return w;
+  };
+  if (mode !== 'joints') return n.mesh.pos.map(p => hat(p[ax]));
+  const isAnc = (a, b) => { for (let k = b.parent; k; k = k.parent) if (k === a) return true; return false; };
+  // owner of region k (between cs[k] and cs[k+1]); -1 = before the first pivot, m-1 = after the last; -1 result = siblings
+  const owners = []; for (let k = 0; k + 1 < m; k++) { const A = bones[sorted[k].i], B = bones[sorted[k + 1].i]; owners.push(isAnc(A, B) ? sorted[k].i : isAnc(B, A) ? sorted[k + 1].i : -1); }
+  const regionOwner = k => (k < 0 ? sorted[0].i : k >= m - 1 ? sorted[m - 1].i : owners[k]);
+  const vals = n.mesh.pos.map(p => p[ax]), r = jointHalfWidths(cs, n.skin, Math.min(...vals), Math.max(...vals));
+  return vals.map(c => {
+    const w = new Array(bones.length).fill(0);
+    for (let k = 0; k < m; k++) if (r[k] > 1e-9 && Math.abs(c - cs[k]) < r[k]) {
+      const left = regionOwner(k - 1), right = regionOwner(k);
+      if (left < 0 || right < 0) break;
+      const u = smoothstep((c - cs[k] + r[k]) / (2 * r[k])); w[left] += 1 - u; w[right] += u; return w;
+    }
+    let k = -1; while (k + 1 < m && c >= cs[k + 1]) k++;
+    const o = regionOwner(k); if (o < 0) return hat(c);
+    w[o] = 1; return w;
+  });
+}
+
 function compile(spec) {
   const E = [], W = [], palette = spec.palette || {};
   for (const k of Object.keys(spec)) if (!TOP_KEYS.has(k)) W.push(`unknown top-level field "${k}"`);
@@ -70,17 +156,25 @@ function compile(spec) {
   // a mirrored child hangs from the mirrored parent when there is one
   for (const p of parts) if (p._mirrored && p.parent && mirrorOf.has(p.parent)) p.parent = mirrorOf.get(p.parent);
 
+  // bone pivots by name (model space, before mirroring the mesh), for skin.loops
+  const pivotOf = new Map();
+  for (const p of parts) { const pv = p.pivot || p.at; if (Array.isArray(pv)) pivotOf.set(p.name, pv.slice()); }
+
   for (const p of parts) {
     if (byName.has(p.name)) { E.push(`duplicate part name "${p.name}"`); continue; }
     const where = `part "${p.name}"`;
-    let mesh = null;
-    if (p.shape && p.shape !== 'none') { mesh = buildPartMesh(p, E, W); }
+    let mesh = null, loopsAdded = null;
+    if (p.shape && p.shape !== 'none') {
+      const src = p.shape === 'loft' && p.skin && p.skin.loops ? withJointLoops(p, pivotOf, W) : p;
+      loopsAdded = src._loopsAdded || null;
+      mesh = buildPartMesh(src, E, W);
+    }
     else if (!p.shape) E.push(`${where}: needs a "shape" (or "none" for a pivot / bone)`);
     if (mesh && p._mirrored) { mesh.pos = mesh.pos.map(v => [-v[0], v[1], v[2]]); G.flip(mesh); }
     let pivot = p.pivot ? p.pivot.slice() : mesh ? G.bounds(mesh.pos).center : vec3(p.at, [0, 0, 0]);
     if (p._mirrored && (p.pivot || !mesh)) pivot = [-pivot[0], pivot[1], pivot[2]];   // mesh bounds are already mirrored
     const node = { name: p.name, parentName: p.parent || rootName, pivot, mesh, kids: [], src: p._src, mirrored: !!p._mirrored, hidden: !!p.hidden,
-      color: color(p.color, palette, E, where), material: Object.assign({ roughness: 0.85, metalness: 0, emissive: null }, p.material || {}), skin: p.skin || null, shape: p.shape || 'none' };
+      color: color(p.color, palette, E, where), material: Object.assign({ roughness: 0.85, metalness: 0, emissive: null }, p.material || {}), skin: p.skin || null, shape: p.shape || 'none', loopsAdded };
     if (node.material.emissive) node.material.emissive = color(node.material.emissive, palette, E, where + ' emissive');
     nodes.push(node); byName.set(node.name, node);
   }
@@ -95,24 +189,15 @@ function compile(spec) {
   const ordered = []; (function walk(n) { ordered.push(n); n.kids.forEach(walk); })(nodes[0]);
   ordered.forEach((n, i) => { n.index = i; });
 
-  // skins: weights by position along an axis between the listed bones (piecewise linear "hat" weights)
+  // skins: weights by position along an axis between the listed bones ("smooth" hat weights or rigid "joints")
   for (const n of ordered) {
     if (!n.skin || !n.mesh) continue;
     const bones = (n.skin.bones || []).map(b => byName.get(b));
     if (bones.some(b => !b)) { E.push(`part "${n.name}": skin lists a bone that does not exist`); n.skin = null; continue; }
     if (bones.length < 1) { E.push(`part "${n.name}": skin needs at least one bone`); n.skin = null; continue; }
-    const ax = G.AX[n.skin.axis || 'z'];
-    const sorted = bones.map((b, i) => ({ i, c: b.pivot[ax] })).sort((a, b) => a.c - b.c);
+    for (const k of Object.keys(n.skin)) if (!['bones', 'axis', 'weights', 'blend', 'loops'].includes(k)) W.push(`part "${n.name}": unknown skin field "${k}"`);
     n.skinBones = bones;
-    n.weights = n.mesh.pos.map(p => {
-      const w = new Array(bones.length).fill(0), c = p[ax];
-      if (c <= sorted[0].c) w[sorted[0].i] = 1;
-      else if (c >= sorted[sorted.length - 1].c) w[sorted[sorted.length - 1].i] = 1;
-      else for (let k = 0; k + 1 < sorted.length; k++) if (c >= sorted[k].c && c <= sorted[k + 1].c) {
-        const t = (c - sorted[k].c) / ((sorted[k + 1].c - sorted[k].c) || 1); w[sorted[k].i] = 1 - t; w[sorted[k + 1].i] = t; break;
-      }
-      return w;
-    });
+    n.weights = skinWeights(n, bones, E);
     if (n.kids.length) W.push(`part "${n.name}": a skinned part should not have children; parent them to its bones instead`);
   }
 
@@ -246,4 +331,4 @@ function bakeClip(model, clip) {
   return { times, nodes, data };
 }
 
-module.exports = { compile, poseAt, localTRS, worldMatrices, posedMeshes, bakeClip, sampleChannel, EASE };
+module.exports = { compile, jointHalfWidths, poseAt, localTRS, worldMatrices, posedMeshes, bakeClip, sampleChannel, EASE };

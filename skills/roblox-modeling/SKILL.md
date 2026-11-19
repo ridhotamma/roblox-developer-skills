@@ -1,6 +1,6 @@
 ---
 name: roblox-modeling
-description: Build low-poly 3D models with animations from real reference images, then test them, look at them and export them for Blender, three.js and Roblox. Finds openly licensed reference photos and drawings online, measures the object's proportions and silhouette from them, plans the parts, pivots and hierarchy, generates flat-shaded geometry (boxes, hollow containers, lathes, lofted organic bodies, extruded outlines, hulls), rigs hinges and skinned spines, bakes clips (open/close, swim, idle, die, flap, spin...), runs an automatic test suite (watertight, z-fighting, floating parts, ground contact, reference dimensions, silhouette match, parts passing through each other, seamless loops), renders review sheets, and exports .glb (with node animations and skins), .obj, a Blender import script, a three.js loader and an interactive three.js preview. Use this whenever the user wants a 3D model, low-poly asset, prop, creature, game object or animated mesh ("build me a chest that opens", "low poly fish with swimming, idle and dying animation", "make a sword / tree / barrel / lantern / bird"), wants a .glb / glTF / .obj for Blender, three.js, React Three Fiber, Godot, Unity or Roblox's 3D Importer, or asks to fix the shape, proportions or animation of such a model.
+description: Build low-poly 3D models with animations from real reference images, then test them, look at them and export them for Blender, three.js and Roblox. Finds openly licensed reference photos and drawings online, measures the object's proportions and silhouette from them, plans the parts, pivots and hierarchy, generates flat-shaded geometry (boxes, hollow containers, lathes, lofted organic bodies, extruded outlines, hulls), rigs hinges and skinned spines with rig-ready topology (edge loops at joints, smooth or per-joint weights, bones on the centre line), bakes clips (open/close, swim, idle, die, flap, spin...), runs an automatic test suite (watertight, z-fighting, floating parts, ground contact, reference dimensions, silhouette match, parts passing through each other, seamless loops, edge loops per joint, folding / pinching / volume loss while deforming), renders review sheets, and exports .glb (with node animations and skins), .obj, a Blender import script, a three.js loader and an interactive three.js preview. Use this whenever the user wants a 3D model, low-poly asset, prop, creature, game object or animated mesh ("build me a chest that opens", "low poly fish with swimming, idle and dying animation", "make a sword / tree / barrel / lantern / bird"), wants a .glb / glTF / .obj for Blender, three.js, React Three Fiber, Godot, Unity or Roblox's 3D Importer, or asks to fix the shape, proportions, topology, rigging or animation of such a model (collapsing elbows, tails that fold, parts tearing off a joint).
 ---
 
 # Low-poly modeling (reference → measure → model → test → export)
@@ -23,6 +23,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
    It cuts the object out of the image, prints its aspect ratio and the top/bottom profile along its length, suggests loft stations in metres, and writes a mask PNG. **Look at the mask** before trusting the numbers (the background key can grab shadows or text; use `--crop` or `--threshold`). The trace includes fins, handles and other appendages, so decide which part of the profile belongs to the main body.
 
 4. **Plan the structure** before writing JSON: list the parts, which shape generator makes each, the dimensions and positions from your measurements, the hierarchy (what moves with what), every pivot (hinge line, joint, spine bone), and for each animation the parts it moves, the axis, the angle range and the sign. Write the plan out briefly; it catches mistakes such as a lid hinged at the wrong edge or a strap that crosses an opening. Read `references/modeling-cookbook.md` for the shape recipes and `references/animation-cookbook.md` for pivots and clip recipes.
+   **If anything bends** (creature, character, tail, hair, rope, limb), plan the rig with the topology too, and read `references/topology-and-rigging.md`. Decide rigid parts or skin (and `smooth` or `joints` weights) for each part. Note the largest bend at each joint, which sets how many edge loops it needs. Put bones on the body's centre line. Choose the rest pose (straight for things that bend both ways, half-bent for elbows and knees, A-pose arms).
 
 5. **Write the spec** to `<name>.json`. Start from the closest file in `examples/` (`treasure_chest.json`: rigid parts, hinge, hollow container, mirrored parts; `fish.json`: lofted body traced from a reference, skinned spine, fins, travelling-wave swim, one-shot death).
 
@@ -31,9 +32,11 @@ The loop: **find references → measure → plan parts → write the spec → bu
 7. **Read the test report** on stdout. Every FAIL needs a fix; a WARN needs a fix or a reason. The suite:
    - **geometry**: every part watertight and outward-facing, no zero-area or paper-thin parts, triangle budget.
    - **z-fighting**: no two parts with coplanar, same-facing, overlapping faces, at rest and at the end of each clip. These flicker in every engine.
+   - **rig** (skinned parts): every joint has enough edge loops for its largest bend in any clip (1 up to 20°, 2 up to 50°, 3 beyond), and every bone sits inside the body near the centre of its cross-section.
    - **assembly**: every part touches the rest (nothing floats); **ground**: lowest point at y = 0 (set `"ground": false` for swimming / flying things).
    - **dimensions** against `reference.dimensions`, and **silhouette** checks against a reference image (`compare-<Name>-<view>.png` shows green = both, red = reference only, blue = model only).
    - **per animation**: something moves, loops are seamless, nothing goes below the floor, no parts pass through each other (pairs that do not overlap at rest), **attached parts stay welded** (every vertex where a part meets its parent, or the skinned body its bone drives, at rest must stay in contact in every frame: catches fins, lids, wings and limbs that swing off their joint), no popping-fast rotations.
+   - **deform** per animation (skinned parts): no triangle folds inside out (FAIL), no face pinches below 30% or stretches beyond ×2.5 of its area, and the volume changes by no more than 12% (collapsing joints, candy-wrapper twists). Each result names the joint and the time.
    - your own **checks** (angle at a time, poses that must match, gaps, ratios, parts kept apart through a clip).
 
 8. **Look at the sheets** with the Read tool: `sheet-<Name>.png` (three perspective views plus front / side / top orthographic blueprints with a metric grid and the overall size) and `anim-<Name>-<Clip>.png` (eight moments plus top views). Compare them with the reference images, not just with the plan: proportions, silhouette, where each part sits, how the motion reads. For a close look at a detail use `rmodel.cjs render <spec> --clip Open --time 0.4 --yaw 120 --highlight Lid`.
@@ -83,7 +86,11 @@ Common fields: `name`, `shape`, `color` (hex or palette key), `material` (`rough
 | `mesh` | `vertices`, `faces` (polygons) | anything else, as a last resort |
 | `none` | `pivot` | empty pivots and skeleton bones |
 
-**Skinned parts**: `"skin": { "bones": ["Head", "Spine1", "Spine2", "Tail"], "axis": "z" }` on a loft (or any mesh) weights each vertex between the two nearest bones along the axis, so the surface bends smoothly. Bones are `none` parts chained parent to child; animate the bones, never the skinned part, and parent fins and eyes to bones, not to the skinned part.
+**Skinned parts**: `"skin": { "bones": ["Head", "Spine1", "Spine2", "Tail"], "axis": "z" }` on a loft (or any mesh) weights each vertex between the two nearest bones along the axis, so the surface bends smoothly. Bones are `none` parts chained parent to child; animate the bones, never the skinned part, and parent fins and eyes to bones, not to the skinned part. Options:
+- `"weights"`: `"smooth"` (default) spreads the bend over whole segments (tails, spines, hair, tentacles). `"joints"` keeps each segment rigid and blends only around each joint (arms, legs, fingers, necks).
+- `"blend"`: the full width in metres of each joint's blend zone for `joints` (default: half the shorter neighbouring segment).
+- `"loops"`: on a loft, inserts 1-5 interpolated stations (edge loops) around every bone pivot inside the body, because a surface only bends where it has vertices. Use 3 for joints that bend more than 50°.
+See `references/topology-and-rigging.md`.
 
 ### Animations
 
@@ -113,7 +120,7 @@ Every check takes an optional `label`. Add checks for every promise the user's r
 ## Limits to be honest about
 
 - Models are flat-shaded, vertex-coloured low-poly: no textures, UV maps, normal maps or subdivision. Detail comes from shape and palette.
-- Animation is per-part transforms plus simple bone chains with automatic linear weights along one axis. No IK, no blend shapes, no hand-painted weights, no full humanoid rigs (for Roblox character animation, the `roblox-animation` skill does that).
+- Animation is per-part transforms plus simple bone chains with automatic weights along one axis (`smooth` or `joints`, at most 2 bones per vertex). No branching skins (one skin cannot cover a torso and four limbs: use one skinned part per chain, or rigid parts), no IK, no blend shapes, no hand-painted weights, no full humanoid rigs (for Roblox character animation, the `roblox-animation` skill does that).
 - The silhouette score compares outlines only, and a photo in perspective never matches an orthographic view exactly. Use it with views that are close to straight-on, and treat 75-85% as a good match for stylised low-poly. Always look at the overlay.
 - The review sheets come from a simple software renderer (no shadows except a soft floor contact, no reflections). `preview.html` shows the real three.js look.
 - Reference search depends on the network and on Wikimedia / Openverse rate limits (HTTP 429: wait a minute, use the other source, or use the browser to find images). Respect licences: references are for measuring, not for copying textures or reproducing a specific copyrighted design.
@@ -124,9 +131,10 @@ Every check takes an optional `label`. Add checks for every promise the user's r
 - `scripts/rmodel.cjs`: CLI (`build`, `test`, `trace`, `compare`, `render`); also a module (`require(...).MD.compile(spec)` etc.).
 - `scripts/refsearch.cjs`: reference image search, download, sources file and contact sheet.
 - `scripts/lib/`: `geometry` (shape generators, hull, triangulation), `model` (parts, hierarchy, skins, animation sampling), `checks` (the test suite), `render` (rasteriser, sheets, PNG), `reference` (PNG decode, silhouette extraction, profile, comparison), `export` (glb, obj, Blender, three.js), `preview` (three.js viewer).
-- `scripts/selftest.cjs`: checks the maths, every generator, hierarchy and skinning, that the test suite catches floating parts / z-fighting / clipping lids / broken loops, the exports and the tracer. Run it after editing the engine.
+- `scripts/selftest.cjs`: checks the maths, every generator, hierarchy and skinning (edge loop insertion, joint weights), that the test suite catches floating parts / z-fighting / clipping lids / broken loops / missing edge loops / folding and collapsing joints / bones outside the body, the exports and the tracer. Run it after editing the engine.
 - `examples/`: `treasure_chest.json`, `fish.json` (+ `refs/sea-perch-side.jpg`, CC BY 2.0, source in the spec).
 - `references/reference-research.md`: finding, choosing and measuring references; common real-world sizes.
 - `references/modeling-cookbook.md`: low-poly style rules, shape recipes by object type, pitfalls.
 - `references/animation-cookbook.md`: pivots, hinges, waves, skinned chains, clip recipes (open/close, swim/idle/die, fly, walk, spin, bob, hit).
+- `references/topology-and-rigging.md`: rig-ready shapes. Rigid parts vs skinning, edge loops per bend angle, weight modes and blend widths, bone placement, rest pose, joint designs for rigid segments, hair / capes / ropes, what the `rig` and `deform` results mean, and taking rigs to Roblox.
 - `references/integration.md`: using the exports in Blender, three.js / React Three Fiber, Roblox, Godot and Unity.

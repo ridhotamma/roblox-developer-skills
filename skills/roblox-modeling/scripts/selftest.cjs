@@ -84,6 +84,25 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const bad = MD.compile({ name: 'E', parts: [{ name: 'A', shape: 'blob' }, { name: 'B', shape: 'box', parent: 'Nope' }], animations: [{ name: 'X', duration: 1, tracks: [{ part: 'Z', rot: [] }] }] });
   ok(bad.errors.length >= 3, 'bad shape, missing parent and missing track part are spec errors');
 }
+// 4b. rig readiness: edge loops, weight modes, deformation quality
+{
+  const arm = (skin, angle, elbowY) => ({ name: 'Arm', ground: false, reference: { sources: [{ note: 'x' }] }, parts: [
+    { name: 'Upper', shape: 'none', pivot: [0, 0, 0.5] }, { name: 'Lower', parent: 'Upper', shape: 'none', pivot: [0, elbowY || 0, 0] },
+    { name: 'Skin', shape: 'loft', sides: 8, skin: Object.assign({ bones: ['Upper', 'Lower'], axis: 'z' }, skin), stations: [{ at: -0.5, w: 0.12, h: 0.12 }, { at: 0.5, w: 0.12, h: 0.12 }] }],
+    animations: [{ name: 'Bend', duration: 1, tracks: [{ part: 'Lower', rot: [[0, [0, 0, 0]], [1, [angle, 0, 0]]] }] }] });
+  const bare = MD.compile(arm({}, 90)), rb = CK.run(bare);
+  ok(status(rb, 'rig', 'warn') && rb.some(r => r.id === 'rig' && /0 edge loops/.test(r.msg)), 'a 90° joint with no edge loops is reported by the rig check');
+  ok(rb.some(r => r.id === 'deform:Bend' && /volume/.test(r.msg)), 'the collapsing elbow is reported as volume loss');
+  const good = MD.compile(arm({ loops: 3, weights: 'joints' }, 90)), rg = CK.run(good), sk = good.byName.get('Skin');
+  ok(sk.loopsAdded.length === 3 && sk.loopsAdded.includes(0), 'skin.loops: 3 inserts rings on the joint and either side');
+  ok(status(rg, 'rig', 'pass') && status(rg, 'deform:Bend', 'pass'), 'with loops and joint weights the elbow passes rig and deform');
+  const w = sk.weights, zs = sk.mesh.pos.map(p => p[2]), far = zs.map((z, i) => [z, w[i]]).filter(([z]) => Math.abs(z) > 0.2);
+  ok(far.every(([, wt]) => wt.some(v => near(v, 1))), '"joints" weights keep each segment rigid away from the joint');
+  ok(zs.map((z, i) => [z, w[i]]).filter(([z]) => near(z, 0, 1e-6)).every(([, wt]) => near(wt[0], 0.5) && near(wt[1], 0.5)), '"joints" weights blend 50/50 on the joint');
+  const folded = CK.run(MD.compile(arm({}, 170)));
+  ok(folded.some(r => r.id === 'deform:Bend' && r.status === 'fail' && /folds through itself/.test(r.msg)), 'a 170° bend on a bare tube fails as a fold');
+  ok(CK.run(MD.compile(arm({ loops: 3 }, 60, 0.2))).some(r => r.id === 'rig' && /outside Skin/.test(r.msg)), 'a bone pivot outside the body is reported');
+}
 // 5. exports: glb structure, obj, scripts
 {
   const m = MD.compile(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'examples', 'fish.json'), 'utf8')));

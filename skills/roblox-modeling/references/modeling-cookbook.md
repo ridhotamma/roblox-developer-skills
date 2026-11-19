@@ -58,3 +58,9 @@
 | A fin, lid or limb swings off its joint during a clip (looks cut off or floating) | anim attachment ("come apart") | Put the `pivot` on the edge where the part meets its parent, embed the root 2-3 mm into the parent, and on skinned bodies hang the part from the bone nearest its root |
 | A lofted body ends in a flat cap where a thin tail or fin begins (reads as a cut stump) | only the renders | Add stations that taper the body to a point inside the fin |
 | Rotation acts around the wrong point | renders, `apart`, `angle` | `pivot` is in model space; `rot` turns a shape around its own centre at build time only |
+| A skinned body bends in straight, faceted kinks or collapses at a joint | rig (loops), deform (pinch, volume) | Edge loops at the joint (`skin.loops`), `"weights": "joints"` for limbs, bulge the joint station 5-10% |
+| A tail or limb folds inside out at full bend | deform (fold) | More loops, a wider `blend`, a half-bent rest pose, or split the bend over two bones |
+| One side of a bend stretches while the other crushes | rig (off-centre bone) | Put the bone pivot at the centre of the cross-section (`dy` of the station there) |
+| Rigid limb segments show a gap or a corner poking out when bent | anim attachment, passes through | A ball (sphere) or hinge (cylinder) centred on the pivot, overlapping both segments 2-5 mm; rounded inner corners |
+
+For anything that bends, read `topology-and-rigging.md` before writing the spec.

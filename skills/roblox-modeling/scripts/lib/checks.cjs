@@ -133,6 +133,8 @@ function run(model, opts) {
     if (seen.size) add('z-fighting', 'fail', `coplanar overlapping faces will flicker: ${[...seen.values()].join('; ')}. Offset one face by a few mm or make one part slightly smaller.`);
     else add('z-fighting', 'pass', 'no coplanar overlapping faces between parts');
   }
+  // 1c. rig readiness of skinned parts: edge loops where they bend, bones inside the body on its centre line
+  for (const m of rest) if (m.node.skinBones) rigCheck(model, m, add);
   // 2. assembly: every part touches the rest (no floating pieces), rests on the ground
   if (rest.length > 1) {
     const adj = rest.map(() => new Set());
@@ -216,6 +218,8 @@ function run(model, opts) {
     else if (attached.length) add(id, 'pass', `${attached.length} attached part pairs stay joined`);
     if (hits.size) for (const [k, h] of hits) add(id, 'fail', `${k.replace('|', ' passes through ')} by ${h.d.toFixed(3)} m at ${h.t.toFixed(2)} s (move the pivot, limit the angle, or add clearance)`);
     else add(id, 'pass', 'no parts pass through each other');
+    // deformation quality of skinned parts: folds, pinching, stretching, volume loss
+    rest.forEach((m, i) => { if (m.node.skinBones) deformCheck(model, clip, frames, poses.map(p => p[i]), m, `deform:${clip.name}`, add); });
     // speed sanity
     let maxW = 0, at = 0;
     for (let k = 1; k < frames.length; k++) for (const tr of clip.tracks) {
@@ -230,6 +234,92 @@ function run(model, opts) {
   }
   return out;
 }
+// ---------------------------------------------------------------- skinned meshes
+// The joints of a skin: every listed bone that has another listed bone above it (the chain root moves the body
+// rigidly, it bends nothing), with its pivot along the skin axis, its blend zone and the largest bend any clip gives it.
+function skinJoints(model, n) {
+  const ax = G.AX[n.skin.axis || 'z'], vals = n.mesh.pos.map(p => p[ax]), lo = Math.min(...vals), hi = Math.max(...vals);
+  const sorted = n.skinBones.map(b => ({ b, c: b.pivot[ax] })).sort((a, b) => a.c - b.c);
+  const r = MD.jointHalfWidths(sorted.map(s => s.c), n.skin, lo, hi), inSkin = new Set(n.skinBones);
+  return sorted.map((s, k) => {
+    let parentInSkin = false; for (let q = s.b.parent; q; q = q.parent) if (inSkin.has(q)) { parentInSkin = true; break; }
+    let bend = 0, clipName = '';
+    if (parentInSkin) for (const clip of model.clips) if (clip.animated.has(s.b)) for (let f = 0; f <= 24; f++) {
+      const p = MD.poseAt(model, clip, (f / 24) * clip.duration).get(s.b), a = p ? M.quatAngle(M.quatEuler(p.rot)) : 0;
+      if (a > bend) { bend = a; clipName = clip.name; }
+    }
+    return { bone: s.b, c: s.c, r: r[k], bend, clip: clipName, inside: s.c > lo + (hi - lo) * 0.01 && s.c < hi - (hi - lo) * 0.01 };
+  });
+}
+const loopsNeeded = bend => (bend < 1 ? 0 : bend <= 20 ? 1 : bend <= 50 ? 2 : 3);
+
+function rigCheck(model, m, add) {
+  const n = m.node, ax = G.AX[n.skin.axis || 'z'], axName = n.skin.axis || 'z', P = n.mesh.pos;
+  const vals = P.map(p => p[ax]), lo = Math.min(...vals), hi = Math.max(...vals), q = (hi - lo || 1) * 1e-4;
+  const rings = [...new Set(vals.map(v => Math.round(v / q)))].map(k => k * q);
+  const issues = [], joints = skinJoints(model, n), mesh = { pos: P, tris: n.mesh.tris };
+  let bending = 0;
+  for (const j of joints) {
+    if (!j.inside) continue;
+    // bone position: inside the body and near the centre of its cross-section
+    const d = distToMesh(j.bone.pivot, mesh);
+    if (d > 0) issues.push(`bone ${j.bone.name} sits ${(d * 1000).toFixed(1)} mm outside ${n.name}: move its pivot onto the body's centre line`);
+    else {
+      const near = rings.reduce((a, c) => (Math.abs(c - j.c) < Math.abs(a - j.c) ? c : a), rings[0]);
+      const ring = P.filter(p => Math.abs(p[ax] - near) <= q * 1.5);
+      if (ring.length > 2) for (const k of [0, 1, 2]) if (k !== ax) {
+        const vs = ring.map(p => p[k]), mid = (Math.min(...vs) + Math.max(...vs)) / 2, half = (Math.max(...vs) - Math.min(...vs)) / 2;
+        if (half > 1e-6 && Math.abs(j.bone.pivot[k] - mid) / half > 0.4) issues.push(`bone ${j.bone.name} is off-centre in ${'xyz'[k]} by ${(100 * Math.abs(j.bone.pivot[k] - mid) / half).toFixed(0)}% of the half-${k === 1 ? 'height' : 'width'}: one side will stretch and the other crush (pivot ${'xyz'[k]} ≈ ${mid.toFixed(3)})`);
+      }
+    }
+    // edge loops for the bend this joint makes
+    const need = loopsNeeded(j.bend); if (!need) continue;
+    bending++;
+    const have = rings.filter(c => c >= j.c - j.r - q * 2 && c <= j.c + j.r + q * 2).length;
+    if (have < need) issues.push(`${j.bone.name} bends up to ${j.bend.toFixed(0)}° (${j.clip}) but ${n.name} has ${have} edge loop${have === 1 ? '' : 's'} within ±${(j.r * 100).toFixed(1)} cm of it (want ${need}): add stations near ${axName} = ${j.c.toFixed(3)} or set skin.loops: ${need === 1 ? 1 : 3}`);
+  }
+  const extra = n.loopsAdded && n.loopsAdded.length ? ` (skin.loops added ${n.loopsAdded.length} ring${n.loopsAdded.length > 1 ? 's' : ''})` : '';
+  if (issues.length) for (const s of issues) add('rig', 'warn', `${n.name}: ${s}`);
+  else add('rig', 'pass', `${n.name}: ${bending} bending joint${bending === 1 ? '' : 's'} with enough edge loops, bones inside the body on its centre line${extra}`);
+}
+
+function deformCheck(model, clip, frames, posedList, restMesh, id, add) {
+  const n = restMesh.node, P0 = restMesh.pos, T = restMesh.tris, ax = G.AX[n.skin.axis || 'z'];
+  const nRaw = (P, t) => M.cross(sub(P[t[1]], P[t[0]]), sub(P[t[2]], P[t[0]]));
+  const a0 = T.map(t => len(nRaw(P0, t))), v0 = G.signedVolume({ pos: P0, tris: T });
+  // dominant bone of each triangle: its rigid motion is what the triangle "should" follow; folding = facing away from it
+  const dom = T.map(t => { const s = new Array(n.skinBones.length).fill(0); t.forEach(i => n.weights[i].forEach((w, j) => { s[j] += w; })); return s.indexOf(Math.max(...s)); });
+  const joints = skinJoints(model, n), nearJoint = ti => {
+    const c = (P0[T[ti][0]][ax] + P0[T[ti][1]][ax] + P0[T[ti][2]][ax]) / 3;
+    return joints.reduce((a, j) => (!a || Math.abs(j.c - c) < Math.abs(a.c - c) ? j : a), null).bone.name;
+  };
+  const anc = (a, b) => { for (let k = b; k; k = k.parent) if (k === a) return true; return false; };
+  const scaled = clip.tracks.some(tr => tr.scale && n.skinBones.some(b => anc(tr.node, b)));   // areas / volume legitimately change
+  let fold = null, pinch = { r: 1 }, stretch = { r: 1 }, vol = { d: 0 };
+  posedList.forEach((pm, fi) => {
+    const P = pm.pos, mats = n.skinBones.map(b => M.mat4Mul(MD.worldMatrices(model, MD.poseAt(model, clip, frames[fi])).get(b), M.mat4Translate(M.mul(b.pivot, -1))));
+    let folds = 0, worst = -1;
+    T.forEach((t, ti) => {
+      if (a0[ti] < 1e-12) return;
+      const nr = nRaw(P, t), rigid = nRaw(t.map(i => M.mat4Point(mats[dom[ti]], P0[i])), [0, 1, 2]);
+      if (dot(nr, rigid) <= 0) { folds++; worst = ti; return; }
+      if (scaled) return;
+      const r = len(nr) / a0[ti];
+      if (r < pinch.r) pinch = { r, t: frames[fi], ti };
+      if (r > stretch.r) stretch = { r, t: frames[fi], ti };
+    });
+    if (folds && (!fold || folds > fold.n)) fold = { n: folds, t: frames[fi], ti: worst };
+    if (!scaled && v0 > 0) { const d = G.signedVolume({ pos: P, tris: T }) / v0 - 1; if (Math.abs(d) > Math.abs(vol.d)) vol = { d, t: frames[fi] }; }
+  });
+  const fixes = 'add edge loops there (skin.loops: 3), use skin.weights "joints" or widen skin.blend, model the rest pose half-bent, or reduce the angle';
+  let bad = false;
+  if (fold) { bad = true; add(id, 'fail', `${n.name} folds through itself (${fold.n} triangle${fold.n > 1 ? 's' : ''} turn inside out) near ${nearJoint(fold.ti)} at ${fold.t.toFixed(2)} s: ${fixes}`); }
+  if (pinch.r < 0.3) { bad = true; add(id, 'warn', `${n.name} pinches near ${nearJoint(pinch.ti)} at ${pinch.t.toFixed(2)} s (a face shrinks to ${(pinch.r * 100).toFixed(0)}% of its area): ${fixes}`); }
+  if (stretch.r > 2.5) { bad = true; add(id, 'warn', `${n.name} stretches near ${nearJoint(stretch.ti)} at ${stretch.t.toFixed(2)} s (a face grows ×${stretch.r.toFixed(1)}): add loops there or move the bone to the joint`); }
+  if (Math.abs(vol.d) > 0.12) { bad = true; add(id, 'warn', `${n.name} ${vol.d < 0 ? 'loses' : 'gains'} ${Math.abs(vol.d * 100).toFixed(0)}% of its volume at ${vol.t.toFixed(2)} s (collapsing joint or candy-wrapper twist): spread the bend or twist over more bones, bulge the joint station 5-10%`); }
+  if (!bad) add(id, 'pass', `${n.name} deforms cleanly (no folds${scaled ? '' : `, faces ×${pinch.r.toFixed(2)}-${stretch.r.toFixed(2)}, volume ${vol.d >= 0 ? '+' : ''}${(vol.d * 100).toFixed(1)}%`})`);
+}
+
 function maxDev(a, b) { let m = 0; for (let i = 0; i < a.length; i++) for (let k = 0; k < a[i].pos.length; k++) { const d = M.dist(a[i].pos[k], b[i].pos[k]); if (d > m) m = d; } return m; }
 function partOf(meshes, name) { const m = meshes.find(x => x.name === name); if (!m) throw new Error(`no visible part "${name}"`); return m; }
 function clipOf(model, name) { const c = model.clips.find(x => x.name === name); if (!c) throw new Error(`no animation "${name}"`); return c; }

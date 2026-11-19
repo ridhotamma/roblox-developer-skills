@@ -26,6 +26,10 @@
 
 For bodies that must bend smoothly (fish, snakes, tails, tentacles, worms, ropes): `none` bones chained head → tail with pivots along the axis, the body `loft` with `"skin": { "bones": [...], "axis": "z" }`. Vertices are weighted between the two nearest bones along the axis. Place bones where the body should bend most (fish: just behind the head, mid-body, in front of the tail and at the tail root). Rigid attachments (fins, eyes) are parented to the bone nearest their root; keep the bend moderate where a rigid part spans two bones, or its root separates from the surface. The automatic attachment test reports exactly which pair opens, by how much and when.
 
+**Topology decides how well it bends.** The surface only bends where it has rings of vertices. Add `"loops"` to the skin (1 for bends up to 20°, 2 up to 50°, 3 beyond) or put stations near each bone yourself. For limbs, use `"weights": "joints"` so segments stay rigid and only the joint bends. The `rig` and `deform:<Clip>` results report missing loops, folds, pinching and volume loss for each joint. See `topology-and-rigging.md`.
+
+**Limb chain** (arm, leg, finger, neck): bones at the shoulder, elbow and wrist on the limb's centre line. A loft along the limb with `"skin": { "bones": [...], "axis": "x", "weights": "joints", "loops": 3 }`. The elbow station bulges 5-10%. Model the rest pose bent 15-25° so a full bend stays under about 120° from it.
+
 ## Recipes
 
 **Lid / door / hatch open + close** (chest example): Open: lid X angle 0° → -4° at 0.12 s (`out`) → -105° at 0.9 s (`backOut`). Close: -105° → 0° at 0.38 s (`in`) → -5° at 0.48 s (`out`) → 0° at 0.6 s (`in`). In the spec each key is `[time, [x, y, z], ease]`, e.g. `[0.9, [-105, 0, 0], "backOut"]`. Checks: `angle` at the end of Open, `pose` Close end = rest, `pose` Close start = Open end, `apart` lid / base through Open, `contact` lid rim on base rim at rest. Optional loop: Rattle (locked): lid wave 1.5° around offset -1.5°, root `pos` x wave 4 mm.
