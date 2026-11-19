@@ -1,6 +1,6 @@
 # Roblox Developer Skills
 
-Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, give them a mood that fits the genre, build UI that works on phones, desktops and consoles, replace the default backpack with the inventory your genre needs, lay out rooms, buildings and maps at natural distances, design games players stick with, keep them running smoothly on every device, and protect them from exploiters.
+Claude skills for Roblox development: turn a plain-language description into Studio assets with a 3D browser preview, set up a clean codebase, research what's working on Roblox right now, give them a mood that fits the genre, score them with music that follows the action, build UI that works on phones, desktops and consoles, replace the default backpack with the inventory your genre needs, lay out rooms, buildings and maps at natural distances, design games players stick with, keep them running smoothly on every device, and protect them from exploiters.
 
 | Skill | Makes |
 |---|---|
@@ -8,6 +8,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | [roblox-modeling](skills/roblox-modeling/) | Low-poly 3D models measured from real reference images (searched, traced and compared by silhouette), with hinges, skinned spines and animation clips, an automatic test suite (watertight, z-fighting, floating parts, clipping, seamless loops, reference proportions) and review renders; exported as `.glb` for Blender, three.js and Roblox's 3D Importer, plus `.obj`, a Blender import script, a three.js loader and a three.js preview |
 | [roblox-vfx](skills/roblox-vfx/) | Particle, beam and light effects, exported as a `ModuleScript` plus textures |
 | [roblox-atmosphere](skills/roblox-atmosphere/) | Genre atmospheres (horror, cozy, sci-fi, cyberpunk and 20 more): lighting, fog, grading, weather and ambience presets, a Luau kit with zones and day/night, and a browser preview lab |
+| [roblox-music](skills/roblox-music/) | Adaptive game music like GTA, Red Dead and Dead Space: original cues composed from a mood (combat, car chase / wanted level, heist, horror dread and chase, creepy lullaby, boss, exploration, cozy, sad, victory, cyberpunk, sci-fi, western, lo-fi lobby, racing, obby, countdown) as seamless intensity stems with beats, bass, melodies, stingers, intro and ending, MIDI and a composer brief; a Luau kit (director with states, intensity, hysteresis and fear emitters; Audio API player with bar-synced transitions and layering), Luau tests, a stem analyzer and a browser lab |
 | [roblox-ragdoll](skills/roblox-ragdoll/) | Ragdoll physics and procedural hit reactions: knockdowns from any animation (cars, falls, finishers, death) with a blended get-up, flinches by body part, limping and limb injuries, and a server-authoritative Luau kit that plugs into the combat and vehicles kits |
 | [roblox-combat](skills/roblox-combat/) | Combat feel and fairness: hitstop, knockback, flash, shake, slow-mo, guns (recoil, muzzle flash, tracers, impacts), a first-person and over-the-shoulder shooter camera, enemy AI, a server-authoritative Luau kit with CLI-run Luau tests, a browser feel lab and a playable shooter lab checked against the Luau |
 | [roblox-ui](skills/roblox-ui/) | Responsive React (react-lua) UI: a theme config (palettes, corner roundness, per-component styles, live switching, contrast check), a modular component kit (layers, stacks, auto-column grids, buttons, modals, tabs, toasts), a HUD and shop that adapt to phone, tablet, desktop and console, gamepad navigation, device-matrix stories, a component generator and a UI code scanner |
@@ -36,7 +37,7 @@ npx skills add ridhotamma/roblox-developer-skills --skill roblox-animation
 
 For the Claude apps, upload the packaged `.skill` file from [`dist/`](dist/) in Claude's skills settings.
 
-Then ask for what you want, for example "make an R15 uppercut animation", "build me a low poly fish with swimming, idle and dying animation", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
+Then ask for what you want, for example "make an R15 uppercut animation", "build me a low poly fish with swimming, idle and dying animation", "make GTA-style chase music that gets more intense with the wanted level", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
 
 ## Layout
 

@@ -1,0 +1,801 @@
+<title>Adaptive Score Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+  /* Layout: a mixing console. Cue picker on the left; transport, intensity, channel strips and a
+     piano roll stacked in the main column; one column on phones. */
+  :root {
+    --bg: #eceef2; --panel: #ffffff; --panel2: #f4f5f8; --ink: #161a21; --muted: #596172; --line: #d4d8e0;
+    --accent: #c4621b; --accent-ink: #ffffff; --ok: #23824f; --warn: #b2452a;
+    --s1: #3a74cf; --s2: #23947e; --s3: #c49124; --s4: #bd4a73; --s5: #7d5fd0; --s6: #3fa1bd;
+    --font: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --panel: #171b21; --panel2: #1d222a; --ink: #e6e9ef; --muted: #939aa9; --line: #2a303a;
+      --accent: #ef9744; --accent-ink: #1a1206; --ok: #5fcf8f; --warn: #f07a5c;
+      --s1: #6c9ff0; --s2: #49c2a8; --s3: #e2b54d; --s4: #e27a9f; --s5: #a68bf0; --s6: #6cc6df;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --panel: #171b21; --panel2: #1d222a; --ink: #e6e9ef; --muted: #939aa9; --line: #2a303a;
+    --accent: #ef9744; --accent-ink: #1a1206; --ok: #5fcf8f; --warn: #f07a5c;
+    --s1: #6c9ff0; --s2: #49c2a8; --s3: #e2b54d; --s4: #e27a9f; --s5: #a68bf0; --s6: #6cc6df;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font); }
+  button, select, input { font: inherit; color: inherit; }
+  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 14px 28px; max-width: 1320px; margin: 0 auto; }
+  header.top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .brand h1 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; max-width: 62ch; }
+  .transport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+  .counter { font-family: var(--mono); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 5.2ch; text-align: center; }
+  .counter small { display: block; font-size: 10px; font-weight: 400; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  .pill { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: var(--panel2); border: 1px solid var(--line); text-transform: uppercase; letter-spacing: .06em; }
+  .pill.hot { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible, select:focus-visible, input:focus-visible, .mood:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  .btn[disabled] { opacity: .5; cursor: default; }
+  .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 14px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+  aside.moods { display: grid; gap: 8px; position: sticky; top: env(safe-area-inset-top, 0px); max-height: calc(100vh - 24px); overflow: auto; }
+  @media (max-width: 900px) { aside.moods { position: static; max-height: 340px; } }
+  .moods input { width: 100%; background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; }
+  .mood { display: grid; gap: 1px; text-align: left; width: 100%; background: none; border: 1px solid transparent; border-radius: 8px; padding: 7px 9px; cursor: pointer; }
+  .mood:hover { background: var(--panel2); }
+  .mood.on { background: var(--panel2); border-color: var(--accent); }
+  .mood b { font-weight: 600; font-size: 13.5px; }
+  .mood span { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  main { display: grid; gap: 14px; min-width: 0; }
+  .cuehead { display: grid; gap: 8px; }
+  .cuehead h2 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  .vibe { margin: 0; color: var(--muted); max-width: 70ch; }
+  .facts { display: flex; flex-wrap: wrap; gap: 6px; }
+  .fact { font-family: var(--mono); font-size: 11.5px; padding: 2px 8px; border-radius: 5px; background: var(--panel2); border: 1px solid var(--line); }
+  .chords { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+  .chord { font-family: var(--mono); font-size: 12px; padding: 4px 0; text-align: center; border-radius: 5px; border: 1px solid var(--line); background: var(--panel2); flex: 1 0 44px; transition: background .1s; }
+  .chord.now { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .status { font-size: 12.5px; color: var(--muted); min-height: 1.4em; }
+  .progress { height: 3px; background: var(--panel2); border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 10px; }
+  .tab { background: none; border: 1px solid var(--line); border-radius: 7px; padding: 5px 12px; cursor: pointer; font-size: 13px; }
+  .tab.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  .intensity { display: grid; gap: 6px; }
+  .intensity input[type=range] { width: 100%; accent-color: var(--accent); }
+  .scale { position: relative; height: 34px; }
+  .scale .band { position: absolute; height: 5px; border-radius: 3px; opacity: .85; }
+  .scale .needle { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); transition: left .05s; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .game { display: grid; gap: 10px; }
+  .game select { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; max-width: 100%; }
+  .log { font-family: var(--mono); font-size: 11.5px; background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; height: 120px; overflow: auto; white-space: pre-wrap; color: var(--muted); }
+  .log b { color: var(--ink); font-weight: 600; }
+  .strips { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .strip { border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; display: grid; gap: 6px; background: var(--panel2); min-width: 0; }
+  .strip header { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+  .strip header b { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .strip .range { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .strip .parts { font-size: 11.5px; color: var(--muted); min-height: 2.8em; }
+  .meter { height: 8px; border-radius: 4px; background: var(--panel); border: 1px solid var(--line); overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; }
+  .strip .ctl { display: flex; gap: 4px; }
+  .strip .ctl button { flex: 1; font-size: 11px; padding: 3px 0; border-radius: 5px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; }
+  .published .strip [data-a=dl] { display: none; }
+  .strip .ctl button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  canvas#roll { width: 100%; height: 230px; display: block; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); }
+  .grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+  .field { display: grid; gap: 3px; }
+  .field input, .field select { background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; width: 100%; }
+  .fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  @media (max-width: 520px) { .fields { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  table.stats { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .stats th, .stats td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+  .stats td.n { font-family: var(--mono); text-align: right; }
+  .stats th { font-weight: 600; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  .tablewrap { overflow-x: auto; }
+  .note { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+  .stingers { display: flex; flex-wrap: wrap; gap: 6px; }
+  pre.luau { font-family: var(--mono); font-size: 11.5px; background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 8px; overflow: auto; max-height: 220px; margin: 0; }
+  h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Adaptive Score Lab</h1>
+      <p>Compose a cue from a mood, then play it the way the game will: stems fade in with intensity, cues switch on the next beat or bar, stingers land in time.</p>
+    </div>
+    <div class="transport">
+      <button class="btn primary" id="play" aria-label="Play or stop (space)">Play</button>
+      <div class="counter" id="counter">-.-<small>bar.beat</small></div>
+      <span class="pill" id="statePill">stopped</span>
+      <label class="row" for="vol"><span class="lbl">Vol</span><input type="range" id="vol" min="0" max="1" step="0.01" value="0.8"></label>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="card moods" aria-label="Moods">
+      <input type="search" id="search" placeholder="Filter moods (horror, chase, cozy...)" aria-label="Filter moods">
+      <div id="moodList"></div>
+    </aside>
+
+    <main>
+      <section class="card cuehead">
+        <h2 id="cueTitle">Loading...</h2>
+        <p class="vibe" id="cueVibe"></p>
+        <div class="facts" id="facts"></div>
+        <div class="chords" id="chords" aria-label="Chord progression"></div>
+        <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+        <div class="status" id="status"></div>
+      </section>
+
+      <section class="card">
+        <div class="tabs" role="tablist">
+          <button class="tab on" id="tabLayers" role="tab">Layers</button>
+          <button class="tab" id="tabGame" role="tab">Game director</button>
+        </div>
+        <div class="intensity">
+          <div class="row" style="justify-content: space-between"><span class="lbl">Intensity</span><span class="counter" style="font-size:15px" id="intensityOut">0.20</span></div>
+          <input type="range" id="intensity" min="0" max="1" step="0.01" value="0.2" aria-label="Intensity">
+          <div class="scale" id="scale"><div class="needle" id="needle"></div></div>
+        </div>
+        <div class="game" id="game" hidden>
+          <div class="row">
+            <label class="field" for="partner" style="min-width: 220px; flex: 1"><span class="lbl">Action cue (the calm cue is the one selected)</span><select id="partner"></select></label>
+            <label class="field" for="sync"><span class="lbl">Switch on</span><select id="sync"><option>Beat</option><option selected>Bar</option><option>Phrase</option><option>Immediate</option></select></label>
+          </div>
+          <div class="row">
+            <label class="row" for="useEnding"><input type="checkbox" id="useEnding" checked> End the action cue with its Ending</label>
+            <label class="row" for="useIntro"><input type="checkbox" id="useIntro"> Start it with its Intro</label>
+            <label class="row" for="useStinger"><input type="checkbox" id="useStinger" checked> Alert stinger on escalation</label>
+          </div>
+          <div class="row">
+            <button class="btn" id="evSpot">Enemy spots you</button>
+            <button class="btn" id="evFire">Firefight (3 s spike)</button>
+            <button class="btn" id="evLose">Lose them</button>
+            <button class="btn" id="evNear">Threat nearby (tension)</button>
+          </div>
+          <div class="log" id="log" aria-live="polite"></div>
+        </div>
+        <div style="margin-top:10px">
+          <span class="lbl">Stingers (land on the next beat)</span>
+          <div class="stingers" id="stingers" style="margin-top:6px"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Stems</h3>
+        <div class="strips" id="strips"></div>
+      </section>
+
+      <section class="card">
+        <h3>Loop</h3>
+        <canvas id="roll" aria-label="Piano roll of the loop"></canvas>
+      </section>
+
+      <section class="grid2">
+        <div class="card">
+          <h3>Variation</h3>
+          <div class="fields">
+            <label class="field" for="seed"><span class="lbl">Seed</span><input id="seed" type="number" value="1" min="1"></label>
+            <label class="field" for="key"><span class="lbl">Key</span><select id="key"></select></label>
+            <label class="field" for="bpm"><span class="lbl">BPM</span><input id="bpm" type="number" min="40" max="200"></label>
+            <label class="field" for="bars"><span class="lbl">Bars</span><select id="bars"><option>4</option><option selected>8</option><option>16</option></select></label>
+          </div>
+          <div class="row" style="margin-top:10px">
+            <button class="btn primary" id="rerender">Compose again</button>
+            <button class="btn" id="reroll">New seed</button>
+          </div>
+          <p class="note">Same seed, same mood, same settings: same notes, here and in <code>compose.cjs render</code>.</p>
+        </div>
+        <div class="card">
+          <h3>Levels</h3>
+          <div class="tablewrap"><table class="stats" id="stats"></table></div>
+          <p class="note">Full mix aims at -16 LUFS with peaks under -1 dBFS, a good level for phones and laptops.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Take it to Roblox</h3>
+        <div class="row">
+          <button class="btn primary" id="dlZip">Download stems (.zip)</button>
+          <button class="btn" id="dlMidi">Download MIDI</button>
+          <button class="btn" id="copyLuau">Copy MusicCues entry</button>
+          <button class="btn" id="copyCmd">Copy CLI command</button>
+        </div>
+        <p class="note" id="exportNote">Upload the WAVs with Studio's Asset Manager (Bulk Import), then paste the ids into this entry in MusicCues.luau.</p>
+        <pre class="luau" id="luau"></pre>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script id="engine">
+/*@@ENGINE@@*/
+</script>
+<script>
+(function () {
+  'use strict';
+  const MOODS = /*@@MOODS@@*/null;
+  const KIT = /*@@CONFIG@@*/null;
+  // true in the published (artifact) build, where pages can't hand out files: hide downloads.
+  const PUBLISHED = /*@@BARE@@*/false;
+  const E = window.MusicEngine;
+  const T = E.Timeline;
+  const SR = 44100;
+  const PARTNER = { exploration: 'action_combat', action_combat: 'exploration', car_chase: 'cyberpunk_night', heist_stealth: 'car_chase', horror_dread: 'horror_chase', horror_chase: 'horror_dread', horror_lullaby: 'horror_chase', epic_boss: 'action_combat', cozy_village: 'victory_triumph', sad_emotional: 'epic_boss', victory_triumph: 'action_combat', cyberpunk_night: 'car_chase', scifi_space: 'action_combat', western_desert: 'action_combat', menu_lobby: 'battle_lobby_countdown', racing_drive: 'car_chase', obby_upbeat: 'victory_triumph', battle_lobby_countdown: 'action_combat' };
+  const STEM_COLORS = ['--s1', '--s2', '--s3', '--s4', '--s5', '--s6'];
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  // ------------------------------------------------------------ rendering (Web Worker)
+  const WORKER_TAIL = `
+self.onmessage = function (ev) {
+  var d = ev.data, M = self.MusicEngine;
+  try {
+    var cue = M.compose(d.preset, d.opts);
+    var total = cue.stems.length + cue.oneShots.length, done = 0, stems = [], shots = [];
+    for (var i = 0; i < cue.stems.length; i++) { stems.push(M.renderStem(cue, i, { sr: d.sr })); self.postMessage({ id: d.id, progress: ++done / total, label: 'stem ' + cue.stems[i].name }); }
+    for (var j = 0; j < cue.oneShots.length; j++) { shots.push(M.renderOneShot(cue, j, { sr: d.sr })); self.postMessage({ id: d.id, progress: ++done / total, label: cue.oneShots[j].name }); }
+    var r = M.finalize(cue, stems, shots, { sr: d.sr });
+    var transfer = [];
+    var pack = function (x, extra) { transfer.push(x.L.buffer, x.R.buffer); return Object.assign({ L: x.L, R: x.R, lufs: x.lufs, peak: x.peak }, extra); };
+    self.postMessage({ id: d.id, done: true, result: { sr: r.sr, loopSamples: r.loopSamples, loopSeconds: r.loopSeconds, mix: r.mix,
+      stems: r.stems.map(function (s) { return pack(s, { name: s.name, min: s.min, full: s.full }); }),
+      oneShots: r.oneShots.map(function (o) { return pack(o, { name: o.name, kind: o.kind, beats: o.beats }); }) } }, transfer);
+  } catch (e) { self.postMessage({ id: d.id, error: String(e && e.message || e) }); }
+};`;
+  let worker = null;
+  const jobs = {};
+  let jobSeq = 0;
+  try {
+    const src = $('engine').textContent + WORKER_TAIL;
+    worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+    worker.onmessage = (ev) => {
+      const job = jobs[ev.data.id];
+      if (!job) return;
+      if (ev.data.progress !== undefined) job.progress(ev.data.progress, ev.data.label);
+      if (ev.data.done) { delete jobs[ev.data.id]; job.resolve(ev.data.result); }
+      if (ev.data.error) { delete jobs[ev.data.id]; job.reject(new Error(ev.data.error)); }
+    };
+  } catch (e) { worker = null; }
+
+  async function renderInPage(preset, opts, progress) {
+    const cue = E.compose(preset, opts);
+    const total = cue.stems.length + cue.oneShots.length;
+    let done = 0;
+    const stems = [], shots = [];
+    for (let i = 0; i < cue.stems.length; i++) { await new Promise((r) => setTimeout(r, 0)); stems.push(E.renderStem(cue, i, { sr: SR })); progress(++done / total, 'stem ' + cue.stems[i].name); }
+    for (let i = 0; i < cue.oneShots.length; i++) { await new Promise((r) => setTimeout(r, 0)); shots.push(E.renderOneShot(cue, i, { sr: SR })); progress(++done / total, cue.oneShots[i].name); }
+    return E.finalize(cue, stems, shots, { sr: SR });
+  }
+
+  const cache = new Map();
+  function variation() {
+    return { seed: Math.max(1, parseInt($('seed').value, 10) || 1), key: $('key').value || undefined, bpm: parseInt($('bpm').value, 10) || undefined, bars: parseInt($('bars').value, 10) || undefined };
+  }
+  function getCue(id, vari, progress) {
+    const v = vari || {};
+    const k = JSON.stringify([id, v.seed, v.key, v.bpm, v.bars]);
+    if (cache.has(k)) return cache.get(k);
+    const preset = Object.assign({ id }, MOODS[id]);
+    const opts = { seed: v.seed || 1, name: id };
+    if (v.key && v.key !== preset.key) opts.key = v.key;
+    if (v.bpm && v.bpm !== preset.bpm) opts.bpm = v.bpm;
+    if (v.bars) opts.bars = v.bars;
+    const cue = E.compose(preset, opts);
+    const onProgress = progress || (() => {});
+    const p = (worker
+      ? new Promise((resolve, reject) => { const jid = ++jobSeq; jobs[jid] = { resolve, reject, progress: onProgress }; worker.postMessage({ id: jid, preset, opts, sr: SR }); })
+      : renderInPage(preset, opts, onProgress)
+    ).then((r) => ({ id, preset, opts, cue, r, key: k }));
+    p.catch(() => cache.delete(k));
+    cache.set(k, p);
+    return p;
+  }
+
+  // ------------------------------------------------------------ playback (mirrors MusicPlayer.luau)
+  const P = { ctx: null, bus: null, duck: null, current: null, fading: [], intensity: 0.2, mute: {}, solo: null, buffers: new WeakMap() };
+  const LEAD = (KIT && KIT.Transition && KIT.Transition.Lead) || 0.12;
+  const LAYER_FADE = (KIT && KIT.LayerFade) || 0.8;
+  const STINGER = Object.assign({ Duck: 0.5, Release: 1.2 }, (KIT && KIT.Stinger) || {});
+
+  function ensureCtx() {
+    if (!P.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      P.ctx = new AC();
+      P.bus = P.ctx.createGain();
+      P.duck = P.ctx.createGain();
+      P.master = P.ctx.createGain();
+      P.bus.connect(P.duck); P.duck.connect(P.master); P.master.connect(P.ctx.destination);
+      P.master.gain.value = parseFloat($('vol').value);
+    }
+    if (P.ctx.state === 'suspended') P.ctx.resume();
+    return P.ctx;
+  }
+  function audioBuffer(entry, item) {
+    let b = P.buffers.get(item);
+    if (!b) {
+      b = P.ctx.createBuffer(2, item.L.length, entry.r.sr);
+      b.copyToChannel(item.L, 0); b.copyToChannel(item.R, 1);
+      P.buffers.set(item, b);
+    }
+    return b;
+  }
+  const grid = (cue) => ({ Bpm: cue.bpm, BeatsPerBar: cue.beatsPerBar, Bars: cue.bars });
+  function stemTarget(stem) { return T.LayerGain(stem.min, stem.full, P.intensity); }
+  function muteFactor(entry, name) {
+    if (!P.current || P.current.entry !== entry) return 1;
+    if (P.solo) return P.solo === name ? 1 : 0;
+    return P.mute[name] ? 0 : 1;
+  }
+  function playShot(entry, name, at) {
+    const shot = entry.r.oneShots.find((o) => o.name === name);
+    if (!shot) return null;
+    const src = P.ctx.createBufferSource();
+    src.buffer = audioBuffer(entry, shot);
+    src.connect(P.bus);
+    src.start(at);
+    return shot;
+  }
+  function retire(inst, at, fade) {
+    const now = P.ctx.currentTime;
+    const g = inst.cueGain.gain;
+    const level = g.value;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(level, now);
+    g.setValueAtTime(level, Math.max(at, now));
+    g.linearRampToValueAtTime(0, Math.max(at, now) + Math.max(fade, 0.05));
+    inst.stopAt = Math.max(at, now) + Math.max(fade, 0.05) + 0.05;
+    inst.stems.forEach((s) => { try { s.src.stop(inst.stopAt); } catch (e) { /* already stopped */ } });
+    P.fading.push(inst);
+  }
+  // Same order of decisions as MusicPlayer.commit in the kit.
+  function commit(entry, o) {
+    const ctx = ensureCtx();
+    const now = ctx.currentTime;
+    const old = P.current;
+    const sync = o.sync || 'Bar';
+    const fade = o.fade === undefined ? 1.5 : o.fade;
+    const boundary = old ? T.NextBoundary(old.def, old.origin, now + LEAD, sync) : now + LEAD;
+    const fromLabel = posLabel(boundary);
+    let loopStart = boundary;
+    if (entry && o.intro && entry.r.oneShots.some((s) => s.name === 'intro')) {
+      playShot(entry, 'intro', boundary);
+      const shot = entry.cue.oneShots.find((s) => s.name === 'intro');
+      loopStart = boundary + shot.beats * T.BeatLength(grid(entry.cue));
+    }
+    let endingPlayed = false;
+    if (old) {
+      if (o.ending && old.entry.r.oneShots.some((s) => s.name === 'ending')) { playShot(old.entry, 'ending', boundary); endingPlayed = true; }
+      retire(old, boundary, endingPlayed ? 0.08 : fade);
+    }
+    P.current = null;
+    if (entry) {
+      const def = grid(entry.cue);
+      const offset = loopStart === boundary ? T.EntryOffset(def, old && old.def, old ? old.origin : 0, loopStart, o.entry || 'Start') : 0;
+      const cueGain = ctx.createGain();
+      cueGain.gain.value = 0;
+      cueGain.connect(P.bus);
+      const inst = { entry, def, cueGain, origin: loopStart - offset, stems: [] };
+      entry.r.stems.forEach((s) => {
+        const sg = ctx.createGain();
+        const gain = stemTarget(s);
+        sg.gain.value = gain;
+        sg.connect(cueGain);
+        const src = ctx.createBufferSource();
+        src.buffer = audioBuffer(entry, s);
+        src.loop = true;
+        src.connect(sg);
+        src.start(loopStart, offset % src.buffer.duration);
+        inst.stems.push({ s, sg, src, gain });
+      });
+      const quick = endingPlayed || loopStart !== boundary || !old;
+      const fadeIn = quick ? (!old ? Math.min(fade, 1) : 0.03) : fade;
+      cueGain.gain.setValueAtTime(0, now);
+      cueGain.gain.setValueAtTime(0, loopStart);
+      cueGain.gain.linearRampToValueAtTime(1, loopStart + fadeIn);
+      P.current = inst;
+    }
+    return { boundary, loopStart, endingPlayed, fromLabel };
+  }
+  function stinger(name) {
+    if (!P.current) return;
+    const ctx = ensureCtx();
+    const now = ctx.currentTime;
+    const at = T.NextBoundary(P.current.def, P.current.origin, now + LEAD, STINGER.Sync || 'Beat');
+    const shot = playShot(P.current.entry, name, at);
+    if (!shot) return;
+    const hold = at + shot.beats * T.BeatLength(P.current.def) * 0.6;
+    const g = P.duck.gain;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.setValueAtTime(g.value, at);
+    g.linearRampToValueAtTime(1 - STINGER.Duck, at + 0.04);
+    g.setValueAtTime(1 - STINGER.Duck, hold);
+    g.linearRampToValueAtTime(1, hold + STINGER.Release);
+    log(`${posLabel(at)} stinger <b>${name}</b>`);
+  }
+  function stopAll() {
+    if (!P.ctx) return;
+    if (P.current) retire(P.current, P.ctx.currentTime, 0.3);
+    P.current = null;
+    pendingState = null;
+  }
+
+  // ------------------------------------------------------------ director (MusicDirector port)
+  let mode = 'layers';
+  let director = null;
+  let calmEntry = null, actionEntry = null;
+  let pendingState = null;
+  function makeDirector() {
+    const d = (KIT && KIT.Director) || {};
+    return new E.Director({
+      BaseState: 'calm', Attack: d.Attack, Release: d.Release, IntensityHold: d.IntensityHold, StateHold: d.StateHold,
+      States: {
+        calm: { Priority: 1, Intensity: 0.2 },
+        tension: { Priority: 2, Intensity: 0.35, Hold: 4 },
+        action: { Priority: 3, Intensity: 0.45, Hold: 6, MinDwell: 8 },
+      },
+    });
+  }
+  function entryForState(state) { return state === 'action' ? actionEntry : calmEntry; }
+  async function applyState(state, previous) {
+    const prevDef = previous === 'action';
+    const target = entryForState(state);
+    const wasAction = P.current && actionEntry && P.current.entry === actionEntry;
+    if (!target) { pendingState = { state, previous }; status('Waiting for the action cue to finish rendering...'); return; }
+    pendingState = null;
+    if (P.current && P.current.entry === target) { setPill(state); return; }
+    const res = commit(target, {
+      sync: $('sync').value, fade: state === 'action' ? 0.5 : 2.5,
+      intro: state === 'action' && $('useIntro').checked,
+      ending: prevDef && wasAction && $('useEnding').checked,
+    });
+    log(`${res.fromLabel} → <b>${state}</b> (${target.preset.title})${res.endingPlayed ? ', ending played' : ''}${res.loopStart !== res.boundary ? ', intro first' : ''}`);
+    if (state === 'action' && previous !== 'action' && $('useStinger').checked) {
+      const name = ['alert', 'jumpscare', 'hit'].find((n) => target.r.oneShots.some((o) => o.name === n));
+      if (name) setTimeout(() => stinger(name), Math.max(0, (res.loopStart - P.ctx.currentTime) * 1000 - 60));
+    }
+    setPill(state);
+  }
+
+  // ------------------------------------------------------------ UI
+  let selected = 'exploration';
+  let shown = null; // entry whose cue is drawn
+  function setPill(text) { const p = $('statePill'); p.textContent = text; p.classList.toggle('hot', text === 'action' || text === 'tension'); }
+  function posLabel(at) {
+    const inst = P.current;
+    if (!inst) return 'start';
+    const pos = T.Position(inst.def, inst.origin, at);
+    return `bar ${pos.bar}.${pos.beat}`;
+  }
+  function log(html) {
+    const el = $('log');
+    el.innerHTML = `${html}\n` + el.innerHTML;
+  }
+  function moodLine(id) { const m = MOODS[id]; return `${m.bpm} BPM · ${m.key} ${m.mode.replace(/_/g, ' ')}`; }
+  function buildMoodList() {
+    const q = $('search').value.toLowerCase();
+    const list = $('moodList');
+    list.innerHTML = '';
+    for (const id of Object.keys(MOODS)) {
+      const m = MOODS[id];
+      const hay = (id + ' ' + m.title + ' ' + m.vibe + ' ' + (m.genres || []).join(' ')).toLowerCase();
+      if (q && !hay.includes(q)) continue;
+      const b = document.createElement('button');
+      b.className = 'mood' + (id === selected ? ' on' : '');
+      b.innerHTML = `<b></b><span></span>`;
+      b.querySelector('b').textContent = m.title;
+      b.querySelector('span').textContent = moodLine(id);
+      b.onclick = () => selectMood(id);
+      list.appendChild(b);
+    }
+  }
+  function fillKeys() {
+    const sel = $('key');
+    sel.innerHTML = '<option value="">preset</option>' + E.NOTE_NAMES.map((n) => `<option>${n}</option>`).join('');
+    $('partner').innerHTML = Object.keys(MOODS).map((id) => `<option value="${id}">${MOODS[id].title}</option>`).join('');
+  }
+  function showCue(entry) {
+    shown = entry;
+    const { cue, preset, r } = entry;
+    $('cueTitle').textContent = preset.title;
+    $('cueVibe').textContent = preset.vibe + '.';
+    const facts = [`${cue.bpm} BPM`, `${cue.beatsPerBar}/4${cue.steps % 3 === 0 && cue.beatsPerBar === 4 ? ' (12/8 feel)' : ''}`, `${cue.key} ${cue.mode.replace(/_/g, ' ')}`, `${cue.bars} bars = ${r.loopSeconds.toFixed(2)} s`, `seed ${cue.seed}`].concat((preset.genres || []).slice(0, 3));
+    $('facts').innerHTML = '';
+    facts.forEach((f) => { const s = document.createElement('span'); s.className = 'fact'; s.textContent = f; $('facts').appendChild(s); });
+    $('chords').innerHTML = '';
+    cue.chords.forEach((c, i) => { const d = document.createElement('div'); d.className = 'chord'; d.style.flexGrow = c.length; d.dataset.i = i; d.textContent = c.symbol; $('chords').appendChild(d); });
+    // intensity scale bands
+    const scale = $('scale');
+    scale.querySelectorAll('.band').forEach((b) => b.remove());
+    r.stems.forEach((s, i) => {
+      const b = document.createElement('div');
+      b.className = 'band';
+      b.style.left = (s.min * 100) + '%';
+      b.style.right = '0';
+      b.style.top = (i * 6) + 'px';
+      b.style.background = `linear-gradient(90deg, var(${STEM_COLORS[i % 6]}) 0%, var(${STEM_COLORS[i % 6]}) 100%)`;
+      b.style.opacity = '0.35';
+      const full = document.createElement('div');
+      full.className = 'band';
+      full.style.left = (s.full * 100) + '%'; full.style.right = '0'; full.style.top = (i * 6) + 'px';
+      full.style.background = `var(${STEM_COLORS[i % 6]})`;
+      scale.appendChild(b); scale.appendChild(full);
+    });
+    scale.style.height = (r.stems.length * 6 + 4) + 'px';
+    // strips
+    const strips = $('strips');
+    strips.innerHTML = '';
+    cue.stems.forEach((s, i) => {
+      const el = document.createElement('div');
+      el.className = 'strip';
+      el.innerHTML = `<header><b></b><span class="range"></span></header><div class="parts"></div><div class="meter"><i></i></div><div class="ctl"><button data-a="mute">Mute</button><button data-a="solo">Solo</button><button data-a="dl">WAV</button></div>`;
+      el.querySelector('b').textContent = s.name;
+      el.querySelector('b').style.color = `var(${STEM_COLORS[i % 6]})`;
+      el.querySelector('.range').textContent = s.full > s.min ? `${s.min}–${s.full}` : `always`;
+      el.querySelector('.parts').textContent = s.parts.map((p) => `${p.role} · ${p.inst}`).join(', ');
+      el.querySelector('.meter i').style.background = `var(${STEM_COLORS[i % 6]})`;
+      el.querySelector('[data-a=mute]').onclick = (ev) => { P.mute[s.name] = !P.mute[s.name]; ev.target.classList.toggle('on', !!P.mute[s.name]); };
+      el.querySelector('[data-a=solo]').onclick = (ev) => {
+        P.solo = P.solo === s.name ? null : s.name;
+        strips.querySelectorAll('[data-a=solo]').forEach((b) => b.classList.remove('on'));
+        if (P.solo) ev.target.classList.add('on');
+      };
+      el.querySelector('[data-a=dl]').onclick = () => download(`${cue.name}_${s.name}.wav`, E.wav(r.stems[i].L, r.stems[i].R, r.sr), 'audio/wav');
+      strips.appendChild(el);
+    });
+    // stingers
+    const st = $('stingers');
+    st.innerHTML = '';
+    r.oneShots.filter((o) => o.kind === 'stinger').forEach((o) => {
+      const b = document.createElement('button');
+      b.className = 'btn';
+      b.textContent = o.name;
+      b.onclick = () => { if (!P.current) start(); stinger(o.name); };
+      st.appendChild(b);
+    });
+    // stats
+    const fmt = (x) => (isFinite(x) ? x.toFixed(1) : '-inf');
+    $('stats').innerHTML = '<tr><th>Stem</th><th>Plays from</th><th class="n">LUFS</th><th class="n">Peak dB</th></tr>' +
+      r.stems.map((s) => `<tr><td>${s.name}</td><td>${s.full > s.min ? s.min : 'always'}</td><td class="n">${fmt(s.lufs)}</td><td class="n">${fmt(E.gainToDb(s.peak))}</td></tr>`).join('') +
+      `<tr><td><b>All stems</b></td><td>1.0</td><td class="n"><b>${fmt(r.mix.lufs)}</b></td><td class="n"><b>${fmt(E.gainToDb(r.mix.peak))}</b></td></tr>`;
+    const man = E.manifest(cue, r);
+    $('luau').textContent = E.luauEntry(man, '\t');
+  }
+  function status(text) { $('status').textContent = text; }
+  async function loadSelected() {
+    const id = selected;
+    status('Composing and rendering stems...');
+    $('progress').style.width = '0%';
+    const t0 = performance.now();
+    try {
+      const entry = await getCue(id, variation(), (p, label) => { $('progress').style.width = (p * 100) + '%'; status(`Rendering ${label}...`); });
+      if (id !== selected) return null;
+      $('progress').style.width = '100%';
+      status(`Rendered ${entry.r.stems.length} stems and ${entry.r.oneShots.length} one-shots in ${((performance.now() - t0) / 1000).toFixed(1)} s.${worker ? '' : ' (no Web Worker: rendered on the page)'}`);
+      calmEntry = entry;
+      showCue(entry);
+      return entry;
+    } catch (e) {
+      status('Rendering failed: ' + e.message);
+      return null;
+    }
+  }
+  async function selectMood(id) {
+    selected = id;
+    $('partner').value = PARTNER[id] || 'action_combat';
+    $('bpm').value = MOODS[id].bpm;
+    $('key').value = '';
+    buildMoodList();
+    const wasPlaying = !!P.current;
+    const entry = await loadSelected();
+    if (entry && wasPlaying && mode === 'layers') commit(entry, { sync: 'Bar', fade: 1.5 });
+    if (mode === 'game') { actionEntry = null; prepareAction(); }
+  }
+  async function prepareAction() {
+    const id = $('partner').value;
+    actionEntry = null;
+    try { actionEntry = await getCue(id, { seed: 1 }); } catch (e) { status('Action cue failed: ' + e.message); }
+  }
+  function start() {
+    if (!calmEntry) return;
+    ensureCtx();
+    if (mode === 'game') {
+      director = makeDirector();
+      applyState('calm', null);
+    } else {
+      commit(calmEntry, { sync: 'Bar', fade: 1 });
+      setPill('playing');
+    }
+    $('play').textContent = 'Stop';
+  }
+  function stop() { stopAll(); $('play').textContent = 'Play'; setPill('stopped'); $('counter').firstChild.nodeValue = '-.-'; }
+
+  function download(name, bytes, type) {
+    const url = URL.createObjectURL(new Blob([bytes], { type }));
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  async function copy(text, button) {
+    try { await navigator.clipboard.writeText(text); const t = button.textContent; button.textContent = 'Copied'; setTimeout(() => (button.textContent = t), 1200); }
+    catch (e) { const sel = window.getSelection(); const r = document.createRange(); r.selectNodeContents($('luau')); sel.removeAllRanges(); sel.addRange(r); }
+  }
+  function cliCommand() {
+    if (!shown) return '';
+    const o = shown.opts;
+    return `node scripts/compose.cjs render ${shown.id} --seed ${o.seed}${o.key ? ' --key ' + o.key : ''}${o.bpm ? ' --bpm ' + o.bpm : ''}${o.bars && o.bars !== 8 ? ' --bars ' + o.bars : ''} --out music`;
+  }
+
+  // piano roll
+  function drawRoll(now) {
+    const cv = $('roll');
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth, h = cv.clientHeight;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const entry = (P.current && P.current.entry) || shown;
+    if (!entry) return;
+    const cue = entry.cue;
+    const total = cue.bars * cue.beatsPerBar;
+    const drumH = 44;
+    let lo = 127, hi = 0;
+    cue.stems.forEach((s) => s.parts.forEach((p) => p.notes.forEach((n) => { if (typeof n.p === 'number') { lo = Math.min(lo, n.p); hi = Math.max(hi, n.p); } })));
+    if (lo > hi) { lo = 48; hi = 72; }
+    lo -= 1; hi += 1;
+    const ph = h - drumH - 8;
+    const line = css('--line'), muted = css('--muted');
+    g.strokeStyle = line; g.lineWidth = 1;
+    for (let b = 0; b <= total; b++) {
+      const x = Math.round((b / total) * w) + 0.5;
+      g.globalAlpha = b % cue.beatsPerBar === 0 ? 1 : 0.35;
+      g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke();
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = muted; g.font = '10px ' + css('--mono');
+    for (let bar = 0; bar < cue.bars; bar++) g.fillText(String(bar + 1), (bar * cue.beatsPerBar / total) * w + 3, 11);
+    const drumRows = E.DRUM_VOICES;
+    const gains = P.current && P.current.entry === entry ? P.current.stems.map((s) => s.gain) : entry.r.stems.map((s) => stemTarget(s));
+    cue.stems.forEach((s, si) => {
+      g.fillStyle = css(STEM_COLORS[si % 6]);
+      g.globalAlpha = 0.18 + 0.82 * (gains[si] || 0);
+      s.parts.forEach((p) => p.notes.forEach((n) => {
+        const x = (n.t / total) * w;
+        const nw = Math.max(2, (n.d / total) * w - 1);
+        if (typeof n.p === 'number') {
+          const y = ph - ((n.p - lo) / (hi - lo)) * (ph - 14) ;
+          g.fillRect(x, y, nw, 3);
+        } else {
+          const row = Math.max(0, drumRows.indexOf(n.p));
+          g.fillRect(x, h - drumH + (row % 11) * 4, Math.max(2, nw * 0.6), 3);
+        }
+      }));
+    });
+    g.globalAlpha = 1;
+    if (P.current && P.current.entry === entry && now >= P.current.origin) {
+      const pos = T.Position(P.current.def, P.current.origin, now);
+      const x = (pos.loopTime / T.LoopLength(P.current.def)) * w;
+      g.fillStyle = css('--accent');
+      g.fillRect(x - 1, 0, 2, h);
+    }
+  }
+
+  // Music logic runs on a timer (keeps going in a background tab); drawing runs on frames.
+  let lastTick = 0;
+  function tick() {
+    const t = performance.now();
+    const dt = lastTick ? Math.min(1, (t - lastTick) / 1000) : 0.05;
+    lastTick = t;
+    const now = P.ctx ? P.ctx.currentTime : 0;
+    if (mode === 'game' && director && P.current) {
+      const prev = director.state;
+      const res = director.Update(dt);
+      if (res.changed) applyState(res.state, prev);
+      else if (pendingState && entryForState(pendingState.state)) applyState(pendingState.state, pendingState.previous);
+      P.intensity = res.intensity;
+      $('intensity').value = P.intensity;
+    } else {
+      P.intensity = parseFloat($('intensity').value);
+    }
+    const step = dt / LAYER_FADE;
+    const drive = (inst) => inst.stems.forEach((st) => {
+      const target = stemTarget(st.s);
+      st.gain = st.gain < target ? Math.min(target, st.gain + step) : Math.max(target, st.gain - step);
+      st.sg.gain.setTargetAtTime(st.gain * muteFactor(inst.entry, st.s.name), now, 0.02);
+    });
+    if (P.current) drive(P.current);
+    for (let i = P.fading.length - 1; i >= 0; i--) {
+      const inst = P.fading[i];
+      if (now > inst.stopAt + 0.25) { inst.cueGain.disconnect(); P.fading.splice(i, 1); } else drive(inst);
+    }
+    if (P.current && P.current.entry !== shown) showCue(P.current.entry);
+    if (P.current && now >= P.current.origin) {
+      const pos = T.Position(P.current.def, P.current.origin, now);
+      $('counter').firstChild.nodeValue = `${pos.bar}.${pos.beat}`;
+    }
+    $('intensityOut').textContent = P.intensity.toFixed(2);
+  }
+  setInterval(tick, 40);
+
+  function frame() {
+    const now = P.ctx ? P.ctx.currentTime : 0;
+    $('needle').style.left = `calc(${P.intensity * 100}% - 1px)`;
+    if (P.current && P.current.entry === shown) {
+      P.current.stems.forEach((st, i) => { const m = document.querySelectorAll('#strips .meter i')[i]; if (m) m.style.width = (st.gain * 100) + '%'; });
+      if (now >= P.current.origin) {
+        const beat = T.Position(P.current.def, P.current.origin, now).loopTime / T.BeatLength(P.current.def);
+        document.querySelectorAll('#chords .chord').forEach((el, i) => { const c = shown.cue.chords[i]; el.classList.toggle('now', beat >= c.start && beat < c.start + c.length); });
+      }
+    }
+    drawRoll(now);
+    requestAnimationFrame(frame);
+  }
+
+  // wiring
+  $('play').onclick = () => (P.current ? stop() : start());
+  document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !/INPUT|SELECT|TEXTAREA|BUTTON/.test(document.activeElement.tagName)) { e.preventDefault(); $('play').click(); } });
+  $('vol').oninput = () => { if (P.master) P.master.gain.setTargetAtTime(parseFloat($('vol').value), P.ctx.currentTime, 0.02); };
+  $('search').oninput = buildMoodList;
+  $('tabLayers').onclick = () => setMode('layers');
+  $('tabGame').onclick = () => setMode('game');
+  function setMode(m) {
+    if (mode === m) return;
+    mode = m;
+    $('tabLayers').classList.toggle('on', m === 'layers');
+    $('tabGame').classList.toggle('on', m === 'game');
+    $('game').hidden = m !== 'game';
+    $('intensity').disabled = m === 'game';
+    const playing = !!P.current;
+    if (playing) stop();
+    if (m === 'game') { prepareAction(); log('Press Play, then trigger events. The director decides when the music changes.'); }
+    else if (calmEntry && shown !== calmEntry) showCue(calmEntry);
+  }
+  $('partner').onchange = prepareAction;
+  $('evSpot').onclick = () => { if (!director) start(); director.SetSource('enemy', 'action', 0.6); log('event: enemy spots you (action 0.6, until lost)'); };
+  $('evFire').onclick = () => { if (!director) start(); director.SetSource('gunfire', 'action', 1, 3); log('event: firefight (action 1.0 for 3 s)'); };
+  $('evLose').onclick = () => { if (!director) return; director.ClearSource('enemy'); director.ClearSource('near'); log('event: lost them (sources cleared; Hold and MinDwell apply)'); };
+  $('evNear').onclick = () => { if (!director) start(); director.SetSource('near', 'tension', 0.5, 6); log('event: threat nearby (tension 0.5 for 6 s, layers only: same cue)'); };
+  $('rerender').onclick = async () => { const entry = await loadSelected(); if (entry && P.current && mode === 'layers') commit(entry, { sync: 'Bar', fade: 0.5 }); };
+  $('reroll').onclick = () => { $('seed').value = 1 + Math.floor(Math.random() * 9999); $('rerender').click(); };
+  $('dlMidi').onclick = () => shown && download(`${shown.cue.name}.mid`, E.midi(shown.cue), 'audio/midi');
+  $('dlZip').onclick = () => {
+    if (!shown) return;
+    const { cue, r } = shown;
+    const man = E.manifest(cue, r);
+    const files = r.stems.map((s, i) => ({ name: man.stems[i].file, data: E.wav(s.L, s.R, r.sr) }))
+      .concat(r.oneShots.map((o, i) => ({ name: man.oneShots[i].file, data: E.wav(o.L, o.R, r.sr) })))
+      .concat([{ name: `${cue.name}.mid`, data: E.midi(cue) }, { name: `${cue.name}.cue.json`, data: new TextEncoder().encode(JSON.stringify(man, null, 2)) }, { name: `${cue.name}.luau`, data: new TextEncoder().encode(E.luauEntry(man, '\t') + '\n') }]);
+    download(`${cue.name}.zip`, E.zip(files), 'application/zip');
+  };
+  $('copyLuau').onclick = (e) => copy($('luau').textContent, e.target);
+  $('copyCmd').onclick = (e) => copy(cliCommand(), e.target);
+
+  if (PUBLISHED) {
+    $('dlZip').hidden = true; $('dlMidi').hidden = true;
+    $('exportNote').textContent = 'To get the files, run the copied CLI command in the roblox-music skill (it writes the same stems, one-shots, MIDI and entry), or open assets/music-lab.html locally to download them. Upload the WAVs with Studio\'s Asset Manager (Bulk Import), then paste the ids into this entry in MusicCues.luau.';
+    document.documentElement.classList.add('published');
+  }
+  fillKeys();
+  buildMoodList();
+  selectMood(selected);
+  requestAnimationFrame(frame);
+})();
+</script>

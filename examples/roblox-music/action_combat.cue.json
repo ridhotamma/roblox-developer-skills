@@ -1,0 +1,110 @@
+{
+  "name": "action_combat",
+  "title": "Action combat",
+  "seed": 1,
+  "bpm": 140,
+  "beatsPerBar": 4,
+  "bars": 8,
+  "key": "D",
+  "mode": "aeolian",
+  "sampleRate": 44100,
+  "loopSamples": 604800,
+  "loopSeconds": 13.7143,
+  "chords": "i:2 VI VII i:2 iv V",
+  "mix": {
+    "lufs": -16,
+    "peakDb": -2.6
+  },
+  "stems": [
+    {
+      "name": "bed",
+      "file": "action_combat_bed.wav",
+      "min": 0,
+      "full": 0,
+      "lufs": -25.3,
+      "peakDb": -13.5
+    },
+    {
+      "name": "pulse",
+      "file": "action_combat_pulse.wav",
+      "min": 0.2,
+      "full": 0.35,
+      "lufs": -23.2,
+      "peakDb": -8.4
+    },
+    {
+      "name": "drums",
+      "file": "action_combat_drums.wav",
+      "min": 0.45,
+      "full": 0.6,
+      "lufs": -21,
+      "peakDb": -5.5
+    },
+    {
+      "name": "brass",
+      "file": "action_combat_brass.wav",
+      "min": 0.7,
+      "full": 0.85,
+      "lufs": -21,
+      "peakDb": -10.1
+    },
+    {
+      "name": "peak",
+      "file": "action_combat_peak.wav",
+      "min": 0.9,
+      "full": 1,
+      "lufs": -27.3,
+      "peakDb": -13.3
+    }
+  ],
+  "oneShots": [
+    {
+      "name": "alert",
+      "kind": "stinger",
+      "file": "action_combat_alert.wav",
+      "beats": 4,
+      "seconds": 3.961,
+      "lufs": -17
+    },
+    {
+      "name": "hit",
+      "kind": "stinger",
+      "file": "action_combat_hit.wav",
+      "beats": 2,
+      "seconds": 4.058,
+      "lufs": -17
+    },
+    {
+      "name": "victory",
+      "kind": "stinger",
+      "file": "action_combat_victory.wav",
+      "beats": 6,
+      "seconds": 4.167,
+      "lufs": -17
+    },
+    {
+      "name": "fail",
+      "kind": "stinger",
+      "file": "action_combat_fail.wav",
+      "beats": 6,
+      "seconds": 4.69,
+      "lufs": -17
+    },
+    {
+      "name": "intro",
+      "kind": "intro",
+      "file": "action_combat_intro.wav",
+      "beats": 4,
+      "seconds": 3.564,
+      "lufs": -19
+    },
+    {
+      "name": "ending",
+      "kind": "ending",
+      "file": "action_combat_ending.wav",
+      "beats": 8,
+      "seconds": 5.32,
+      "lufs": -19
+    }
+  ]
+}
