@@ -386,7 +386,7 @@
 
   // ---------------------------------------------------------------- counterline
   // A second voice that answers the melody: guide tones (3rds and 7ths) moving by step, contrary
-  // to the melody, below it, no parallel 5ths/octaves, and passing notes where the melody holds.
+  // to the melody, on one side of it (below, or above as a descant), no parallel 5ths/octaves, and passing notes where the melody holds.
   function genCounter(part, ctx, r) {
     const range = part.range || [55, 74];
     const pitches = M.scalePitches(ctx.keyPc, ctx.scale, range[0], range[1]);
@@ -394,6 +394,10 @@
     const melAt = (t) => { let m = null; for (const n of lead) { if (n.t <= t + 1e-9) m = n; else break; } return m && m.t + m.d + 0.5 > t ? m : null; };
     const melOnsets = (a, b) => lead.filter((n) => n.t >= a - 1e-9 && n.t < b - 1e-9).length;
     const every = part.every || 2;
+    // Which side of the tune: below (the usual cello / horn line) or above (a descant violin),
+    // from `above` or from where the counter's range sits against the melody's.
+    const leadMid = lead.length ? lead.reduce((a, n) => a + n.p, 0) / lead.length : 0;
+    const above = part.above !== undefined ? !!part.above : lead.length > 0 && (range[0] + range[1]) / 2 > leadMid;
     const line = [];
     let prev = pitches[Math.floor(pitches.length / 2)];
     let prevMel = null;
@@ -418,8 +422,8 @@
         else if (pc === ninth) c += 0.2;
         if (melDir !== 0 && move !== 0) c += Math.sign(move) === -melDir ? -0.6 : 0.4;
         if (m0) {
-          const gap = m0.p - p;
-          if (gap < 2) c += 2.5;          // stay under the tune
+          const gap = above ? p - m0.p : m0.p - p;
+          if (gap < 2) c += 2.5;          // stay on its side of the tune
           else if (gap % 12 === 0) c += 1.5; // octaves with the melody add nothing
           if (prevMel && (gap % 12 === 7 || gap % 12 === 0) && ((prevMel.p - prev) % 12 === gap % 12) && move !== 0) c += 2; // parallels
         }

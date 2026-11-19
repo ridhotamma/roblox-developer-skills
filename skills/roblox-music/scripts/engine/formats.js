@@ -56,9 +56,9 @@
     strings: 48, tremolo: 44, spiccato: 48, pad: 90, warmpad: 89, darkpad: 94, drone: 95, choir: 52, glass: 92,
     brass: 61, horn: 60, braam: 57, arp: 81, lead: 81, sqlead: 80, whistle: 78, flute: 73,
     impact: 116,
-    acoustic: 25, nylon: 24, cleangtr: 27, bluesgtr: 27, crunchgtr: 29, distgtr: 30, leadgtr: 30, ebass: 34, harmonica: 22,
+    acoustic: 25, nylon: 24, cleangtr: 27, bluesgtr: 27, crunchgtr: 29, distgtr: 30, leadgtr: 30, ebass: 34, harmonica: 22, pipeorgan: 19, cello: 42, violin: 40,
   };
-  const GM_DRUMS = { kick: 36, snare: 38, clap: 39, rim: 37, tick: 76, hat: 42, openhat: 46, ride: 51, shaker: 70, taiko: 35, kick808: 36 };
+  const GM_DRUMS = { kick: 36, snare: 38, clap: 39, rim: 37, tick: 76, hat: 42, openhat: 46, ride: 51, shaker: 70, metal: 56, taiko: 35, kick808: 36 };
   const TOMS = [41, 45, 48];
 
   function vlq(n) {

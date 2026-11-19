@@ -99,6 +99,25 @@
     }
   }
 
+  // Lo-fi: a dusty low-pass (default 3 kHz), a little tape-style saturation and a thinner low end.
+  // No added noise. Run over the loop twice so the filters are in steady state at the seam.
+  function lofi(buf, o, sr) {
+    const n = buf.L.length, cut = o.cut || 3000, drive = o.drive || 1.6;
+    [buf.L, buf.R].forEach((X) => {
+      const lp1 = new M.SVF(), lp2 = new M.SVF(), hp = new M.SVF();
+      lp1.setup(cut, 0.7, sr); lp2.setup(cut * 1.3, 0.6, sr); hp.setup(o.low || 90, 0.7, sr);
+      const out = new Float32Array(n);
+      let peak = 0;
+      for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(X[i]));
+      const k = peak ? 0.7 / peak : 1;
+      for (let pass = 0; pass < 2; pass++) for (let i = 0; i < n; i++) {
+        lp1.tick(X[i] * k); lp2.tick(lp1.low); hp.tick(lp2.low);
+        out[i] = Math.tanh(drive * hp.high) / drive / k;
+      }
+      X.set(out);
+    });
+  }
+
   // Effects on a loop: feed the last `warm` seconds of the loop in first (so reverb and delay
   // tails from the previous pass are already ringing), then process the loop and keep it.
   // Ends in a 30 Hz high-pass: nothing below it is audible on phones or laptops, it only eats
@@ -140,6 +159,7 @@
       parts.push({ role: part.role, inst: part.inst, rawLufs: r.measured });
     });
     if (stem.fx.pump) pump(out, stem.fx.pump, tm, opt.sr);
+    if (stem.fx.lofi) lofi(out, stem.fx.lofi === true ? {} : stem.fx.lofi, opt.sr);
     loopEffects(out, stem.fx, cue, tm, opt);
     return { name: stem.name, min: stem.min, full: stem.full, L: out.L, R: out.R, parts };
   }

@@ -96,7 +96,7 @@ return {
 		BeatsPerBar = 4,
 		Bars = 8,
 		Stems = {
-			{ Name = "drone", Asset = "", Min = 0, Full = 0 }, -- horror_dread_drone.wav
+			{ Name = "fog", Asset = "", Min = 0, Full = 0 }, -- horror_dread_fog.wav
 			{ Name = "unease", Asset = "", Min = 0.15, Full = 0.35 }, -- horror_dread_unease.wav
 			{ Name = "pulse", Asset = "", Min = 0.4, Full = 0.6 }, -- horror_dread_pulse.wav
 			{ Name = "threat", Asset = "", Min = 0.65, Full = 0.85 }, -- horror_dread_threat.wav
@@ -151,6 +151,26 @@ return {
 			discover = { Asset = "", Beats = 4 }, -- horror_lullaby_discover.wav
 		},
 	},
+	horror_fog = {
+		-- Horror fog (melancholic): E aeolian, i:2 VI:2 bII:2 V:2. Seed 1. Loop 25.263 s.
+		Bpm = 76,
+		BeatsPerBar = 4,
+		Bars = 8,
+		Stems = {
+			{ Name = "fog", Asset = "", Min = 0, Full = 0 }, -- horror_fog_fog.wav
+			{ Name = "beat", Asset = "", Min = 0.2, Full = 0.35 }, -- horror_fog_beat.wav
+			{ Name = "guitar", Asset = "", Min = 0.45, Full = 0.65 }, -- horror_fog_guitar.wav
+			{ Name = "piano", Asset = "", Min = 0.7, Full = 0.85 }, -- horror_fog_piano.wav
+			{ Name = "rust", Asset = "", Min = 0.88, Full = 1 }, -- horror_fog_rust.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- horror_fog_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- horror_fog_ending.wav
+		Stingers = {
+			jumpscare = { Asset = "", Beats = 3 }, -- horror_fog_jumpscare.wav
+			tension = { Asset = "", Beats = 8 }, -- horror_fog_tension.wav
+			discover = { Asset = "", Beats = 4 }, -- horror_fog_discover.wav
+		},
+	},
 	epic_boss = {
 		-- Epic boss fight: C aeolian, i VI III VII i VI iv V. Seed 1. Loop 12.8 s.
 		Bpm = 150,
@@ -193,22 +213,42 @@ return {
 		},
 	},
 	sad_emotional = {
-		-- Sad / emotional: E aeolian, i VI III VII i VI iv V. Seed 1. Loop 26.667 s.
-		Bpm = 72,
+		-- Sad / emotional: E dorian, i:2 VII:2 VI:2 IV:2. Seed 1. Loop 28.235 s.
+		Bpm = 68,
 		BeatsPerBar = 4,
 		Bars = 8,
 		Stems = {
-			{ Name = "piano", Asset = "", Min = 0, Full = 0 }, -- sad_emotional_piano.wav
-			{ Name = "strings", Asset = "", Min = 0.25, Full = 0.45 }, -- sad_emotional_strings.wav
-			{ Name = "melody", Asset = "", Min = 0.5, Full = 0.7 }, -- sad_emotional_melody.wav
-			{ Name = "cello", Asset = "", Min = 0.75, Full = 0.9 }, -- sad_emotional_cello.wav
-			{ Name = "swell", Asset = "", Min = 0.9, Full = 1 }, -- sad_emotional_swell.wav
+			{ Name = "organ", Asset = "", Min = 0, Full = 0 }, -- sad_emotional_organ.wav
+			{ Name = "piano", Asset = "", Min = 0.15, Full = 0.35 }, -- sad_emotional_piano.wav
+			{ Name = "strings", Asset = "", Min = 0.4, Full = 0.55 }, -- sad_emotional_strings.wav
+			{ Name = "cello", Asset = "", Min = 0.6, Full = 0.8 }, -- sad_emotional_cello.wav
+			{ Name = "violin", Asset = "", Min = 0.85, Full = 1 }, -- sad_emotional_violin.wav
 		},
 		Intro = { Asset = "", Beats = 4 }, -- sad_emotional_intro.wav
 		Ending = { Asset = "", Beats = 8 }, -- sad_emotional_ending.wav
 		Stingers = {
 			fail = { Asset = "", Beats = 6.25 }, -- sad_emotional_fail.wav
 			discover = { Asset = "", Beats = 4 }, -- sad_emotional_discover.wav
+		},
+	},
+	emotional_epic = {
+		-- Emotional epic (time running out): A aeolian, i:2 VI:2 VII:2 v:2. Seed 1. Loop 22.857 s.
+		Bpm = 84,
+		BeatsPerBar = 4,
+		Bars = 8,
+		Stems = {
+			{ Name = "clock", Asset = "", Min = 0, Full = 0 }, -- emotional_epic_clock.wav
+			{ Name = "organ", Asset = "", Min = 0.2, Full = 0.35 }, -- emotional_epic_organ.wav
+			{ Name = "strings", Asset = "", Min = 0.45, Full = 0.6 }, -- emotional_epic_strings.wav
+			{ Name = "theme", Asset = "", Min = 0.65, Full = 0.8 }, -- emotional_epic_theme.wav
+			{ Name = "full", Asset = "", Min = 0.85, Full = 1 }, -- emotional_epic_full.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- emotional_epic_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- emotional_epic_ending.wav
+		Stingers = {
+			discover = { Asset = "", Beats = 4 }, -- emotional_epic_discover.wav
+			victory = { Asset = "", Beats = 5.5 }, -- emotional_epic_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- emotional_epic_fail.wav
 		},
 	},
 	victory_triumph = {

@@ -92,7 +92,7 @@
           const v = voice;
           if (!vel) continue;
           const t = bar * ctx.beatsPerBar + s * stepBeats;
-          out.push(note(t, stepBeats, v, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' ? (s % 3) : 0 }));
+          out.push(note(t, stepBeats, v, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' || voice === 'metal' ? (s % 3) : 0 }));
         }
       }
       const base = bar * ctx.beatsPerBar;
@@ -228,6 +228,7 @@
       for (const p of v) out.push(note(seg.start, seg.length + 0.02, p, 0.8));
     }
     if (part.hold) out.forEach((n) => (n.hold = true));
+    if (part.bloom) out.forEach((n) => (n.bloom = true));
     return mergeTies(out, ctx);
   }
 
@@ -498,6 +499,15 @@
         const r = M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role));
         const notes = leadKey === si + ':' + pi ? ctx.lead.map((x) => Object.assign({}, x)) : gen(part, ctx, r);
         if (part.octaves) notes.push(...notes.filter((n) => typeof n.p === 'number').map((n) => Object.assign({}, n, { p: n.p + 12, v: n.v * 0.75 }))); // doubled an octave up
+        if (part.tremolo) { // tremolo picking (mandolin / guitar): long notes become fast repeats
+          const rate = part.tremolo, expanded = [];
+          for (const n of notes) {
+            if (typeof n.p !== 'number' || n.d < rate * 2) { expanded.push(n); continue; }
+            const k = Math.floor(n.d / rate + 1e-6);
+            for (let j = 0; j < k; j++) expanded.push(Object.assign({}, n, { t: n.t + j * rate, d: rate * 0.95, v: n.v * (j % 2 ? 0.72 : 0.9) * (j ? 1 : 1.05) }));
+          }
+          notes.length = 0; notes.push(...expanded);
+        }
         if (part.detune) notes.forEach((n) => { n.detune = part.detune; });
         return { role: part.role, inst: defaultInst(part), notes, target: roleTarget(part) + (part.level || 0), pan: part.pan || 0, def: part };
       });

@@ -70,7 +70,7 @@ for (const [file, content] of cli.outputs()) {
     const mel = parts.find((x) => x.role === 'melody' && !['bells', 'counter'].includes(x.def.style));
     if (!mel || mel.def.style === 'licks') continue;
     forms.add(ctx.motif.form.join(' '));
-    const ns = mel.notes;
+    const ns = ctx.lead || mel.notes; // the melody as written (before tremolo picking or octave doubling)
     ns.forEach((n, i) => {
       notes++;
       const deg = (n.p - ctx.keyPc + 120) % 12;
@@ -87,16 +87,21 @@ for (const [file, content] of cli.outputs()) {
         }
       }
     });
-    for (const c of (parts.find((x) => x.role === 'counter') || { notes: [] }).notes) {
-      const m = ns.filter((n) => n.t <= c.t + 1e-9 && n.t + n.d > c.t).pop();
-      if (m) { checkedUnder++; if (c.p < m.p) under++; }
+    const counter = parts.find((x) => x.role === 'counter');
+    if (counter) {
+      let below = 0, total = 0;
+      for (const c of counter.notes) {
+        const m = ns.filter((n) => n.t <= c.t + 1e-9 && n.t + n.d > c.t).pop();
+        if (m) { total++; if (c.p < m.p) below++; }
+      }
+      checkedUnder += total; under += Math.max(below, total - below); // stays on one side (under, or above as a descant)
     }
   }
   const pct = (a, b) => (100 * a / Math.max(1, b)).toFixed(1);
   ok(tonicFifth / notes < 0.32, `melodies don't lean on the tonic and fifth (${pct(tonicFifth, notes)}% of ${notes} notes)`);
   ok(repeats / notes < 0.2, `few repeated notes (${pct(repeats, notes)}%)`);
   ok(clash / strong < 0.05 && unresolved <= Math.ceil(strong * 0.005), `strong-beat dissonances are rare and resolve by step (${clash} of ${strong}, ${unresolved} unresolved)`);
-  ok(under / Math.max(1, checkedUnder) > 0.97, `counterlines stay under the melody (${pct(under, checkedUnder)}%)`);
+  ok(under / Math.max(1, checkedUnder) > 0.97, `counterlines stay on one side of the melody (${pct(under, checkedUnder)}%)`);
   ok(forms.size >= 3, `melodies use several phrase forms (${forms.size})`);
 }
 

@@ -150,6 +150,21 @@
         w(i, tanh(1.3 * (sin(TAU * ph) * exp(-t * 7) + lp.low * exp(-t * 30) * 0.3)) * g);
       }
     },
+    // A struck metal pipe: inharmonic bar partials, short and dry (industrial horror percussion
+    // without hiss). note.pitch 0-2 picks three sizes.
+    metal(c) {
+      const w = writer(c), n = samplesFor(c, 0.9), sr = c.sr, g = amp(c.vel);
+      const base = [180, 265, 390][c.note.pitch || 0] || 265;
+      const parts = [[1, 1, 7], [2.76, 0.6, 11], [5.4, 0.35, 18], [8.93, 0.18, 26]];
+      const lp = new SVF(); lp.setup(900, 0.7, sr);
+      for (let i = 0; i < n; i++) {
+        const t = i / sr;
+        let x = 0;
+        for (const [r, a, d] of parts) x += sin(TAU * base * r * t) * a * exp(-t * d);
+        lp.tick(c.rng() * 2 - 1);
+        w(i, (x * 0.55 + lp.low * exp(-t * 300) * 0.8) * g * Math.min(1, t / 0.0006));
+      }
+    },
     taiko(c) {
       const w = writer(c), n = samplesFor(c, 1.5), sr = c.sr, g = amp(c.vel);
       const lp = new SVF(); lp.setup(700, 0.8, sr);
@@ -278,8 +293,9 @@
     const w = writer(c), sr = c.sr, held = Math.min(c.dur, 6), n = samplesFor(c, held + 0.45), g = amp(c.vel);
     const P = 9, B = 0.0004, pitchK = Math.pow(c.f / 262, 0.45);
     const freqs = [], amps = [], decays = [];
+    const out = cents(c.note.detune || 0); // an out-of-tune piano (horror)
     for (let k = 1; k <= P; k++) {
-      freqs.push(k * c.f * Math.sqrt(1 + B * k * k));
+      freqs.push(k * c.f * out * Math.sqrt(1 + B * k * k));
       amps.push(Math.pow(k, -1.15) * Math.pow(c.vel, (k - 1) / 5));
       decays.push((0.45 + 0.28 * k) * pitchK);
     }
@@ -344,7 +360,8 @@
     const detL = o.detune.map((d) => c.f * cents(d) / sr), detR = o.detune.map((d, k) => c.f * cents(-d + (k % 2 ? 3 : -3)) / sr);
     const pl = detL.map(() => c.rng()), pr = detR.map(() => c.rng());
     const fl = new SVF(), fr = new SVF();
-    const attack = Math.min(o.a, Math.max(0.005, c.dur * 0.4));
+    // bloom: the note swells in over half its length (Zimmer-style sustained strings)
+    const attack = c.note.bloom ? Math.max(o.a, c.dur * 0.55) : Math.min(o.a, Math.max(0.005, c.dur * 0.4));
     const vibPh = c.rng() * TAU;
     const tremPh = c.rng() * TAU;
     const vibDepth = o.vib ? cents(o.vib) - 1 : 0;
@@ -512,6 +529,58 @@
       w(i, x * e * (1 - pan), x * e * (1 + pan));
     }
   };
+
+  // ---------------------------------------------------------------- pipe organ, solo strings
+  // Pipe organ: five ranks (16', 8', 4', 2 2/3', 2') of principal-like pipes, each a wavetable,
+  // slightly detuned against each other and spread across the stereo field.
+  function organTable(harm) {
+    const N = 2048, t = new Float32Array(N + 1);
+    for (let i = 0; i <= N; i++) { let x = 0; harm.forEach((a, k) => { x += a * Math.sin(TAU * (k + 1) * i / N); }); t[i] = x; }
+    return t;
+  }
+  const PRINCIPAL = organTable([1, 0.45, 0.25, 0.14, 0.08, 0.05, 0.03]);
+  const FLUTE = organTable([1, 0.12, 0.06]);
+  tonal.pipeorgan = function (c) {
+    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.5), g = amp(c.vel);
+    const ranks = [[0.5, FLUTE, 0.55, 0], [1, PRINCIPAL, 1, -0.2], [2, PRINCIPAL, 0.55, 0.25], [3, FLUTE, 0.22, -0.35], [4, PRINCIPAL, 0.25, 0.35]];
+    const ph = ranks.map(() => c.rng()), inc = ranks.map(([r], k) => c.f * r * cents((k - 2) * 1.2) / sr);
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      let l = 0, r = 0;
+      for (let k = 0; k < ranks.length; k++) {
+        if (inc[k] > 0.45) continue;
+        ph[k] += inc[k]; ph[k] -= Math.floor(ph[k]);
+        const tab = ranks[k][1], x = ph[k] * 2048, i0 = x | 0;
+        const y = (tab[i0] + (tab[i0 + 1] - tab[i0]) * (x - i0)) * ranks[k][2];
+        l += y * (1 - ranks[k][3]); r += y * (1 + ranks[k][3]);
+      }
+      const e = adsr(t, c.dur, 0.07, 0.1, 0.92, 0.45) * 0.22 * g;
+      w(i, l * e, r * e);
+    }
+  };
+  // Solo bowed strings: one saw through body resonances, a bowed attack, delayed vibrato, and
+  // slides / bends from perform.js. `bloom` notes swell in.
+  function bowed(c, o) {
+    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + o.r + 0.05), g = amp(c.vel);
+    const pm = pitchMod(c);
+    const bodies = o.body.map(([f, q, a]) => { const s = new SVF(); s.setup(f, q, sr); return [s, a]; });
+    const lp = new SVF(); lp.setup(o.cut, 0.7, sr);
+    const vph = c.rng() * TAU, vdep = cents(o.vib) - 1;
+    const attack = c.note.bloom ? Math.max(0.15, c.dur * 0.5) : o.a;
+    let ph = c.rng(), mult = 1;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      if ((i & 15) === 0) mult = (pm ? pm(t) : 1) * (1 + vdep * Math.min(1, Math.max(0, (t - 0.25) / 0.4)) * sin(TAU * 5.4 * t + vph));
+      const d = c.f * mult / sr;
+      ph += d; ph -= Math.floor(ph);
+      const x = saw(ph, d);
+      let y = lp.tick(x) * 0.35;
+      for (const [s, a] of bodies) { s.tick(x); y += s.band * a; }
+      w(i, tanh(1.2 * y) * adsr(t, c.dur, attack, 0.2, 0.9, o.r) * 0.7 * g);
+    }
+  }
+  tonal.cello = function (c) { bowed(c, { body: [[220, 2, 0.5], [600, 2.5, 0.35], [1500, 3, 0.18]], cut: 2600, vib: 16, a: 0.12, r: 0.35 }); };
+  tonal.violin = function (c) { bowed(c, { body: [[480, 2, 0.45], [1200, 2.5, 0.35], [2900, 3, 0.2]], cut: 5000, vib: 20, a: 0.09, r: 0.3 }); };
 
   // ---------------------------------------------------------------- fx
   tonal.impact = function (c) {

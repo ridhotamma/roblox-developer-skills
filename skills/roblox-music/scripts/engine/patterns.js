@@ -39,6 +39,10 @@
     funk: { steps: 16, kick: 'X.........X..x..', snare: '....X..-.-..X..-', hat: 'x-x-x-x-x-x-x-xX', openhat: '.......x........' },
     folk: { steps: 16, kick: 'X.......X.......', rim: '....x.......x...', shaker: 'x-x-x-x-x-x-x-x-' },
     train: { steps: 16, kick: 'X.......X.......', snare: '-x-X-x-x-x-X-x-x' },
+    // Dark and dusty: trip-hop (slow, heavy, behind the beat) and industrial (metal on metal)
+    triphop: { steps: 16, kick: 'X......x..X.....', snare: '....X.......X..-', hat: 'x.x-x.x.x.x-x.x.' },
+    industrial: { steps: 16, kick: 'X..x..X...X..x..', metal: '..x...x.x.....x.', tom: '............x.x.' },
+    rust: { steps: 16, metal: '......x.........', tom: '..............-.' },
     // Grooves with a triplet feel (12 steps per 4/4 bar)
     shuffle: { steps: 12, kick: 'X.....X..x..', snare: '...X.....X..', hat: 'X.xX.xX.xX.x' },
     gallop: { steps: 12, kick: 'X..X..X..X..', rim: 'x.xx.xx.xx.x', shaker: 'x.xx.xx.xx.x' },

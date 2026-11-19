@@ -105,32 +105,33 @@
 
   "horror_dread": {
     "title": "Horror dread (exploring)",
-    "vibe": "Something is here with you: no melody, just pressure that builds as the threat gets closer",
-    "genres": ["horror", "survival horror", "haunted house", "liminal"],
+    "vibe": "Fog, rust and loneliness: something is here with you. No tune, just pressure that grows as the threat gets closer",
+    "genres": ["horror", "survival horror", "haunted house", "liminal", "psychological"],
     "bpm": 60, "key": "C#", "mode": "phrygian",
     "progression": "i:4 II:2 i:2",
+    "feel": { "groove": "laidback", "humanize": 0.6 },
     "room": { "size": 0.95, "damp": 0.6 },
     "oneShotReverb": 0.45,
     "stems": [
-      { "name": "drone", "min": 0, "full": 0, "reverb": 0.5, "parts": [
+      { "name": "fog", "min": 0, "full": 0, "reverb": 0.5, "parts": [
         { "role": "drone", "inst": "drone", "octave": 2, "intervals": [0, 1] },
         { "role": "pad", "inst": "darkpad", "octave": 3, "voices": 2, "level": -6 } ] },
-      { "name": "unease", "min": 0.15, "full": 0.35, "reverb": 0.6, "parts": [
-        { "role": "cluster", "inst": "tremolo", "octave": 4, "intervals": [0, 1, 6], "level": -2 },
-        { "role": "bells", "inst": "musicbox", "detune": -30, "chance": 0.12, "range": [72, 91], "level": -4 } ] },
+      { "name": "unease", "min": 0.15, "full": 0.35, "reverb": 0.65, "parts": [
+        { "role": "bells", "inst": "piano", "detune": -25, "chance": 0.14, "range": [55, 79], "level": 3 },
+        { "role": "cluster", "inst": "tremolo", "octave": 4, "intervals": [0, 1, 6], "level": -5 } ] },
       { "name": "pulse", "min": 0.4, "full": 0.6, "reverb": 0.4, "parts": [
         { "role": "drums", "pattern": "heartbeat", "voices": ["kick"], "level": 2 },
-        { "role": "pad", "inst": "darkpad", "octave": 2 } ] },
+        { "role": "drums", "pattern": "rust", "level": -6 } ] },
       { "name": "threat", "min": 0.65, "full": 0.85, "reverb": 0.5, "parts": [
         { "role": "cluster", "inst": "tremolo", "octave": 5, "intervals": [0, 1], "level": -4 },
-        { "role": "drums", "pattern": "heartbeat_fast", "voices": ["kick"], "level": -2 } ] },
+        { "role": "drums", "pattern": "heartbeat_fast", "voices": ["kick"], "level": -2 },
+        { "role": "counter", "inst": "cello", "range": [36, 52], "every": 4, "level": -4 } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.45, "parts": [
         { "role": "fx", "style": "braam", "every": 4, "bars": 2, "octave": 1 },
-        { "role": "drums", "pattern": "horror_pulse", "voices": ["kick", "tom"] } ] }
+        { "role": "drums", "pattern": "industrial", "voices": ["kick", "metal", "tom"], "level": -2 } ] }
     ],
     "stingers": ["jumpscare", "tension", "fail", "discover"]
   },
-
   "horror_chase": {
     "title": "Horror chase",
     "vibe": "Run. Relentless low pounding and screeching strings while the monster closes in",
@@ -143,9 +144,11 @@
         { "role": "ostinato", "inst": "spiccato", "shape": [0, 1, 0, 1, 0, 2, 0, 1], "octave": 3 },
         { "role": "drone", "inst": "drone", "octave": 2, "intervals": [0, 1], "level": -2 } ] },
       { "name": "pound", "min": 0.25, "full": 0.45, "reverb": 0.25, "parts": [
-        { "role": "drums", "pattern": "pound", "fill": true } ] },
+        { "role": "drums", "pattern": "pound", "fill": true },
+        { "role": "drums", "pattern": "industrial", "voices": ["metal"], "level": -5 } ] },
       { "name": "chug", "min": 0.5, "full": 0.65, "reverb": 0.15, "parts": [
-        { "role": "bass", "style": "chug", "inst": "reese", "octave": 2 } ] },
+        { "role": "bass", "style": "chug", "inst": "reese", "octave": 2 },
+        { "role": "guitar", "style": "power", "inst": "distgtr", "pattern": "chug16", "level": -4 } ] },
       { "name": "screech", "min": 0.7, "full": 0.85, "reverb": 0.4, "parts": [
         { "role": "cluster", "inst": "tremolo", "octave": 5, "intervals": [0, 1, 6, 11] } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.35, "parts": [
@@ -181,6 +184,35 @@
     "stingers": ["jumpscare", "tension", "discover"]
   },
 
+  "horror_fog": {
+    "title": "Horror fog (melancholic)",
+    "vibe": "A town lost in fog: a lonely tremolo-picked guitar over a slow, dusty trip-hop beat, an out-of-tune piano, rust and distance. Sad more than scary",
+    "genres": ["horror", "psychological", "mystery", "liminal", "story"],
+    "bpm": 76, "key": "E", "mode": "aeolian",
+    "progression": "i:2 VI:2 N:2 V:2",
+    "swing": 0.1, "swingGrid": 16,
+    "feel": { "groove": "laidback", "humanize": 0.6 },
+    "room": { "size": 0.9, "damp": 0.55 },
+    "oneShotReverb": 0.5,
+    "oneShotInst": { "keys": "piano", "bell": "cleangtr" },
+    "stems": [
+      { "name": "fog", "min": 0, "full": 0, "reverb": 0.55, "parts": [
+        { "role": "pad", "inst": "darkpad", "octave": 3, "voices": 3, "level": -3 },
+        { "role": "drone", "inst": "drone", "octave": 2, "intervals": [0, 7], "level": -8 } ] },
+      { "name": "beat", "min": 0.2, "full": 0.35, "reverb": 0.2, "lofi": { "cut": 2800 }, "parts": [
+        { "role": "drums", "pattern": "triphop", "level": 3 },
+        { "role": "bass", "style": "halftime", "inst": "subbass", "octave": 2 } ] },
+      { "name": "guitar", "min": 0.45, "full": 0.65, "reverb": 0.55, "delay": { "beats": 0.75, "feedback": 0.35, "mix": 0.22 }, "parts": [
+        { "role": "melody", "inst": "cleangtr", "density": "sparse", "range": [59, 79], "contour": "fall", "form": "period", "tremolo": 0.125, "legato": 1 } ] },
+      { "name": "piano", "min": 0.7, "full": 0.85, "reverb": 0.6, "parts": [
+        { "role": "bells", "inst": "piano", "detune": -20, "chance": 0.16, "range": [55, 79], "level": -2 },
+        { "role": "counter", "inst": "cello", "range": [43, 59], "every": 2, "level": -4 } ] },
+      { "name": "rust", "min": 0.88, "full": 1, "reverb": 0.4, "parts": [
+        { "role": "drums", "pattern": "industrial", "voices": ["metal", "tom"], "level": -4 },
+        { "role": "guitar", "style": "power", "inst": "crunchgtr", "pattern": "anthem", "level": -6 } ] }
+    ],
+    "stingers": ["jumpscare", "tension", "discover"]
+  },
   "epic_boss": {
     "title": "Epic boss fight",
     "vibe": "Huge, mythic and dangerous: choir, taiko and brass against something bigger than you",
@@ -235,26 +267,59 @@
 
   "sad_emotional": {
     "title": "Sad / emotional",
-    "vibe": "Loss and memory: quiet piano, then strings that say what the characters can't",
-    "genres": ["story", "cutscene", "memorial", "ending"],
-    "bpm": 72, "key": "E", "mode": "aeolian",
-    "progression": "i VI III VII i VI iv V",
-    "room": { "size": 0.85, "damp": 0.45 },
+    "vibe": "Loss, memory and a little hope: an organ holding one note, a piano repeating a simple figure, strings that bloom, a solo cello, then a violin above it all",
+    "genres": ["story", "cutscene", "memorial", "ending", "farewell"],
+    "bpm": 68, "key": "E", "mode": "dorian",
+    "progression": "i:2 VII:2 VI:2 IV:2",
+    "feel": { "groove": "straight", "humanize": 0.4 },
+    "room": { "size": 0.9, "damp": 0.45 },
+    "oneShotInst": { "keys": "piano", "strings": "strings", "bell": "piano" },
     "stems": [
-      { "name": "piano", "min": 0, "full": 0, "reverb": 0.45, "parts": [
-        { "role": "broken", "inst": "piano", "pattern": "nine", "octave": 3 } ] },
-      { "name": "strings", "min": 0.25, "full": 0.45, "reverb": 0.5, "parts": [
-        { "role": "pad", "inst": "strings", "octave": 4 } ] },
-      { "name": "melody", "min": 0.5, "full": 0.7, "reverb": 0.5, "parts": [
-        { "role": "melody", "inst": "piano", "density": "sparse", "range": [64, 83], "contour": "fall", "form": "period" } ] },
-      { "name": "cello", "min": 0.75, "full": 0.9, "reverb": 0.5, "parts": [
-        { "role": "counter", "inst": "strings", "range": [48, 64] } ] },
-      { "name": "swell", "min": 0.9, "full": 1, "reverb": 0.55, "parts": [
-        { "role": "pad", "inst": "choir", "octave": 4, "level": -2 } ] }
+      { "name": "organ", "min": 0, "full": 0, "reverb": 0.6, "parts": [
+        { "role": "drone", "inst": "pipeorgan", "octave": 2, "intervals": [7], "level": -2 },
+        { "role": "pad", "inst": "pipeorgan", "octave": 3, "voices": 3, "level": -6 } ] },
+      { "name": "piano", "min": 0.15, "full": 0.35, "reverb": 0.5, "parts": [
+        { "role": "ostinato", "inst": "piano", "shape": [0, 2, 1, 2], "rate": 2, "octave": 4, "accents": "x-x-x-x-x-x-x-x-" } ] },
+      { "name": "strings", "min": 0.4, "full": 0.55, "reverb": 0.55, "parts": [
+        { "role": "pad", "inst": "strings", "octave": 3, "voices": 3, "bloom": true },
+        { "role": "drums", "pattern": "clock", "level": -6 } ] },
+      { "name": "cello", "min": 0.6, "full": 0.8, "reverb": 0.55, "parts": [
+        { "role": "melody", "inst": "cello", "density": "sparse", "range": [48, 67], "contour": "fall", "form": "period", "legato": 1 } ] },
+      { "name": "violin", "min": 0.85, "full": 1, "reverb": 0.65, "parts": [
+        { "role": "counter", "inst": "violin", "range": [67, 86], "every": 2, "level": -3 },
+        { "role": "pad", "inst": "choir", "octave": 4, "level": -5 },
+        { "role": "drums", "pattern": "epic", "voices": ["taiko"], "level": -6 } ] }
     ],
     "stingers": ["fail", "discover"]
   },
-
+  "emotional_epic": {
+    "title": "Emotional epic (time running out)",
+    "vibe": "A clock that won't stop, an organ that fills the room, one simple figure repeated until it becomes enormous: sacrifice, distance, hope",
+    "genres": ["story", "space", "finale", "cutscene", "sacrifice"],
+    "bpm": 84, "key": "A", "mode": "aeolian",
+    "progression": "i:2 VI:2 VII:2 v:2",
+    "feel": { "groove": "straight", "humanize": 0.35 },
+    "room": { "size": 0.95, "damp": 0.4 },
+    "oneShotInst": { "brass": "pipeorgan", "strings": "strings", "bell": "pipeorgan" },
+    "stems": [
+      { "name": "clock", "min": 0, "full": 0, "reverb": 0.45, "parts": [
+        { "role": "drums", "pattern": "clock" },
+        { "role": "drone", "inst": "pipeorgan", "octave": 2, "intervals": [7], "level": 1 } ] },
+      { "name": "organ", "min": 0.2, "full": 0.35, "reverb": 0.7, "parts": [
+        { "role": "ostinato", "inst": "pipeorgan", "shape": [0, 1, 2, 1], "rate": 2, "octave": 4, "accents": "x-x-x-x-x-x-x-x-" } ] },
+      { "name": "strings", "min": 0.45, "full": 0.6, "reverb": 0.55, "parts": [
+        { "role": "pad", "inst": "strings", "octave": 3, "voices": 3, "bloom": true },
+        { "role": "bass", "style": "sustain", "inst": "subbass", "octave": 2, "level": -3 } ] },
+      { "name": "theme", "min": 0.65, "full": 0.8, "reverb": 0.6, "parts": [
+        { "role": "melody", "inst": "violin", "density": "sparse", "range": [64, 86], "contour": "rise", "form": "sentence", "legato": 1 } ] },
+      { "name": "full", "min": 0.85, "full": 1, "reverb": 0.7, "parts": [
+        { "role": "pad", "inst": "pipeorgan", "octave": 4, "voices": 4, "level": -2 },
+        { "role": "counter", "inst": "cello", "range": [43, 60], "every": 2, "level": -3 },
+        { "role": "drums", "pattern": "epic", "voices": ["taiko"], "level": -4 },
+        { "role": "fx", "style": "impact", "every": 4, "level": -4 } ] }
+    ],
+    "stingers": ["discover", "victory", "fail"]
+  },
   "victory_triumph": {
     "title": "Victory / triumph",
     "vibe": "You did it: bright brass, marching snare, a moment to feel big",

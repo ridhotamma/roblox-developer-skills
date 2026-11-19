@@ -11,6 +11,7 @@
 8. Working with a composer, a DAW or an AI music tool
 9. Performance: what makes it sound played, not programmed
 10. Guitar music: acoustic, blues, punk, rock, funk
+11. Reference scores: borrowing techniques (Silent Hill horror, Nolan-film emotion)
 
 ---
 
@@ -174,6 +175,7 @@ Rules:
 ## 8. Working with a composer, a DAW or an AI music tool
 9. Performance: what makes it sound played, not programmed
 10. Guitar music: acoustic, blues, punk, rock, funk
+11. Reference scores: borrowing techniques (Silent Hill horror, Nolan-film emotion)
 
 The generated stems are a working temp score: right structure, tempo, harmony, layering and levels, synthesized instruments. To go further:
 - **DAW:** open the `.mid` (one track per part, General MIDI programs, tempo and loop markers), swap in real instruments, keep the bar length, bounce each stem from bar 1 for exactly the loop length with the tail wrapped onto the start, and check with `analyze`.
@@ -195,6 +197,7 @@ Right notes on a perfect grid at one velocity still sound like a demo. Taste liv
 - **Turnarounds.** A dominant or bVII in the last half bar (`turnaround`) turns "the loop starts again" into "here we go again".
 
 ## 10. Guitar music: acoustic, blues, punk, rock, funk
+11. Reference scores: borrowing techniques (Silent Hill horror, Nolan-film emotion)
 
 The `guitar` role plays the instrument the way a guitarist does: chord shapes come from a fretboard in standard tuning (open chords low on the neck, barre shapes higher, the root in the bass, at most four fingers, the nearest shape to the last chord). Electric guitars go through an amp after the strings are summed, so power chords growl like one amplifier and not six separate fuzz boxes.
 
@@ -212,4 +215,35 @@ Genre recipes:
 - **Punk:** 160-200 BPM, three or four chords as power chords, a palm-muted verse into an open chorus, the skate beat (kick on the beat, snare on every off-beat) or the punk beat (an offset kick), everything rushing a little. An octave-doubled guitar hook or gang vocals on top.
 - **Rock:** 110-140 BPM, mixolydian (I bVII IV) or aeolian. Ringing chords to start, then chugging 8ths with pushes, a singing lead guitar with bends and vibrato, a tom fill into every phrase.
 - **Funk:** 95-115 BPM, one or two chords (i7 IV7 in dorian), the 16th-note scratch guitar, a bass with octave pops and ghost notes, tight horns, the snare a hair late, light 16th swing.
+
+## 11. Reference scores: borrowing techniques (Silent Hill horror, Nolan-film emotion)
+
+A reference score is a list of techniques to borrow, never a tune to copy. Name the techniques, rebuild them with your own notes, and check that nothing is a recognisable quote.
+
+### Horror like Silent Hill (Akira Yamaoka)
+Yamaoka has said he aimed at loneliness, sadness, anxiety and the psychology of fear rather than "scary music". The score plays almost continuously, so it keeps the player on edge instead of announcing danger. It mixes ambience, industrial textures, guitar and memorable melodies, and in places pulls back to a calm, foggy stillness.
+
+| Technique | In the kit |
+|---|---|
+| Melancholy over shock: a minor key, a lonely melody, sadness that becomes dread | `horror_fog`: aeolian with a Neapolitan bII and a major V |
+| Tremolo-picked guitar (fast repeated notes, mandolin style) carrying the tune | melody `tremolo: 0.125` on `cleangtr`, with delay and a big room |
+| Slow, dusty trip-hop drums: heavy, sparse, behind the beat | drum pattern `triphop`, stem `lofi`, `feel.groove: "laidback"` |
+| Industrial weight: metal struck as percussion, distorted bass and guitar | drum voice `metal`, patterns `industrial` and `rust`, `distgtr` / `crunchgtr` |
+| Something familiar slightly wrong | out-of-tune piano (`bells` with `inst: "piano"`, `detune` -20 to -30) |
+| Near-continuous ambience: drones and pads that never fully stop | drone + dark pad beds at intensity 0 |
+
+The originals also used heavy noise and static. This kit leaves noise washes and sweeps out on purpose (they read as cheap sound effects, and the selftest bans them), so the industrial feel comes from pitched metal, distortion and rhythm.
+
+### Emotion like Nolan's films (Hans Zimmer, Ludwig Göransson)
+| Technique | In the kit |
+|---|---|
+| A ticking clock as the pulse (a watch, a metronome) | drum pattern `clock` in the bed |
+| Pipe organ: huge, sacred, cosmic | `pipeorgan` for pedals, chords and repeated figures |
+| A simple figure, repeated, with more layers and octaves each time: the build is the drama | `ostinato` with a 4-note `shape` plus vertical stems; each stem adds a layer or an octave |
+| A pedal point: one note held under changing chords (often the 5th) | `drone` with `intervals: [7]` |
+| Strings that bloom in rather than attack | pad `bloom: true` |
+| One solo voice first (cello, violin), then the ensemble | melody on `cello` or `violin`, counterline `violin` as a descant above, full section at the top |
+| Silence and space | sparse density, long notes, few layers at low intensity |
+
+Shepard tones (the endless rising illusion in some of these scores) are left out for the same reason as noise.
 
