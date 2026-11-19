@@ -12,7 +12,7 @@
 
   const ROLE_TARGET = { // part loudness before the final mix normalization (LUFS, gated)
     drums: -18, perc: -26, bass: -20, pad: -24, stabs: -22, arp: -24, ostinato: -22, broken: -23,
-    pulse: -27, drone: -25, cluster: -27, melody: -20, counter: -24, bells: -26, fx: -26, strum: -23,
+    pulse: -27, drone: -25, cluster: -27, melody: -20, counter: -24, bells: -26, fx: -26, strum: -23, guitar: -21,
   };
   const LIGHT_DRUMS = ['hat', 'openhat', 'shaker', 'tick', 'rim', 'ride'];
 
@@ -27,6 +27,15 @@
     const steps = preset.steps || beatsPerBar * 4;
     const keyPc = M.keyPitchClass(key);
     const progression = M.parseProgression(o.progression || preset.progression, keyPc, mode, beatsPerBar, bars);
+    // `turnaround`: the second half of the last bar becomes this chord (usually V7 or bVII),
+    // pulling the loop back to bar 1 instead of just restarting it.
+    if (preset.turnaround && o.progression === undefined) {
+      const last = progression[progression.length - 1];
+      const half = Math.max(1, Math.floor(beatsPerBar / 2));
+      const chord = M.parseChord(preset.turnaround, keyPc, mode);
+      if (last.length > half) { last.length -= half; progression.push({ chord, start: last.start + last.length, length: half }); }
+      else progression[progression.length - 1] = { chord, start: last.start, length: last.length };
+    }
     return {
       preset, seed, key, keyPc, mode, bpm, beatsPerBar, bars, steps,
       stepBeats: beatsPerBar / steps,
@@ -44,33 +53,63 @@
   }
 
   // ---------------------------------------------------------------- drums
+  // Drums. Like a drummer, not a loop: every second bar adds a kick variation, every fourth bar
+  // ends with a snare pickup and an open hat, backbeat grooves get ghost notes between the
+  // hits, and `fill` rolls into the loop point on the toms.
+  const GHOSTED = ['backbeat', 'lofi', 'breakbeat', 'rock', 'funk', 'shuffle', 'halftime', 'punk'];
   function genDrums(part, ctx, r) {
     const pat = M.DRUMS[part.pattern];
     if (!pat) throw new Error(`unknown drum pattern '${part.pattern}'`);
     const voices = part.voices || Object.keys(pat).filter((k) => k !== 'steps');
     const stepBeats = ctx.beatsPerBar / pat.steps;
+    const S = pat.steps;
     const out = [];
+    const vr = M.rng(M.hashSeed(ctx.seed, 'drum-variation', part.pattern));
+    const kit = voices.includes('kick') && (voices.includes('snare') || voices.includes('clap'));
+    const vary = part.variation !== false && kit;
+    const hit = (voice, s) => voices.includes(voice) && pat[voice] && M.velocityOf(pat[voice][s]) > 0;
+    // one extra kick for the second bar of each pair, on an empty off-beat 8th or 16th
+    const kickCands = [];
+    for (let s = 1; s < S; s++) if (!hit('kick', s) && !hit('snare', s) && s % (S / ctx.beatsPerBar) !== 0) kickCands.push(s);
+    const extraKick = kickCands.length ? vr.pick(kickCands) : -1;
+    // ghost notes: quiet snare taps on empty 16ths (the same ones each bar: a groove, not noise)
+    const ghosts = [];
+    if ((part.ghosts || (part.ghosts === undefined && GHOSTED.includes(part.pattern))) && voices.includes('snare') && S === 16) {
+      const cands = [];
+      for (let s = 1; s < S; s += 2) if (!hit('snare', s) && !hit('snare', s - 1) && !hit('snare', (s + 1) % S)) cands.push(s);
+      for (let k = 0; k < 2 && cands.length; k++) ghosts.push(cands.splice(Math.floor(vr() * cands.length), 1)[0]);
+    }
     for (let bar = 0; bar < ctx.bars; bar++) {
       const lastBar = bar === ctx.bars - 1;
-      const fillFrom = part.fill && lastBar ? pat.steps - pat.steps / ctx.beatsPerBar * (part.fillBeats || 1) : Infinity;
+      const fillFrom = part.fill && lastBar ? S - S / ctx.beatsPerBar * (part.fillBeats || 1) : Infinity;
+      const pickup = vary && !Number.isFinite(fillFrom) && bar % 4 === 3 && ctx.bars >= 4;
       for (const voice of voices) {
         const line = pat[voice];
         if (!line) continue;
-        for (let s = 0; s < pat.steps; s++) {
+        for (let s = 0; s < S; s++) {
           if (s >= fillFrom && ['snare', 'tom', 'kick', 'taiko', 'hat'].includes(voice)) continue;
-          const vel = M.velocityOf(line[s]);
+          let vel = M.velocityOf(line[s]);
+          let v = voice;
+          if (pickup && s >= S - 2 && voice === 'hat') { if (s === S - 2) v = 'openhat'; else continue; }
           if (!vel) continue;
           const t = bar * ctx.beatsPerBar + s * stepBeats;
-          out.push(note(t, stepBeats, voice, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' ? (s % 3) : 0 }));
+          out.push(note(t, stepBeats, v, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' ? (s % 3) : 0 }));
         }
+      }
+      const base = bar * ctx.beatsPerBar;
+      if (vary && bar % 2 === 1 && extraKick >= 0 && extraKick < fillFrom) out.push(note(base + extraKick * stepBeats, stepBeats, 'kick', 0.62 + r() * 0.1));
+      for (const g of ghosts) if (g < fillFrom && !(pickup && g >= S - 2)) out.push(note(base + g * stepBeats, stepBeats, 'snare', 0.22 + r() * 0.08));
+      if (pickup && voices.includes('snare')) {
+        out.push(note(base + (S - 2) * stepBeats, stepBeats, 'snare', 0.5 + r() * 0.1));
+        out.push(note(base + (S - 1) * stepBeats, stepBeats, 'snare', 0.75 + r() * 0.1));
       }
       if (part.fill && lastBar) {
         // Fill: a crescendo roll over the last beat(s) on toms if present, else snare.
         const fillVoice = voices.includes('tom') ? 'tom' : voices.includes('snare') ? 'snare' : voices.includes('taiko') ? 'taiko' : null;
         if (fillVoice) {
-          const n = pat.steps - fillFrom;
+          const n = S - fillFrom;
           for (let i = 0; i < n; i++) {
-            const t = bar * ctx.beatsPerBar + (fillFrom + i) * stepBeats;
+            const t = base + (fillFrom + i) * stepBeats;
             out.push(note(t, stepBeats, fillVoice, 0.55 + 0.45 * (i / Math.max(1, n - 1)), { pitch: fillVoice === 'tom' ? 2 - Math.floor((i / n) * 3) : 0 }));
           }
         }
@@ -130,7 +169,7 @@
       }
       return out;
     }
-    const rhythmName = { ostinato16: 'ostinato16', chug: 'chug16', gallop: 'gallop16', eighths: 'eighths', offbeat: 'offbeat', octaves: 'eighths', quarters: 'quarters', syncopated: 'syncopated', tresillo: 'tresillo', '808': 'trap808', halftime: 'halftime', heartbeat: 'heartbeat' }[style] || part.rhythm;
+    const rhythmName = { funk: 'funk16', ostinato16: 'ostinato16', chug: 'chug16', gallop: 'gallop16', eighths: 'eighths', offbeat: 'offbeat', octaves: 'eighths', quarters: 'quarters', syncopated: 'syncopated', tresillo: 'tresillo', '808': 'trap808', halftime: 'halftime', heartbeat: 'heartbeat' }[style] || part.rhythm;
     if (!rhythmName) throw new Error(`unknown bass style '${style}'`);
     const hits = rhythmHits(part.rhythm || rhythmName, ctx);
     // A one-bar riff in chord degrees (R root, 8 octave, 5 fifth, 3 third, 7 seventh), the same
@@ -141,6 +180,7 @@
       if (style === 'octaves') return i % 2 === 1 ? (i % 4 === 3 && rr() < 0.35 ? '5' : '8') : 'R';
       if (style === 'ostinato16' || style === 'chug') return i % 8 === 7 && rr() < 0.6 ? rr.pick(['5', '8', '7']) : 'R';
       if (style === 'offbeat') return i === hits.length - 1 && rr() < 0.5 ? '8' : 'R';
+      if (style === 'funk') return h.vel <= 0.4 ? 'R' : rr.pick(['8', 'R', '7', '8', '5', 'R']);
       const odds = style === 'quarters' ? 0.6 : 0.35;
       return rr() < odds ? rr.pick(['5', '8', '5', '7', '3']) : 'R';
     });
@@ -171,7 +211,8 @@
         if (cands.length) p = cands.sort((a, b) => Math.abs(a - root) - Math.abs(b - root))[0];
       }
       const len = style === '808' ? Math.min(h.len, seg.start + seg.length - t) : Math.min(h.len, 0.5) * gate;
-      out.push(note(t, Math.max(0.1, len), p, h.vel * (0.92 + r() * 0.1), style === '808' && r() < 0.25 ? { glide: 12 } : null));
+      const extra = style === '808' && r() < 0.25 ? { glide: 12 } : h.vel <= 0.4 ? { mute: true } : null; // ghost notes are dead thumps
+      out.push(note(t, Math.max(0.1, extra && extra.mute ? 0.1 : len), p, h.vel * (0.92 + r() * 0.1), extra));
     });
     return out;
   }
@@ -389,12 +430,22 @@
     const rootLow = M.nearestWithPc(ctx.keyPc, 12 * ((part.octave === undefined ? 1 : part.octave) + 1) + 5);
     const every = (part.every || ctx.bars) * bar;
     const out = [];
-    if (style === 'riser') {
-      const len = (part.bars || 2) * bar;
-      for (let end = every; end <= L + 1e-9; end += every) out.push(note(end - len, len, 60, 0.9, { inst: 'riser' }));
-    } else if (style === 'swell') {
+    if (style === 'roll') {
+      // A snare roll that builds into the phrase: 8ths, then 16ths, getting louder.
       const len = (part.bars || 1) * bar;
-      for (let end = every; end <= L + 1e-9; end += every) out.push(note(end - len, len, rootLow + 24, 0.8, { inst: 'swell' }));
+      for (let end = every; end <= L + 1e-9; end += every) {
+        const start = end - len;
+        for (let t = start; t < end - 1e-9;) {
+          const k = (t - start) / len;
+          out.push(note(t, 0.25, 'snare', 0.3 + 0.65 * k * k));
+          t += k < 0.5 && len > bar ? 0.5 : 0.25;
+        }
+      }
+    } else if (style === 'fill') {
+      // A tom fill across the last beat (high to low), the drummer's way into the next phrase.
+      for (let end = every; end <= L + 1e-9; end += every) {
+        for (let i = 0; i < 4; i++) out.push(note(end - 1 + i * 0.25, 0.25, 'tom', 0.6 + 0.12 * i, { pitch: Math.max(0, 2 - Math.floor(i * 3 / 4)) }));
+      }
     } else if (style === 'crash' || style === 'impact') {
       for (let t = 0; t < L - 1e-9; t += every) out.push(note(t, 2, style === 'impact' ? rootLow : 60, 0.95, { inst: style }));
     } else if (style === 'braam') {
@@ -404,14 +455,6 @@
         out.push(note(t, (part.bars || 2) * bar * 0.9, root, 0.95, { inst: 'braam' }));
         out.push(note(t, (part.bars || 2) * bar * 0.9, root + 7, 0.7, { inst: 'braam' }));
       }
-    } else if (style === 'shepard') {
-      out.push(note(0, L, M.nearestWithPc(ctx.keyPc, 60), 0.8, { inst: 'shepard', hold: true, down: !!part.down }));
-    } else if (style === 'wind') {
-      out.push(note(0, L, 60, 0.8, { inst: 'wind', hold: true }));
-    } else if (style === 'scrape') {
-      const r = M.rng(M.hashSeed(ctx.seed, 'scrape'));
-      const n = part.count || Math.max(1, Math.round(ctx.bars / 3));
-      for (let i = 0; i < n; i++) out.push(note(r() * (L - 2), 1.5 + r() * 2, r.int(70, 90), 0.5 + r() * 0.4, { inst: 'scrape' }));
     } else throw new Error(`unknown fx style '${style}'`);
     return out;
   }
@@ -419,7 +462,8 @@
   const GENERATORS = {
     drums: genDrums, bass: genBass, pad: genPad, stabs: genStabs, arp: genArp, ostinato: genOstinato,
     broken: genBroken, strum: genStrum, pulse: genPulse, drone: genDrone, cluster: genCluster,
-    melody: (p, c, r) => (p.style === 'bells' ? M.genBells(p, c, r) : p.style === 'counter' ? M.genCounter(p, c, r) : M.genMelody(p, c, r)),
+    melody: (p, c, r) => (p.style === 'bells' ? M.genBells(p, c, r) : p.style === 'counter' ? M.genCounter(p, c, r) : p.style === 'licks' ? M.genLicks(p, c, r) : M.genMelody(p, c, r)),
+    guitar: (p, c, r) => M.genGuitar(p, c, r),
     counter: (p, c, r) => M.genCounter(p, c, r), bells: (p, c, r) => M.genBells(p, c, r), fx: genFx,
   };
 
@@ -433,7 +477,7 @@
 
   function defaultInst(part) {
     if (part.role === 'fx') return part.style;
-    return part.inst || { drums: 'kit', bass: 'synthbass', pad: 'pad', stabs: 'brass', arp: 'pluck', ostinato: 'spiccato', broken: 'piano', strum: 'guitar', pulse: 'musicbox', drone: 'drone', cluster: 'tremolo', melody: 'lead', counter: 'strings', bells: 'bell', fx: 'fx' }[part.role];
+    return part.inst || { drums: 'kit', bass: 'synthbass', pad: 'pad', stabs: 'brass', arp: 'pluck', ostinato: 'spiccato', broken: 'piano', strum: 'guitar', pulse: 'musicbox', drone: 'drone', cluster: 'tremolo', guitar: 'acoustic', melody: 'lead', counter: 'strings', bells: 'bell', fx: 'fx' }[part.role];
   }
 
   // preset + {seed, key, mode, bpm, bars, progression} -> cue
@@ -444,7 +488,7 @@
     preset.stems.forEach((stem, si) => stem.parts.forEach((part, pi) => {
       if (leadKey === null && part.role === 'melody' && !['bells', 'counter'].includes(part.style)) {
         leadKey = si + ':' + pi;
-        ctx.lead = M.genMelody(part, ctx, M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role)));
+        ctx.lead = (part.style === 'licks' ? M.genLicks : M.genMelody)(part, ctx, M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role)));
         ctx.motif = ctx.lead.motif;
       }
     }));
@@ -455,11 +499,13 @@
         if (!gen) throw new Error(`unknown part role '${part.role}' in stem '${stem.name}'`);
         const r = M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role));
         const notes = leadKey === si + ':' + pi ? ctx.lead.map((x) => Object.assign({}, x)) : gen(part, ctx, r);
+        if (part.octaves) notes.push(...notes.filter((n) => typeof n.p === 'number').map((n) => Object.assign({}, n, { p: n.p + 12, v: n.v * 0.75 }))); // doubled an octave up
         if (part.detune) notes.forEach((n) => { n.detune = part.detune; });
         return { role: part.role, inst: defaultInst(part), notes, target: roleTarget(part) + (part.level || 0), pan: part.pan || 0, def: part };
       });
       return { name: stem.name, min: stem.min || 0, full: stem.full === undefined ? stem.min || 0 : stem.full, parts, fx: stem };
     });
+    if (M.perform) M.perform(stems, ctx, preset);
     return {
       name: (opts && opts.name) || preset.id || 'cue',
       title: preset.title,
@@ -512,7 +558,7 @@
         p('crash', [n(0, 2, 60, 0.9)], -24),
       ] }),
       alert: () => ({ beats: 4, parts: [
-        p('riser', [n(0, 1, 60, 0.9)], -24),
+        p('taiko', [0, 0.25, 0.5, 0.75].map((x, i) => n(x, 0.25, 'tom', 0.45 + 0.15 * i, { pitch: 2 - Math.min(2, i) })), -24),
         p('braam', [n(1, 2.5, tonic(1) + 12, 1), n(1, 2.5, tonic(1) + 19, 0.7)], -18),
         p('taiko', [n(1, 1, 'taiko', 1), n(1.5, 1, 'taiko', 0.7)], -20),
       ] }),
@@ -545,7 +591,7 @@
       jumpscare: () => ({ beats: 3, parts: [
         p('tremolo', [0, 1, 6, 11, 13].map((i) => n(0, 1.5, tonic(5) + i, 1, { sfz: true })), -16),
         p('impact', [n(0, 2.5, tonic(1), 1)], -16),
-        p('scrape', [n(0.05, 2, 80, 1)], -22),
+        p('strings', [0, 1, 6].map((i) => n(0, 0.4, tonic(6) + i, 1, { sfz: true })), -20),
       ] }),
       discover: () => {
         const r0 = tonic(5);
@@ -568,16 +614,17 @@
         return { beats: 3 * step + 1, parts: [p('sqlead', notes, -20)] };
       },
       tension: () => ({ beats: 8, parts: [
-        p('shepard', [n(0, 8, tonic(4), 0.8)], -24),
-        p('tremolo', [0, 1].map((i) => n(0, 8, tonic(4) + i, 0.6)), -27),
+        p('tremolo', [0, 1].map((i) => n(0, 8, tonic(4) + i, 0.6)), -25),
+        p('drone', [n(0, 8, tonic(2), 0.7)], -27),
+        p('kick', [0, 0.4, 2, 2.4, 4, 4.4, 5.5, 5.9, 7, 7.35].map((x) => n(x, 0.3, 'kick', 0.8)), -24),
       ] }),
       // Intro: one bar that ends exactly on the loop's downbeat.
       intro: () => {
-        const parts = [p('riser', [n(0, bar, 60, 0.9)], -23)];
-        const rollSteps = ctx.steps / bar; // one beat of 16ths
+        // a snare roll building across the bar, toms on the last beat
         const notes = [];
-        for (let i = 0; i < rollSteps; i++) notes.push(n(bar - 1 + i / rollSteps, 1 / rollSteps, 'snare', 0.5 + 0.5 * (i / rollSteps)));
-        parts.push(p('kit', notes, -21));
+        for (let t = 0; t < bar - 1 - 1e-9; t += t < bar / 2 ? 0.5 : 0.25) notes.push(n(t, 0.25, 'snare', 0.3 + 0.5 * (t / bar)));
+        for (let i = 0; i < 4; i++) notes.push(n(bar - 1 + i * 0.25, 0.25, 'tom', 0.65 + 0.1 * i, { pitch: Math.max(0, 2 - Math.floor(i * 3 / 4)) }));
+        const parts = [p('kit', notes, -21)];
         return { beats: bar, parts };
       },
       // Ending: a final tonic chord with a hit, played on a bar line when the cue stops.

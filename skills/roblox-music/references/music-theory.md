@@ -9,6 +9,8 @@
 6. Arranging stems so every layer works
 7. Mixing and levels
 8. Working with a composer, a DAW or an AI music tool
+9. Performance: what makes it sound played, not programmed
+10. Guitar music: acoustic, blues, punk, rock, funk
 
 ---
 
@@ -54,8 +56,8 @@ Harmonic rhythm (how often chords change) sets energy as much as tempo: 2 bars p
 | Ostinato | One rhythmic figure repeated, pitches re-fitted to each chord (the Hans Zimmer engine) | `ostinato`, `bass` ostinato16/chug |
 | Pedal point | One bass note held under changing chords | `drone` |
 | Pulse / ticking | Repeated 8ths on one note or a clock tick | `pulse`, drum patterns clock/tick8 |
-| Riser | Noise or pitch sweep into a downbeat | `fx` riser, `intro` one-shot |
-| Shepard tone | Endless rise (or fall) that never arrives | `fx` shepard (loops seamlessly) |
+| Build | A snare roll that thickens (8ths, then 16ths) and grows louder into the downbeat | `fx` roll, `intro` one-shot |
+| Fill | Toms high to low across the last beat of a phrase | `fx` fill, drum variation every 4 bars |
 | Braam | Huge low brass hit, distorted | `fx` braam, alert stinger |
 | Clusters / minor 2nds / tritones | Notes a semitone apart, or the b5 | `cluster`, drone `intervals: [0, 1]` |
 | Tremolo strings | Fast repeated bowing: nervous energy | `tremolo` |
@@ -151,7 +153,7 @@ Give each layer its own job and register, so adding one never muddies the others
 | Motion (0.15-0.4) | Time: arpeggio, ostinato, shaker, pulse | mid-high, short notes |
 | Groove (0.35-0.65) | Energy: drums + bass | low and top end |
 | Lead (0.55-0.85) | Identity: the melody or hook | mid-high, one instrument |
-| Peak (0.85-1) | Size: counterlines, choir, braams, risers, crashes | everywhere, used sparingly |
+| Peak (0.85-1) | Size: counterlines, choir, braams, snare builds, crashes | everywhere, used sparingly |
 
 Rules:
 - The bed is always on and must be the quietest-sounding complete piece of music.
@@ -170,9 +172,44 @@ Rules:
 - Check: `node scripts/compose.cjs analyze stems/*.wav --bpm 140 --bars 8` reports loudness, peaks, lengths and loop seams of any stems, generated or not.
 
 ## 8. Working with a composer, a DAW or an AI music tool
+9. Performance: what makes it sound played, not programmed
+10. Guitar music: acoustic, blues, punk, rock, funk
 
 The generated stems are a working temp score: right structure, tempo, harmony, layering and levels, synthesized instruments. To go further:
 - **DAW:** open the `.mid` (one track per part, General MIDI programs, tempo and loop markers), swap in real instruments, keep the bar length, bounce each stem from bar 1 for exactly the loop length with the tail wrapped onto the start, and check with `analyze`.
 - **Composer:** send `BRIEF.md` (written by `render`) plus the MIDI and the rendered stems as a reference. It states tempo, key, loop length, the stem stack with intensity thresholds, one-shots and the delivery spec.
 - **AI music generators:** most produce a finished stereo track, not aligned stems; use them for linear pieces (menu, credits) or as inspiration. For adaptive layers you need stems that share one grid: keep using the generated stems, or split a generated track with a stem separator and re-cut it to an exact bar length (then `analyze` it).
 - Whatever the source, the Roblox side doesn't change: same `MusicCues` entry format, new asset ids.
+
+## 9. Performance: what makes it sound played, not programmed
+
+Right notes on a perfect grid at one velocity still sound like a demo. Taste lives in how each note is played. `perform.js` does this to every cue, set by the mood's `feel`.
+
+- **Pocket (timing feel).** Players sit in different places against the beat. In blues, soul, funk and lo-fi the snare lands 10-15 ms late and the bass a little late too (`groove: "laidback"`); that drag is the groove. Punk and chases rush a few ms ahead (`push`). Sequenced electronic music stays on the grid (`tight`). Swing (`swing`) is separate: it moves whole off-beats; the pocket moves instruments.
+- **Human variation.** Every note a few ms off and a few percent louder or softer (`humanize`), less on downbeats. Kick drums are the steadiest, melodies the loosest. Synths and arpeggiators get a quarter of it.
+- **Accents.** Downbeats strongest, beat 3 next, off-beats softest. Uniform velocity is the number one reason programmed music sounds robotic.
+- **Phrase dynamics.** A slight swell across every 4 bars, so a phrase has a shape and not just a level.
+- **Articulation.** Vibrato that arrives late on long notes; slides into a note after a leap; bends up into a note on guitar and harmonica (`slides`, `bends`). Short notes stay short.
+- **Variation.** A drummer never plays the same bar 8 times. The kit adds a kick variation every second bar, a snare pickup and an open hi-hat at the end of every fourth bar, and quiet ghost notes in backbeat grooves. A `fill` or `roll` marks the phrase.
+- **Space.** Leave gaps. The blues lead plays in bars 1-2, rests in 3-4, and lets the band answer. Melodies breathe at phrase ends. Layers arrive one at a time.
+- **Turnarounds.** A dominant or bVII in the last half bar (`turnaround`) turns "the loop starts again" into "here we go again".
+
+## 10. Guitar music: acoustic, blues, punk, rock, funk
+
+The `guitar` role plays the instrument the way a guitarist does: chord shapes come from a fretboard in standard tuning (open chords low on the neck, barre shapes higher, the root in the bass, at most four fingers, the nearest shape to the last chord). Electric guitars go through an amp after the strings are summed, so power chords growl like one amplifier and not six separate fuzz boxes.
+
+| Style | What it is | Use it for |
+|---|---|---|
+| Strum | Down-strums on the beat, up-strums between; muted "chk" strokes (`x`); the strum before a chord change already plays the new chord (a push) | acoustic songs, folk, country, pop-rock beds |
+| Fingerpick (Travis) | The thumb alternates root and another bass string on every beat; fingers pick the treble strings in between; a pinch on beat 1; occasional hammer-ons | campfire, folk, gentle exploration, sad scenes |
+| Power chords | Root, 5th, octave. Palm-muted 8ths (`m`) for the verse, open ringing chords (`O`) for the lift. Two takes panned hard left and right make the wall of sound | punk, rock, metal-lite, sports, races |
+| Boogie shuffle | Root-5th / root-6th pairs on a shuffle, with the b7 in alternate bars: the blues and early rock'n'roll engine | blues, roadhouse, noir, western saloons |
+| Funk scratch | 16th-note strumming hand, mostly muted scratches, short 9th-chord stabs on the top strings | funk, heists in style, city hubs |
+
+Genre recipes:
+- **Acoustic:** 85-110 BPM, major keys guitars like (G, C, D, E, A), I V vi IV or I IV V. Fingerpicking in the bed, strumming one layer up, panned apart. Harmonica, whistle or a fingerpicked melody on top. Laid back, light swing.
+- **Blues:** a 12-bar form (I I I I · IV IV I I · V IV I V) in a triplet shuffle at 70-100 BPM. Dominant 7th chords on I, IV and V, and the blues scale for the lead. The lead plays call (bars 1-2), the same call over IV (bars 5-6), an answer (bars 9-11) and a turnaround (bar 12), with space in between: the AAB of a blues verse. Bends into the 5th and the root, a quarter-tone curl on the minor 3rd, vibrato on the last note.
+- **Punk:** 160-200 BPM, three or four chords as power chords, a palm-muted verse into an open chorus, the skate beat (kick on the beat, snare on every off-beat) or the punk beat (an offset kick), everything rushing a little. An octave-doubled guitar hook or gang vocals on top.
+- **Rock:** 110-140 BPM, mixolydian (I bVII IV) or aeolian. Ringing chords to start, then chugging 8ths with pushes, a singing lead guitar with bends and vibrato, a crash on every phrase.
+- **Funk:** 95-115 BPM, one or two chords (i7 IV7 in dorian), the 16th-note scratch guitar, a bass with octave pops and ghost notes, tight horns, the snare a hair late, light 16th swing.
+

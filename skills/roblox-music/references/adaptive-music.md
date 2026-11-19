@@ -30,7 +30,7 @@
 | Piece | What | When | Rules |
 |---|---|---|---|
 | **Stinger** | Short one-shot over the music (hit, alert braam, discovery chime, jump-scare cluster) | An event: spotted, item found, level up, death, a scare | Lands on the next beat (or immediately for scares). In key with the cue, or key-less (percussion, noise, atonal). Duck the music 30-60% under it for its length, release over ~1 s. |
-| **Intro** | 1 bar (or more) that leads into bar 1 of a loop: a riser, a drum fill | Entering a high-energy state | Starts on the old cue's boundary, its last beat lands on the new loop's downbeat. |
+| **Intro** | 1 bar (or more) that leads into bar 1 of a loop: a snare build, a drum fill | Entering a high-energy state | Starts on the old cue's boundary, its last beat lands on the new loop's downbeat. |
 | **Ending (outro)** | Final chord + hit with a tail | Leaving combat/chase/boss | Plays on the boundary while the old loop cuts out fast; the next cue fades in under the tail. Without an ending, combat music that simply fades sounds like a bug. |
 | **Transition segment** | A bespoke bridge between two specific cues | Big scripted moments | Only worth writing for set pieces; the generic intro/ending cover most cases. |
 | **Crossfade** | Old fades out while new fades in | Calm ↔ calm, similar tempos | 1.5-3 s. Two different grooves overlapping for long sounds messy: keep combat crossfades short (0.3-0.75 s) or use an Ending. |

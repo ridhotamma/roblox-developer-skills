@@ -1,7 +1,7 @@
 // Rendering: cue -> stereo stems that loop seamlessly, plus one-shots (stingers, intro, ending).
 //
 // Seamless loops: every part is rendered with its full release tail and then folded back onto
-// the loop start (periodic summation), held notes (drones, shepard tones, wind) are crossfaded
+// the loop start (periodic summation), held notes (drones, clusters) are crossfaded
 // into themselves, and reverb / delay run on the loop repeated until they reach steady state, so
 // the last sample of each stem flows into the first exactly as it will when the game loops it.
 //
@@ -29,13 +29,16 @@
     return { secPerBeat, loopSamples, warp };
   }
 
-  function renderNotes(notes, part, buf, cue, tm, sr, seedKey, lengthOverride) {
+  // `off` (beats) is a performance offset (perform.js: laid-back snare, rushed pickup...). In a
+  // loop a note pushed before 0 wraps to the end (`wrap` = loop length in samples).
+  function renderNotes(notes, part, buf, cue, tm, sr, seedKey, lengthOverride, wrap) {
     const instName = part.inst;
     notes.forEach((n, ni) => {
       const name = typeof n.p === 'string' ? n.p : (n.inst || instName);
       const inst = M.INSTRUMENTS[name];
       if (!inst) throw new Error(`unknown instrument '${name}'`);
-      const start = Math.round(tm.warp(n.t) * tm.secPerBeat * sr);
+      let start = Math.round((tm.warp(n.t) + (n.off || 0)) * tm.secPerBeat * sr);
+      if (start < 0) start = wrap ? start + wrap : 0;
       if (start >= buf.L.length) return;
       inst({
         L: buf.L, R: buf.R, start, sr,
@@ -66,7 +69,7 @@
     const regular = part.notes.filter((n) => !n.hold), held = part.notes.filter((n) => n.hold);
     if (regular.length) {
       const buf = stereo(Ls + Math.round(opt.tail * sr));
-      renderNotes(regular, part, buf, cue, tm, sr, `${stemName}/${pi}`);
+      renderNotes(regular, part, buf, cue, tm, sr, `${stemName}/${pi}`, undefined, Ls);
       for (let i = 0; i < buf.L.length; i++) { const k = i % Ls; out.L[k] += buf.L[i]; out.R[k] += buf.R[i]; }
     }
     if (held.length) {
@@ -81,6 +84,7 @@
         } else { out.L[i] += buf.L[i]; out.R[i] += buf.R[i]; }
       }
     }
+    if (M.applyAmp) M.applyAmp(out, part.inst, sr, true);
     const measured = normalizePart(out, part.target, sr);
     return { buf: out, measured };
   }
@@ -151,6 +155,7 @@
     shot.parts.forEach((part, pi) => {
       const buf = stereo(n);
       renderNotes(part.notes, part, buf, cue, noSwing, sr, `${shot.name}/${pi}`);
+      if (M.applyAmp) M.applyAmp(buf, part.inst, sr, false);
       normalizePart(buf, part.target, sr);
       for (let i = 0; i < n; i++) { out.L[i] += buf.L[i]; out.R[i] += buf.R[i]; }
     });

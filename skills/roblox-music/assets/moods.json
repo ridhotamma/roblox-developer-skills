@@ -47,7 +47,7 @@
         { "role": "stabs", "inst": "horn", "rhythm": "stab_end", "octave": 3, "level": -4 } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.3, "parts": [
         { "role": "fx", "style": "braam", "every": 4, "bars": 2, "octave": 1 },
-        { "role": "fx", "style": "riser", "every": 8, "bars": 2 },
+        { "role": "fx", "style": "roll", "every": 8, "bars": 1 },
         { "role": "fx", "style": "crash", "every": 4 } ] }
     ],
     "stingers": ["alert", "hit", "victory", "fail"]
@@ -73,7 +73,7 @@
         { "role": "melody", "style": "hook", "inst": "lead", "octave": 4 } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.25, "parts": [
         { "role": "stabs", "inst": "brass", "rhythm": "tresillo", "octave": 4 },
-        { "role": "fx", "style": "riser", "every": 4, "bars": 1 },
+        { "role": "fx", "style": "fill", "every": 4 },
         { "role": "fx", "style": "crash", "every": 4 } ] }
     ],
     "stingers": ["alert", "hit", "fail"]
@@ -100,7 +100,7 @@
         { "role": "drums", "pattern": "breakbeat", "voices": ["kick", "snare", "hat"], "fill": true } ] },
       { "name": "alarm", "min": 0.9, "full": 1, "reverb": 0.3, "parts": [
         { "role": "stabs", "inst": "brass", "rhythm": "pushes", "octave": 4 },
-        { "role": "fx", "style": "riser", "every": 4, "bars": 2 } ] }
+        { "role": "fx", "style": "fill", "every": 4 } ] }
     ],
     "stingers": ["alert", "discover", "fail", "victory"]
   },
@@ -116,7 +116,7 @@
     "stems": [
       { "name": "drone", "min": 0, "full": 0, "reverb": 0.5, "parts": [
         { "role": "drone", "inst": "drone", "octave": 2, "intervals": [0, 1] },
-        { "role": "fx", "style": "wind", "level": 2 } ] },
+        { "role": "pad", "inst": "darkpad", "octave": 3, "voices": 2, "level": -6 } ] },
       { "name": "unease", "min": 0.15, "full": 0.35, "reverb": 0.6, "parts": [
         { "role": "cluster", "inst": "tremolo", "octave": 4, "intervals": [0, 1, 6], "level": -2 },
         { "role": "bells", "inst": "musicbox", "detune": -30, "chance": 0.12, "range": [72, 91], "level": -4 } ] },
@@ -124,11 +124,10 @@
         { "role": "drums", "pattern": "heartbeat", "voices": ["kick"], "level": 2 },
         { "role": "pad", "inst": "darkpad", "octave": 2 } ] },
       { "name": "threat", "min": 0.65, "full": 0.85, "reverb": 0.5, "parts": [
-        { "role": "fx", "style": "shepard", "octave": 4 },
+        { "role": "cluster", "inst": "tremolo", "octave": 5, "intervals": [0, 1], "level": -4 },
         { "role": "drums", "pattern": "heartbeat_fast", "voices": ["kick"], "level": -2 } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.45, "parts": [
         { "role": "fx", "style": "braam", "every": 4, "bars": 2, "octave": 1 },
-        { "role": "fx", "style": "scrape", "count": 3 },
         { "role": "drums", "pattern": "horror_pulse", "voices": ["kick", "tom"] } ] }
     ],
     "stingers": ["jumpscare", "tension", "fail", "discover"]
@@ -150,12 +149,11 @@
       { "name": "chug", "min": 0.5, "full": 0.65, "reverb": 0.15, "parts": [
         { "role": "bass", "style": "chug", "inst": "reese", "octave": 2 } ] },
       { "name": "screech", "min": 0.7, "full": 0.85, "reverb": 0.4, "parts": [
-        { "role": "cluster", "inst": "tremolo", "octave": 5, "intervals": [0, 1, 6, 11] },
-        { "role": "fx", "style": "scrape", "count": 4 } ] },
+        { "role": "cluster", "inst": "tremolo", "octave": 5, "intervals": [0, 1, 6, 11] } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.35, "parts": [
-        { "role": "fx", "style": "shepard", "octave": 4, "level": 2 },
+        { "role": "drums", "pattern": "pound", "voices": ["tom"], "level": -2 },
         { "role": "fx", "style": "crash", "every": 2 },
-        { "role": "fx", "style": "riser", "every": 4, "bars": 1 } ] }
+        { "role": "fx", "style": "fill", "every": 4 } ] }
     ],
     "stingers": ["jumpscare", "fail", "hit"]
   },
@@ -179,9 +177,8 @@
         { "role": "cluster", "inst": "tremolo", "octave": 3, "intervals": [0, 1], "level": -5 } ] },
       { "name": "wrong", "min": 0.75, "full": 0.9, "reverb": 0.55, "parts": [
         { "role": "counter", "inst": "musicbox", "range": [60, 76], "detune": -45, "every": 1 },
-        { "role": "fx", "style": "shepard", "octave": 4, "down": true } ] },
+        { "role": "drone", "inst": "darkpad", "octave": 3, "intervals": [0, 6], "level": -4 } ] },
       { "name": "peak", "min": 0.92, "full": 1, "reverb": 0.5, "parts": [
-        { "role": "fx", "style": "scrape", "count": 3 },
         { "role": "fx", "style": "braam", "every": 4, "bars": 2, "octave": 1, "level": -2 } ] }
     ],
     "stingers": ["jumpscare", "tension", "discover"]
@@ -304,7 +301,7 @@
         { "role": "melody", "style": "hook", "inst": "lead", "octave": 5 } ] },
       { "name": "shine", "min": 0.85, "full": 1, "reverb": 0.4, "parts": [
         { "role": "bells", "inst": "glass", "chance": 0.25, "range": [72, 91] },
-        { "role": "fx", "style": "riser", "every": 8, "bars": 2 },
+        { "role": "fx", "style": "roll", "every": 8, "bars": 1 },
         { "role": "fx", "style": "crash", "every": 8 } ] }
     ],
     "stingers": ["alert", "discover", "hit"]
@@ -329,7 +326,7 @@
       { "name": "theme", "min": 0.7, "full": 0.85, "reverb": 0.5, "parts": [
         { "role": "melody", "inst": "lead", "density": "sparse", "octave": 5 } ] },
       { "name": "cosmos", "min": 0.9, "full": 1, "reverb": 0.55, "parts": [
-        { "role": "fx", "style": "shepard", "octave": 4, "level": -2 },
+        { "role": "bells", "inst": "glass", "chance": 0.2, "range": [76, 95], "level": -3 },
         { "role": "pad", "inst": "strings", "octave": 4, "level": -3 } ] }
     ],
     "stingers": ["discover", "alert", "levelup"]
@@ -403,7 +400,7 @@
         { "role": "melody", "style": "hook", "inst": "lead", "octave": 5 } ] },
       { "name": "peak", "min": 0.85, "full": 1, "reverb": 0.3, "parts": [
         { "role": "stabs", "inst": "pad", "rhythm": "pushes", "octave": 5, "level": -2 },
-        { "role": "fx", "style": "riser", "every": 8, "bars": 2 },
+        { "role": "fx", "style": "roll", "every": 8, "bars": 1 },
         { "role": "fx", "style": "crash", "every": 4 } ] }
     ],
     "stingers": ["hit", "victory", "levelup"]
@@ -451,12 +448,141 @@
         { "role": "drums", "pattern": "march", "voices": ["snare"] },
         { "role": "ostinato", "inst": "spiccato", "octave": 3 } ] },
       { "name": "rise", "min": 0.75, "full": 0.9, "reverb": 0.3, "parts": [
-        { "role": "fx", "style": "riser", "every": 4, "bars": 4 },
+        { "role": "fx", "style": "roll", "every": 4, "bars": 2 },
         { "role": "pad", "inst": "strings", "octave": 4 } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.3, "parts": [
         { "role": "drums", "pattern": "action", "voices": ["kick", "tom"], "fill": true },
         { "role": "fx", "style": "crash", "every": 4 } ] }
     ],
     "stingers": ["alert", "hit"]
+  },
+  "acoustic_campfire": {
+    "title": "Acoustic campfire",
+    "vibe": "Wood smoke, stars and friends: a fingerpicked guitar, a strummed second guitar, a harmonica that sings",
+    "genres": ["survival", "camping", "adventure", "hangout", "story"],
+    "bpm": 96, "key": "G", "mode": "ionian", "swing": 0.12, "swingGrid": 8,
+    "progression": "I V vi IV I IV V:2",
+    "feel": { "groove": "laidback", "humanize": 0.7 },
+    "room": { "size": 0.6, "damp": 0.55 },
+    "oneShotInst": { "brass": "acoustic", "keys": "nylon", "bell": "acoustic" },
+    "stems": [
+      { "name": "picking", "min": 0, "full": 0, "reverb": 0.3, "parts": [
+        { "role": "guitar", "style": "fingerpick", "inst": "acoustic", "pan": -0.25 },
+        { "role": "pad", "inst": "warmpad", "octave": 4, "level": -9 } ] },
+      { "name": "strum", "min": 0.2, "full": 0.35, "reverb": 0.25, "parts": [
+        { "role": "guitar", "style": "strum", "inst": "acoustic", "pattern": "folk", "pan": 0.35, "level": -3 } ] },
+      { "name": "band", "min": 0.4, "full": 0.55, "reverb": 0.2, "parts": [
+        { "role": "drums", "pattern": "folk", "level": -2 },
+        { "role": "bass", "style": "quarters", "inst": "pizz", "octave": 2 } ] },
+      { "name": "harmonica", "min": 0.6, "full": 0.8, "reverb": 0.35, "parts": [
+        { "role": "melody", "inst": "harmonica", "density": "sparse", "range": [60, 84], "contour": "arch", "form": "period" } ] },
+      { "name": "strings", "min": 0.85, "full": 1, "reverb": 0.5, "parts": [
+        { "role": "counter", "inst": "strings", "range": [55, 72], "level": -3 },
+        { "role": "bells", "inst": "celesta", "chance": 0.15, "range": [79, 96], "level": -6 } ] }
+    ],
+    "stingers": ["discover", "levelup", "victory"]
+  },
+  "blues_roadhouse": {
+    "title": "Blues roadhouse",
+    "vibe": "Smoky bar, slow swagger: a shuffle guitar, walking bass, organ, a lead guitar that bends and cries",
+    "genres": ["noir", "detective", "western", "bar", "roleplay"],
+    "bpm": 88, "steps": 12, "bars": 12, "key": "A", "mode": "mixolydian", "melodyScale": "blues",
+    "progression": "I7:4 IV7:2 I7:2 V7 IV7 I7 V7",
+    "feel": { "groove": "laidback", "humanize": 0.8 },
+    "room": { "size": 0.5, "damp": 0.6 },
+    "oneShotInst": { "brass": "bluesgtr", "keys": "organ" },
+    "stems": [
+      { "name": "shuffle", "min": 0, "full": 0, "reverb": 0.25, "parts": [
+        { "role": "guitar", "style": "boogie", "inst": "bluesgtr", "pan": -0.3 } ] },
+      { "name": "band", "min": 0.25, "full": 0.4, "reverb": 0.2, "parts": [
+        { "role": "drums", "pattern": "shuffle" },
+        { "role": "bass", "style": "walking", "inst": "ebass", "octave": 2 } ] },
+      { "name": "organ", "min": 0.45, "full": 0.6, "reverb": 0.3, "parts": [
+        { "role": "pad", "inst": "organ", "octave": 4, "voices": 4, "level": -2 } ] },
+      { "name": "lead", "min": 0.65, "full": 0.85, "reverb": 0.35, "parts": [
+        { "role": "melody", "style": "licks", "inst": "bluesgtr", "range": [52, 79], "pan": 0.2 } ] },
+      { "name": "horns", "min": 0.88, "full": 1, "reverb": 0.3, "parts": [
+        { "role": "stabs", "inst": "brass", "rhythm": "X.....x....x", "octave": 4, "level": -3 } ] }
+    ],
+    "stingers": ["hit", "victory", "fail"]
+  },
+  "punk_skate": {
+    "title": "Punk skate",
+    "vibe": "Fast, loud, reckless fun: palm-muted power chords, a polka-fast skate beat, an octave guitar hook",
+    "genres": ["skate", "parkour", "sports", "arcade", "racing"],
+    "bpm": 184, "key": "E", "mode": "ionian",
+    "progression": "I V vi IV I IV V:2",
+    "feel": { "groove": "push", "humanize": 0.45 },
+    "room": { "size": 0.35, "damp": 0.7 },
+    "oneShotInst": { "brass": "crunchgtr", "lead": "leadgtr" },
+    "stems": [
+      { "name": "verse", "min": 0, "full": 0, "reverb": 0.12, "parts": [
+        { "role": "guitar", "style": "power", "inst": "distgtr", "pattern": "punk", "pan": -0.5 } ] },
+      { "name": "drive", "min": 0.2, "full": 0.35, "reverb": 0.1, "parts": [
+        { "role": "drums", "pattern": "skate" },
+        { "role": "bass", "style": "eighths", "inst": "ebass", "octave": 2 } ] },
+      { "name": "open", "min": 0.45, "full": 0.6, "reverb": 0.12, "parts": [
+        { "role": "guitar", "style": "power", "inst": "distgtr", "pattern": "punk_open", "pan": 0.5 },
+        { "role": "fx", "style": "crash", "every": 4 } ] },
+      { "name": "hook", "min": 0.65, "full": 0.8, "reverb": 0.2, "parts": [
+        { "role": "melody", "style": "hook", "inst": "leadgtr", "range": [62, 81], "octaves": true, "contour": "rise" } ] },
+      { "name": "gang", "min": 0.88, "full": 1, "reverb": 0.3, "parts": [
+        { "role": "counter", "inst": "choir", "range": [55, 72], "every": 2, "level": -2 },
+        { "role": "fx", "style": "fill", "every": 4 } ] }
+    ],
+    "stingers": ["hit", "levelup", "fail", "victory"]
+  },
+  "rock_anthem": {
+    "title": "Rock anthem",
+    "vibe": "Big, proud, arena lights: ringing chords, a chugging drive, a singing lead guitar",
+    "genres": ["sports", "superhero", "tournament", "racing", "tycoon"],
+    "bpm": 126, "key": "D", "mode": "mixolydian",
+    "progression": "I:2 VII:2 IV:2 I V",
+    "feel": { "groove": "straight", "humanize": 0.5 },
+    "room": { "size": 0.6, "damp": 0.5 },
+    "oneShotInst": { "brass": "crunchgtr", "lead": "leadgtr" },
+    "stems": [
+      { "name": "ring", "min": 0, "full": 0, "reverb": 0.4, "parts": [
+        { "role": "guitar", "style": "power", "inst": "crunchgtr", "pattern": "anthem" },
+        { "role": "pad", "inst": "warmpad", "octave": 4, "level": -8 } ] },
+      { "name": "groove", "min": 0.25, "full": 0.45, "reverb": 0.2, "parts": [
+        { "role": "drums", "pattern": "rock", "crash": true },
+        { "role": "bass", "style": "eighths", "inst": "ebass", "octave": 2 } ] },
+      { "name": "drive", "min": 0.5, "full": 0.65, "reverb": 0.2, "parts": [
+        { "role": "guitar", "style": "power", "inst": "distgtr", "pattern": "drive", "pan": -0.6 },
+        { "role": "guitar", "style": "power", "inst": "distgtr", "pattern": "rock", "pan": 0.6, "level": -1 } ] },
+      { "name": "lead", "min": 0.7, "full": 0.85, "reverb": 0.4, "parts": [
+        { "role": "melody", "inst": "leadgtr", "density": "medium", "range": [62, 86], "form": "sentence", "contour": "leap" } ] },
+      { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.45, "parts": [
+        { "role": "counter", "inst": "strings", "range": [57, 74] },
+        { "role": "pad", "inst": "choir", "octave": 4, "level": -4 },
+        { "role": "fx", "style": "fill", "every": 4 } ] }
+    ],
+    "stingers": ["hit", "victory", "levelup"]
+  },
+  "funk_strut": {
+    "title": "Funk strut",
+    "vibe": "Cool, sly, in the pocket: chicken-scratch guitar, a popping bass, tight horns",
+    "genres": ["heist", "city", "dance", "roleplay", "tycoon"],
+    "bpm": 104, "key": "E", "mode": "dorian", "swing": 0.08, "swingGrid": 16,
+    "progression": "i7:2 IV7:2",
+    "feel": { "groove": "laidback", "humanize": 0.5 },
+    "room": { "size": 0.45, "damp": 0.6 },
+    "stems": [
+      { "name": "scratch", "min": 0, "full": 0, "reverb": 0.15, "parts": [
+        { "role": "guitar", "style": "funk", "inst": "cleangtr", "pan": 0.3 },
+        { "role": "pad", "inst": "epiano", "octave": 4, "voices": 4, "level": -9 } ] },
+      { "name": "bass", "min": 0.2, "full": 0.35, "reverb": 0.1, "parts": [
+        { "role": "bass", "style": "funk", "inst": "ebass", "octave": 2 } ] },
+      { "name": "drums", "min": 0.4, "full": 0.55, "reverb": 0.15, "parts": [
+        { "role": "drums", "pattern": "funk" } ] },
+      { "name": "horns", "min": 0.6, "full": 0.8, "reverb": 0.25, "parts": [
+        { "role": "melody", "style": "hook", "inst": "brass", "range": [60, 79] },
+        { "role": "stabs", "inst": "brass", "rhythm": "....X..x......X.", "octave": 4, "level": -4 } ] },
+      { "name": "peak", "min": 0.85, "full": 1, "reverb": 0.35, "parts": [
+        { "role": "pad", "inst": "organ", "octave": 4, "voices": 4, "level": -5 },
+        { "role": "fx", "style": "fill", "every": 4 } ] }
+    ],
+    "stingers": ["hit", "discover", "victory"]
   }
 }

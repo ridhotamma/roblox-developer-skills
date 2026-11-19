@@ -370,4 +370,105 @@ return {
 			hit = { Asset = "", Beats = 2 }, -- battle_lobby_countdown_hit.wav
 		},
 	},
+	acoustic_campfire = {
+		-- Acoustic campfire: G ionian, I V vi IV I IV V:2. Seed 1. Loop 20 s.
+		Bpm = 96,
+		BeatsPerBar = 4,
+		Bars = 8,
+		Stems = {
+			{ Name = "picking", Asset = "", Min = 0, Full = 0 }, -- acoustic_campfire_picking.wav
+			{ Name = "strum", Asset = "", Min = 0.2, Full = 0.35 }, -- acoustic_campfire_strum.wav
+			{ Name = "band", Asset = "", Min = 0.4, Full = 0.55 }, -- acoustic_campfire_band.wav
+			{ Name = "harmonica", Asset = "", Min = 0.6, Full = 0.8 }, -- acoustic_campfire_harmonica.wav
+			{ Name = "strings", Asset = "", Min = 0.85, Full = 1 }, -- acoustic_campfire_strings.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- acoustic_campfire_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- acoustic_campfire_ending.wav
+		Stingers = {
+			discover = { Asset = "", Beats = 4 }, -- acoustic_campfire_discover.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- acoustic_campfire_levelup.wav
+			victory = { Asset = "", Beats = 5.5 }, -- acoustic_campfire_victory.wav
+		},
+	},
+	blues_roadhouse = {
+		-- Blues roadhouse: A mixolydian, I7:4 IV7:2 I7:2 V7 IV7 I7 V7. Seed 1. Loop 32.727 s.
+		Bpm = 88,
+		BeatsPerBar = 4,
+		Bars = 12,
+		Stems = {
+			{ Name = "shuffle", Asset = "", Min = 0, Full = 0 }, -- blues_roadhouse_shuffle.wav
+			{ Name = "band", Asset = "", Min = 0.25, Full = 0.4 }, -- blues_roadhouse_band.wav
+			{ Name = "organ", Asset = "", Min = 0.45, Full = 0.6 }, -- blues_roadhouse_organ.wav
+			{ Name = "lead", Asset = "", Min = 0.65, Full = 0.85 }, -- blues_roadhouse_lead.wav
+			{ Name = "horns", Asset = "", Min = 0.88, Full = 1 }, -- blues_roadhouse_horns.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- blues_roadhouse_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- blues_roadhouse_ending.wav
+		Stingers = {
+			hit = { Asset = "", Beats = 2 }, -- blues_roadhouse_hit.wav
+			victory = { Asset = "", Beats = 5.5 }, -- blues_roadhouse_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- blues_roadhouse_fail.wav
+		},
+	},
+	punk_skate = {
+		-- Punk skate: E ionian, I V vi IV I IV V:2. Seed 1. Loop 10.435 s.
+		Bpm = 184,
+		BeatsPerBar = 4,
+		Bars = 8,
+		Stems = {
+			{ Name = "verse", Asset = "", Min = 0, Full = 0 }, -- punk_skate_verse.wav
+			{ Name = "drive", Asset = "", Min = 0.2, Full = 0.35 }, -- punk_skate_drive.wav
+			{ Name = "open", Asset = "", Min = 0.45, Full = 0.6 }, -- punk_skate_open.wav
+			{ Name = "hook", Asset = "", Min = 0.65, Full = 0.8 }, -- punk_skate_hook.wav
+			{ Name = "gang", Asset = "", Min = 0.88, Full = 1 }, -- punk_skate_gang.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- punk_skate_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- punk_skate_ending.wav
+		Stingers = {
+			hit = { Asset = "", Beats = 2 }, -- punk_skate_hit.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- punk_skate_levelup.wav
+			fail = { Asset = "", Beats = 6.25 }, -- punk_skate_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- punk_skate_victory.wav
+		},
+	},
+	rock_anthem = {
+		-- Rock anthem: D mixolydian, I:2 VII:2 IV:2 I V. Seed 1. Loop 15.238 s.
+		Bpm = 126,
+		BeatsPerBar = 4,
+		Bars = 8,
+		Stems = {
+			{ Name = "ring", Asset = "", Min = 0, Full = 0 }, -- rock_anthem_ring.wav
+			{ Name = "groove", Asset = "", Min = 0.25, Full = 0.45 }, -- rock_anthem_groove.wav
+			{ Name = "drive", Asset = "", Min = 0.5, Full = 0.65 }, -- rock_anthem_drive.wav
+			{ Name = "lead", Asset = "", Min = 0.7, Full = 0.85 }, -- rock_anthem_lead.wav
+			{ Name = "peak", Asset = "", Min = 0.9, Full = 1 }, -- rock_anthem_peak.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- rock_anthem_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- rock_anthem_ending.wav
+		Stingers = {
+			hit = { Asset = "", Beats = 2 }, -- rock_anthem_hit.wav
+			victory = { Asset = "", Beats = 5.5 }, -- rock_anthem_victory.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- rock_anthem_levelup.wav
+		},
+	},
+	funk_strut = {
+		-- Funk strut: E dorian, i7:2 IV7:2 i7:2 IV7:2. Seed 1. Loop 18.462 s.
+		Bpm = 104,
+		BeatsPerBar = 4,
+		Bars = 8,
+		Stems = {
+			{ Name = "scratch", Asset = "", Min = 0, Full = 0 }, -- funk_strut_scratch.wav
+			{ Name = "bass", Asset = "", Min = 0.2, Full = 0.35 }, -- funk_strut_bass.wav
+			{ Name = "drums", Asset = "", Min = 0.4, Full = 0.55 }, -- funk_strut_drums.wav
+			{ Name = "horns", Asset = "", Min = 0.6, Full = 0.8 }, -- funk_strut_horns.wav
+			{ Name = "peak", Asset = "", Min = 0.85, Full = 1 }, -- funk_strut_peak.wav
+		},
+		Intro = { Asset = "", Beats = 4 }, -- funk_strut_intro.wav
+		Ending = { Asset = "", Beats = 8 }, -- funk_strut_ending.wav
+		Stingers = {
+			hit = { Asset = "", Beats = 2 }, -- funk_strut_hit.wav
+			discover = { Asset = "", Beats = 4 }, -- funk_strut_discover.wav
+			victory = { Asset = "", Beats = 5.5 }, -- funk_strut_victory.wav
+		},
+	},
 }

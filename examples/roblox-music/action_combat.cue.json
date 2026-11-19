@@ -13,7 +13,7 @@
   "chords": "i:2 VI VII i:2 iv V",
   "mix": {
     "lufs": -16,
-    "peakDb": -2.7
+    "peakDb": -2.3
   },
   "stems": [
     {
@@ -29,15 +29,15 @@
       "file": "action_combat_pulse.wav",
       "min": 0.2,
       "full": 0.35,
-      "lufs": -23.1,
-      "peakDb": -8.6
+      "lufs": -23.2,
+      "peakDb": -7.7
     },
     {
       "name": "drums",
       "file": "action_combat_drums.wav",
       "min": 0.45,
       "full": 0.6,
-      "lufs": -21,
+      "lufs": -20.9,
       "peakDb": -6.3
     },
     {
@@ -46,15 +46,15 @@
       "min": 0.7,
       "full": 0.85,
       "lufs": -21.2,
-      "peakDb": -10.2
+      "peakDb": -10.4
     },
     {
       "name": "peak",
       "file": "action_combat_peak.wav",
       "min": 0.9,
       "full": 1,
-      "lufs": -27.3,
-      "peakDb": -13.3
+      "lufs": -27.4,
+      "peakDb": -12.6
     }
   ],
   "oneShots": [
@@ -95,7 +95,7 @@
       "kind": "intro",
       "file": "action_combat_intro.wav",
       "beats": 4,
-      "seconds": 3.564,
+      "seconds": 4.028,
       "lufs": -19
     },
     {

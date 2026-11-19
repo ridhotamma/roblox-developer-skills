@@ -39,6 +39,28 @@
   const VIB14 = cents(14) - 1, VIB18 = cents(18) - 1, VIB25 = cents(25) - 1;
   const UP7 = cents(7), DOWN6 = cents(-6), UP4 = cents(4), DOWN4 = cents(-4);
 
+  // Performance articulations carried on a note (set by perform.js): slide (scoop in from
+  // `slide` semitones away; positive = from below), bend (start `bend` semitones flat and bend
+  // up to pitch, guitar/harmonica style), hammer (start `hammer` semitones lower, then snap to
+  // pitch: a hammer-on), vib (extra delayed vibrato, cents). Returns t -> frequency multiplier,
+  // or null when the note has none.
+  function pitchMod(c) {
+    const n = c.note || {};
+    const slide = n.slide || 0, bend = n.bend || 0, hammer = n.hammer || 0, vib = n.vib || 0;
+    if (!slide && !bend && !hammer && !vib) return null;
+    const bendAt = n.bendAt === undefined ? 0.04 : n.bendAt, bendTime = n.bendTime || 0.11;
+    const vibDelay = Math.min(0.3, c.dur * 0.35), vibDepth = cents(vib) - 1, rate = 5.3;
+    return function (t) {
+      let semis = 0;
+      if (slide) semis -= slide * Math.max(0, 1 - t / 0.07);
+      if (bend) { const k = Math.min(1, Math.max(0, (t - bendAt) / bendTime)); semis -= bend * (1 - k * k * (3 - 2 * k)); }
+      if (hammer && t < 0.07) semis -= hammer;
+      let m = Math.pow(2, semis / 12);
+      if (vib && t > vibDelay) m *= 1 + vibDepth * Math.min(1, (t - vibDelay) / 0.25) * sin(TAU * rate * (t - vibDelay));
+      return m;
+    };
+  }
+
   // ---------------------------------------------------------------- drums
   const HAT_FREQS = [205.3, 304.4, 369.6, 522.7, 540, 800];
   function metallic(c, mult, decay, hpCut, seconds, level) {
@@ -403,13 +425,15 @@
     const lp = new SVF();
     const det = [cents(-5), cents(5), 0.5];
     const ph = det.map(() => c.rng());
+    const pm = pitchMod(c); let pmv = 1;
     for (let i = 0; i < n; i++) {
       const t = i / sr;
       if ((i & 15) === 0) {
         const open = (1 - exp(-t * o.open)) * (0.72 + 0.28 * exp(-t * 3));
         lp.setup(o.base + (o.range * c.vel) * open * (t > c.dur ? exp(-(t - c.dur) * 6) : 1), 0.8, sr);
       }
-      const scoop = Math.pow(2, -o.scoop / 1200 * exp(-t * 25));
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      const scoop = Math.pow(2, -o.scoop / 1200 * exp(-t * 25)) * pmv;
       let x = 0;
       for (let k = 0; k < 3; k++) { const d = c.f * det[k] * scoop / sr; ph[k] += d; ph[k] -= Math.floor(ph[k]); x += k === 2 ? square(ph[k], d) * o.sub : saw(ph[k], d) * 0.6; }
       const y = tanh(o.drive * lp.tick(x)) / Math.min(o.drive, 1.6);
@@ -436,12 +460,14 @@
   };
   tonal.lead = function (c) {
     const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.15), g = amp(c.vel);
+    const pm = pitchMod(c); let pmv = 1;
     const lp = new SVF();
     let a = c.rng(), b = c.rng();
     for (let i = 0; i < n; i++) {
       const t = i / sr;
       if ((i & 15) === 0) lp.setup(2400 + 1600 * c.vel, 0.8, sr);
-      const vib = 1 + VIB18 * sin(TAU * 5.5 * t) * Math.min(1, Math.max(0, (t - 0.25) / 0.3));
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      const vib = (1 + VIB18 * sin(TAU * 5.5 * t) * Math.min(1, Math.max(0, (t - 0.25) / 0.3))) * pmv;
       const da = c.f * vib * DOWN4 / sr, db = c.f * vib * UP4 / sr;
       a += da; a -= Math.floor(a); b += db; b -= Math.floor(b);
       const x = saw(a, da) * 0.6 + square(b, db) * 0.35;
@@ -450,10 +476,12 @@
   };
   tonal.sqlead = function (c) { // chiptune pulse
     const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.04), g = amp(c.vel);
+    const pm = pitchMod(c); let pmv = 1;
     let a = c.rng();
     for (let i = 0; i < n; i++) {
       const t = i / sr;
-      const vib = 1 + VIB25 * sin(TAU * 6 * t) * Math.min(1, Math.max(0, (t - 0.18) / 0.2));
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      const vib = (1 + VIB25 * sin(TAU * 6 * t) * Math.min(1, Math.max(0, (t - 0.18) / 0.2))) * pmv;
       const d = c.f * vib / sr;
       a += d; a -= Math.floor(a);
       w(i, square(a, d, 0.25) * 0.5 * adsr(t, c.dur, 0.002, 0.08, 0.8, 0.03) * g);
@@ -463,12 +491,14 @@
     const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + o.r), g = amp(c.vel);
     const bp = new SVF(); bp.setup(c.f * 2, 12, sr);
     const vibDepth = cents(o.vib) - 1;
+    const pm = pitchMod(c); let pmv = 1;
     let ph = 0;
     for (let i = 0; i < n; i++) {
       const t = i / sr;
       const vib = 1 + vibDepth * sin(TAU * 6 * t) * Math.min(1, Math.max(0, (t - 0.15) / 0.25));
       const scoop = Math.pow(2, -50 / 1200 * exp(-t * 30));
-      ph += c.f * vib * scoop / sr;
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      ph += c.f * vib * scoop * pmv / sr;
       bp.tick(c.rng() * 2 - 1);
       const x = sin(TAU * ph) + o.h2 * sin(2 * TAU * ph) + o.h3 * sin(3 * TAU * ph) + bp.band * o.breath;
       w(i, x * adsr(t, c.dur, o.a, 0.1, 0.9, o.r) * 0.6 * g);
@@ -488,33 +518,6 @@
   };
 
   // ---------------------------------------------------------------- fx
-  tonal.riser = function (c) {
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.03), g = amp(c.vel);
-    const fl = new SVF(), fr = new SVF();
-    let ph = 0;
-    for (let i = 0; i < n; i++) {
-      const t = i / sr, k = Math.min(1, t / c.dur);
-      if ((i & 15) === 0) { const cut = 300 * Math.pow(8000 / 300, k); fl.setup(cut, 2.5, sr); fr.setup(cut * 1.07, 2.5, sr); }
-      fl.tick(c.rng() * 2 - 1); fr.tick(c.rng() * 2 - 1);
-      ph += (300 * Math.pow(5, k)) / sr;
-      const e = k * k * (t > c.dur ? Math.max(0, 1 - (t - c.dur) / 0.03) : 1) * g;
-      w(i, (fl.band * 1.6 + sin(TAU * ph) * 0.12) * e, (fr.band * 1.6 + sin(TAU * ph * 1.003) * 0.12) * e);
-    }
-  };
-  tonal.swell = function (c) { // reverse-cymbal-like swell into the downbeat
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.02), g = amp(c.vel);
-    const hp = new SVF(); hp.setup(2500, 0.7, sr);
-    const lp = new SVF();
-    let ph = 0;
-    for (let i = 0; i < n; i++) {
-      const t = i / sr, k = Math.min(1, t / c.dur);
-      if ((i & 31) === 0) lp.setup(200 + 3000 * k * k, 1, sr);
-      hp.tick(c.rng() * 2 - 1);
-      const d = c.f / sr; ph += d; ph -= Math.floor(ph);
-      const e = k * k * k * (t > c.dur ? 0 : 1) * g;
-      w(i, (hp.high * 0.8 + lp.tick(saw(ph, d)) * 0.5) * e);
-    }
-  };
   tonal.impact = function (c) {
     const w = writer(c), sr = c.sr, n = samplesFor(c, 3), g = amp(c.vel);
     const lp = new SVF();
@@ -528,53 +531,6 @@
       w(i, tanh(2.2 * x) * 0.85 * g);
     }
   };
-  tonal.shepard = function (c) { // endless rise (or fall): 8 octave-spaced tones under a fixed bell curve
-    const w = writer(c), sr = c.sr, total = c.dur, n = samplesFor(c, total + 0.5), g = amp(c.vel);
-    const K = 8, center = Math.log2(c.f);
-    const ph = new Float64Array(K), inc = new Float64Array(K), gain = new Float64Array(K);
-    for (let i = 0; i < n; i++) {
-      const t = i / sr;
-      if ((i & 15) === 0) {
-        let pos = (t / total) % 1;
-        if (c.note.down) pos = 1 - pos;
-        for (let k = 0; k < K; k++) {
-          const oct = k - K / 2 + pos;
-          inc[k] = Math.pow(2, center + oct) / sr;
-          gain[k] = exp(-(oct * oct) / 3.2);
-        }
-      }
-      let x = 0;
-      for (let k = 0; k < K; k++) { ph[k] += inc[k]; ph[k] -= Math.floor(ph[k]); x += sin(TAU * ph[k]) * gain[k]; }
-      w(i, x * 0.3 * g * Math.min(1, t / 0.5) * (t > total ? Math.max(0, 1 - (t - total) / 0.5) : 1));
-    }
-  };
-  tonal.wind = function (c) {
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 1), g = amp(c.vel);
-    const fl = new SVF(), fr = new SVF();
-    const p1 = c.rng() * TAU, p2 = c.rng() * TAU;
-    for (let i = 0; i < n; i++) {
-      const t = i / sr;
-      if ((i & 31) === 0) {
-        const m = 0.5 + 0.3 * sin(TAU * 0.13 * t + p1) + 0.2 * sin(TAU * 0.071 * t + p2);
-        fl.setup(250 + 900 * m, 2.2, sr); fr.setup(260 + 950 * (1 - m * 0.8), 2.2, sr);
-      }
-      fl.tick(c.rng() * 2 - 1); fr.tick(c.rng() * 2 - 1);
-      const e = adsr(t, c.dur, 1.5, 0.1, 1, 1) * (0.6 + 0.4 * sin(TAU * 0.09 * t + p2)) * g;
-      w(i, fl.band * e * 1.4, fr.band * e * 1.4);
-    }
-  };
-  tonal.scrape = function (c) { // metallic, inharmonic, bending down: dread textures and jump scares
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.5), g = amp(c.vel);
-    const bp = new SVF(); bp.setup(2200, 1.5, sr);
-    for (let i = 0; i < n; i++) {
-      const t = i / sr;
-      const bend = Math.pow(2, -t * 0.4);
-      const f = c.f > 0 ? c.f * bend : 600;
-      const x = sin(TAU * f * t + 6 * exp(-t * 1.2) * sin(TAU * f * 1.414 * t));
-      bp.tick(x + (c.rng() * 2 - 1) * 0.2);
-      w(i, (bp.band * 1.5 + x * 0.2) * adsr(t, c.dur, 0.15, 0.4, 0.6, 0.5) * g);
-    }
-  };
 
   // Drum voices are also playable as instruments (fx parts, one-shots).
   const INSTRUMENTS = Object.assign({}, tonal);
@@ -583,5 +539,6 @@
 
   const DRUM_VOICES = Object.keys(drums).filter((k) => drums[k]);
 
-  Object.assign(M, { INSTRUMENTS, DRUM_VOICES, drums });
+  Object.assign(M, { INSTRUMENTS, DRUM_VOICES, drums, pitchMod });
+  M.INST_KIT = { writer, samplesFor, adsr, amp, cents, tonal, INSTRUMENTS };
 })(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));

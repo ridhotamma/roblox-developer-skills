@@ -32,6 +32,13 @@
     horror_pulse: { steps: 16, kick: 'X...............', tom: '........x.......' },
     stalk: { steps: 16, kick: 'X.....x...X.....', tick: '..x...x...x...x.', tom: '...............x' },
     pound: { steps: 16, kick: 'X...X...X...X...', taiko: 'X.......X.......', tom: '..x...x...x...x.' },
+    // Guitar-band grooves
+    punk: { steps: 16, kick: 'X.....X.X.......', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.' },
+    skate: { steps: 16, kick: 'X...X...X...X...', snare: '..X...X...X...X.', hat: 'x.x.x.x.x.x.x.x.' },
+    rock: { steps: 16, kick: 'X.....x.X.x.....', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.' },
+    funk: { steps: 16, kick: 'X.........X..x..', snare: '....X..-.-..X..-', hat: 'x-x-x-x-x-x-x-xX', openhat: '.......x........' },
+    folk: { steps: 16, kick: 'X.......X.......', rim: '....x.......x...', shaker: 'x-x-x-x-x-x-x-x-' },
+    train: { steps: 16, kick: 'X.......X.......', snare: '-x-X-x-x-x-X-x-x' },
     // Grooves with a triplet feel (12 steps per 4/4 bar)
     shuffle: { steps: 12, kick: 'X.....X..x..', snare: '...X.....X..', hat: 'X.xX.xX.xX.x' },
     gallop: { steps: 12, kick: 'X..X..X..X..', rim: 'x.xx.xx.xx.x', shaker: 'x.xx.xx.xx.x' },
@@ -63,6 +70,7 @@
     once: 'X...............',
     twice: 'X.......x.......',
     triplet12: 'X..x..x..x..',
+    funk16: 'X..x-.x.X.-x.xX-',
   };
 
   // Melody rhythm cells per beat (in 16th steps; negative = rest).

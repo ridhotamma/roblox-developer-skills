@@ -55,7 +55,8 @@
     epiano: 4, piano: 0, musicbox: 10, marimba: 12, celesta: 8, bell: 14, organ: 19,
     strings: 48, tremolo: 44, spiccato: 48, pad: 90, warmpad: 89, darkpad: 94, drone: 95, choir: 52, glass: 92,
     brass: 61, horn: 60, braam: 57, arp: 81, lead: 81, sqlead: 80, whistle: 78, flute: 73,
-    riser: 102, swell: 102, impact: 116, shepard: 99, wind: 122, scrape: 119,
+    impact: 116,
+    acoustic: 25, nylon: 24, cleangtr: 27, bluesgtr: 27, crunchgtr: 29, distgtr: 30, leadgtr: 30, ebass: 34, harmonica: 22,
   };
   const GM_DRUMS = { kick: 36, snare: 38, clap: 39, rim: 37, tick: 76, hat: 42, openhat: 46, ride: 51, crash: 49, shaker: 70, taiko: 35, kick808: 36 };
   const TOMS = [41, 45, 48];

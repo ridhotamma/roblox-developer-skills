@@ -455,6 +455,13 @@
     horror_pulse: { steps: 16, kick: 'X...............', tom: '........x.......' },
     stalk: { steps: 16, kick: 'X.....x...X.....', tick: '..x...x...x...x.', tom: '...............x' },
     pound: { steps: 16, kick: 'X...X...X...X...', taiko: 'X.......X.......', tom: '..x...x...x...x.' },
+    // Guitar-band grooves
+    punk: { steps: 16, kick: 'X.....X.X.......', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.' },
+    skate: { steps: 16, kick: 'X...X...X...X...', snare: '..X...X...X...X.', hat: 'x.x.x.x.x.x.x.x.' },
+    rock: { steps: 16, kick: 'X.....x.X.x.....', snare: '....X.......X...', hat: 'x.x.x.x.x.x.x.x.' },
+    funk: { steps: 16, kick: 'X.........X..x..', snare: '....X..-.-..X..-', hat: 'x-x-x-x-x-x-x-xX', openhat: '.......x........' },
+    folk: { steps: 16, kick: 'X.......X.......', rim: '....x.......x...', shaker: 'x-x-x-x-x-x-x-x-' },
+    train: { steps: 16, kick: 'X.......X.......', snare: '-x-X-x-x-x-X-x-x' },
     // Grooves with a triplet feel (12 steps per 4/4 bar)
     shuffle: { steps: 12, kick: 'X.....X..x..', snare: '...X.....X..', hat: 'X.xX.xX.xX.x' },
     gallop: { steps: 12, kick: 'X..X..X..X..', rim: 'x.xx.xx.xx.x', shaker: 'x.xx.xx.xx.x' },
@@ -486,6 +493,7 @@
     once: 'X...............',
     twice: 'X.......x.......',
     triplet12: 'X..x..x..x..',
+    funk16: 'X..x-.x.X.-x.xX-',
   };
 
   // Melody rhythm cells per beat (in 16th steps; negative = rest).
@@ -1005,6 +1013,387 @@
   Object.assign(M, { CHARACTER, chordColors, chordExtensions, genMelody, genCounter, genBells, fallbackMotif, contourOffsets, MELODY_FORMS: FORMS, CONTOURS });
 })(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));
 
+// ---- guitar.js
+// Guitar parts that sound like a guitarist played them, not like a keyboard with a guitar patch:
+//
+//   * Voicings come from a fretboard in standard tuning (E A D G B E): open chords low on the
+//     neck, barre shapes higher up, the root in the bass, at most four fingers, and each chord
+//     the shape closest to the last one.
+//   * Styles (role "guitar", option `style`):
+//       strum       down/up strums with ghosted "chk" mutes, accents and anticipated changes
+//       fingerpick  Travis picking: thumb alternates root and another bass string, fingers
+//                   pick the treble strings between, pinches on the downbeat, hammer-ons
+//       power       power chords (root, 5th, octave), palm-muted 8ths or open, pushes
+//       boogie      the blues shuffle comp: root-5th / root-6th (/ root-b7th) pairs
+//       funk        16th-note "chicken scratch" on the top strings: muted scratches and short
+//                   9th-chord stabs
+//   * Blues lead (role "melody", style "licks"): phrases from a vocabulary of pentatonic / blues
+//     licks with bends, curls, slides and vibrato, laid out as call, answer and space (AAB on a
+//     12-bar), with a turnaround into the loop.
+(function (M) {
+  'use strict';
+
+  const TUNING = [40, 45, 50, 55, 59, 64]; // E2 A2 D3 G3 B3 E4
+
+  // ---------------------------------------------------------------- fretboard voicing
+  // -> { pitches (low to high), strings (indices into TUNING), frets } or null.
+  function fretVoicing(chord, prev, opts) {
+    if (chord.root === null) return null;
+    const o = opts || {};
+    const strings = o.strings || [0, 1, 2, 3, 4, 5];
+    const pcs = chord.pcs.concat(o.extra || []);
+    const third = chord.intervals.find((i) => i === 3 || i === 4);
+    const seventh = chord.intervals.find((i) => i === 10 || i === 11);
+    const required = [chord.root].concat([third, seventh].filter((i) => i !== undefined).map((i) => (chord.root + i) % 12)).concat(o.extra || []);
+    const minSound = o.minSound || Math.min(4, strings.length);
+    const prevP = prev ? prev.pitches : null;
+    let best = null, bestScore = Infinity;
+    const maxStart = o.maxFret === undefined ? 9 : o.maxFret;
+    for (let s = 0; s <= maxStart; s++) {
+      const options = strings.map((si, k) => {
+        const opt = [];
+        if (k < 2 || o.muteAny) opt.push(-1);
+        if (s <= 4 && !o.noOpen && pcs.includes(TUNING[si] % 12)) opt.push(0);
+        for (let f = Math.max(1, s); f <= s + 3; f++) if (pcs.includes((TUNING[si] + f) % 12)) opt.push(f);
+        return opt.length ? opt : [-1];
+      });
+      const pick = new Array(strings.length);
+      const walk = (k, sounding) => {
+        if (k === strings.length) {
+          const frets = pick.slice();
+          const idx = frets.map((f, j) => (f >= 0 ? j : -1)).filter((j) => j >= 0);
+          if (idx.length < minSound) return;
+          // muted strings only below the sounding ones (a strummed chord can't skip a string)
+          if (!o.muteAny && idx[idx.length - 1] - idx[0] + 1 !== idx.length) return;
+          const pitches = idx.map((j) => TUNING[strings[j]] + frets[j]);
+          if (pitches[0] % 12 !== chord.root && !o.anyBass) return;
+          const have = new Set(pitches.map((p) => p % 12));
+          if (!required.every((pc) => have.has(pc))) return;
+          const fretted = idx.map((j) => frets[j]).filter((f) => f > 0);
+          if (fretted.length) {
+            const lo = Math.min(...fretted), hi = Math.max(...fretted);
+            if (hi - lo > 3) return;
+            const atLo = fretted.filter((f) => f === lo).length;
+            const fingers = (atLo >= 2 ? 1 : atLo) + fretted.filter((f) => f > lo).length;
+            if (fingers > 4) return;
+          }
+          let score = s * 0.45 - frets.filter((f) => f === 0).length * 0.35 + (strings.length - idx.length) * 0.5;
+          const thirds = pitches.filter((p) => third !== undefined && p % 12 === (chord.root + third) % 12).length;
+          if (thirds > 1) score += 0.5;
+          if (prevP) {
+            const top = Math.abs(pitches[pitches.length - 1] - prevP[prevP.length - 1]);
+            const bass = Math.abs(pitches[0] - prevP[0]);
+            score += top * 0.25 + bass * 0.08 + Math.abs(s - (prev.start || 0)) * 0.25;
+          }
+          if (o.center) score += Math.abs((pitches[0] + pitches[pitches.length - 1]) / 2 - o.center) * 0.15;
+          if (score < bestScore) { bestScore = score; best = { pitches, strings: idx.map((j) => strings[j]), frets: idx.map((j) => frets[j]), start: s }; }
+          return;
+        }
+        for (const f of options[k]) {
+          if (f === -1 && sounding) continue; // can't mute above a sounding string
+          pick[k] = f;
+          walk(k + 1, sounding || f >= 0);
+        }
+      };
+      walk(0, false);
+    }
+    return best;
+  }
+
+  // Root of a power chord / boogie shape on the low E or A string, near the previous one.
+  function lowRoot(chord, prevRoot) {
+    const cands = [];
+    for (let m = 40; m < 52; m++) if (m % 12 === chord.root) cands.push(m);
+    if (prevRoot === undefined || prevRoot === null) return cands[0];
+    return cands.sort((a, b) => Math.abs(a - prevRoot) - Math.abs(b - prevRoot))[0];
+  }
+
+  const STRUMS = {
+    folk: 'D.DU.UDU', pop: 'D.DUDUDU', ballad: 'D...D.DU', drive: 'DUDUDUDU', island: '.U.U.U.U',
+    country: 'D.dU.UdU', reggae: '.x.x.x.x', shuffle: 'D.DUD.DU', whole: 'D.......',
+    folk16: 'D...D.U.x.U.D.U.', strummy16: 'D.DUx.DUD.DUx.DU',
+  };
+  const POWER = {
+    punk: 'mmmmmmmm', punk_open: 'OoooOooo', drive: 'OmmmOmmm', rock: 'O-mmO-mm', anthem: 'O-------',
+    stop: 'O..mO..m', gallop: 'm.mmm.mmm.mmm.mm', chug16: 'mmmmmmmmmmmmmmmm', pushes: 'O-----mO',
+  };
+  const FUNK = ['X.xxX.x.x.xX.x.x', 'x.xX.xx.x.Xx.x.X', 'X..xx.X..x.xX.x.', '.xX.x.xX.x.Xx.x.'];
+
+  function note(t, d, p, v, extra) {
+    const n = { t, d, p, v: Math.max(0.05, Math.min(1, v)) };
+    if (extra) Object.assign(n, extra);
+    return n;
+  }
+
+  function stepGrid(pattern, ctx) {
+    const steps = pattern.length;
+    return { steps, stepBeats: ctx.beatsPerBar / steps };
+  }
+
+  // Chord for a strum at t; with `push`, an offbeat strum just before a change plays the next
+  // chord early (the anticipation every rock and pop guitarist uses).
+  function chordFor(ctx, t, push, stepBeats) {
+    const seg = M.chordAt(ctx.progression, t);
+    if (push && Math.abs(t % 1) > 1e-6) {
+      const ahead = M.chordAt(ctx.progression, (t + stepBeats + 1e-6) % ctx.totalBeats);
+      if (ahead !== seg && Math.abs(ahead.start - (t + stepBeats)) < 1e-6) return ahead;
+    }
+    return seg;
+  }
+
+  // ---------------------------------------------------------------- strum
+  function genStrumGuitar(part, ctx, r) {
+    const pat = STRUMS[part.pattern] || part.pattern || STRUMS.folk;
+    const g = stepGrid(pat, ctx);
+    const out = [];
+    const spb = ctx.bpm / 60;
+    let prev = null, seg = null, voicing = null;
+    for (let bar = 0; bar < ctx.bars; bar++) {
+      for (let s = 0; s < g.steps; s++) {
+        const ch = pat[s];
+        if (ch === '.' || ch === '-') continue;
+        const t = bar * ctx.beatsPerBar + s * g.stepBeats;
+        const sgm = chordFor(ctx, t, part.push !== false, g.stepBeats);
+        if (sgm.chord.root === null) continue;
+        if (sgm !== seg) { seg = sgm; voicing = fretVoicing(sgm.chord, prev, { center: part.center }); prev = voicing || prev; }
+        if (!voicing) continue;
+        // ring until the next strum
+        let k = s + 1, gap = 1;
+        while (k < g.steps * 2 && ['.', '-'].includes(pat[k % g.steps])) { k++; gap++; }
+        const ring = Math.min(gap * g.stepBeats, 4);
+        const up = ch === 'U' || ch === 'u';
+        const dead = ch === 'x';
+        const accent = ch === 'D' || ch === 'U' ? 1 : dead ? 0.55 : 0.72;
+        const strs = up ? voicing.pitches.slice(-4).reverse() : voicing.pitches;
+        const spread = (accent > 0.9 ? 0.009 : 0.013) * spb; // seconds -> beats
+        strs.forEach((p, j) => out.push(note(t + j * spread, dead ? 0.08 : ring + 0.05, p, accent * (up ? 0.82 : 1) * (1 - j * 0.035) * (0.9 + r() * 0.1), dead ? { mute: true } : null)));
+      }
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- fingerpick (Travis)
+  const TRAVIS = {
+    travis: [[0, 5], [null, 3], [1, null], [null, 4], [0, null], [null, 5], [1, 3], [null, 4]],
+    roll: [[0, null], [null, 3], [1, 4], [null, 5], [0, null], [null, 4], [1, 3], [null, 5]],
+    ballad: [[0, null], [null, 3], [null, 4], [null, 5], [1, null], [null, 4], [null, 3], [null, 4]],
+    waltz: [[0, 5], [null, 3], [1, 4], [null, 3], [1, 5], [null, 4]],
+  };
+  function genFingerpick(part, ctx, r) {
+    const pat = TRAVIS[part.pattern] || (ctx.beatsPerBar === 3 ? TRAVIS.waltz : TRAVIS.travis);
+    const stepBeats = ctx.beatsPerBar / pat.length;
+    const out = [];
+    let prev = null, seg = null, v = null;
+    const lastOn = {}; // string -> note, for let-ring lengths
+    const place = (t, p, string, vel, extra) => {
+      const prevNote = lastOn[string];
+      if (prevNote) prevNote.d = Math.min(prevNote.d, Math.max(0.1, t - prevNote.t));
+      const n = note(t, 3, p, vel, extra);
+      lastOn[string] = n;
+      out.push(n);
+    };
+    for (let bar = 0; bar < ctx.bars; bar++) {
+      for (let s = 0; s < pat.length; s++) {
+        const t = bar * ctx.beatsPerBar + s * stepBeats;
+        const sgm = M.chordAt(ctx.progression, t);
+        if (sgm.chord.root === null) continue;
+        if (sgm !== seg) { seg = sgm; v = fretVoicing(sgm.chord, prev, { center: part.center || 55 }); prev = v || prev; }
+        if (!v) continue;
+        const [thumb, finger] = pat[s];
+        const bassIdx = v.strings.map((st, i) => (st <= 2 ? i : -1)).filter((i) => i >= 0);
+        if (thumb !== null && bassIdx.length) {
+          // thumb: 0 = root (lowest string), 1 = alternate bass two strings over (or the next one)
+          let i = bassIdx[0];
+          if (thumb === 1) i = v.strings.indexOf(v.strings[bassIdx[0]] + 2) >= 0 ? v.strings.indexOf(v.strings[bassIdx[0]] + 2) : Math.min(bassIdx[0] + 1, v.pitches.length - 1);
+          const strong = s === 0 ? 0.88 : 0.74;
+          place(t, v.pitches[i], v.strings[i], strong * (0.93 + r() * 0.07), part.palmMute ? { pm: true } : null);
+        }
+        if (finger !== null) {
+          const i = v.strings.indexOf(finger);
+          if (i >= 0) {
+            const fret = v.frets[i];
+            const extra = fret >= 2 && r() < (part.hammers === undefined ? 0.12 : part.hammers) ? { hammer: r() < 0.5 ? 1 : 2 } : null;
+            place(t + (thumb !== null ? 0.004 * ctx.bpm / 60 : 0), v.pitches[i], finger, (thumb !== null ? 0.7 : 0.6) * (0.9 + r() * 0.1), extra);
+          }
+        }
+      }
+    }
+    for (const n of out) n.d = Math.min(n.d, ctx.totalBeats - n.t);
+    return out;
+  }
+
+  // ---------------------------------------------------------------- power chords
+  function genPower(part, ctx, r) {
+    const pat = POWER[part.pattern] || part.pattern || POWER.punk;
+    const g = stepGrid(pat, ctx);
+    const out = [];
+    const spb = ctx.bpm / 60;
+    let root = null;
+    for (let bar = 0; bar < ctx.bars; bar++) {
+      for (let s = 0; s < g.steps; s++) {
+        const ch = pat[s];
+        if (ch === '.' || ch === '-') continue;
+        const t = bar * ctx.beatsPerBar + s * g.stepBeats;
+        const seg = chordFor(ctx, t, part.push !== false, g.stepBeats);
+        if (seg.chord.root === null) continue;
+        root = lowRoot(seg.chord, root) + (part.octave === 3 ? 12 : 0);
+        const fifth = seg.chord.intervals[2] || 7;
+        let k = s + 1, gap = 1;
+        while (k < g.steps * 2 && pat[k % g.steps] === '-') { k++; gap++; }
+        const muted = ch === 'm';
+        const len = muted ? Math.min(g.stepBeats * 0.9, 0.3) : gap * g.stepBeats * 0.95;
+        const vel = ch === 'O' ? 1 : ch === 'o' ? 0.8 : 0.82;
+        [root, root + fifth, root + 12].forEach((p, j) => out.push(note(t + j * 0.004 * spb, len, p, vel * (0.92 + r() * 0.08) * (1 - j * 0.05), muted ? { pm: true } : null)));
+      }
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- blues shuffle comp
+  function genBoogie(part, ctx, r) {
+    const late = ctx.steps % 3 === 0 ? 2 / 3 : 0.5; // second 8th of the beat: triplet or swung
+    const out = [];
+    let root = null;
+    for (let b = 0; b < ctx.totalBeats; b++) {
+      const seg = M.chordAt(ctx.progression, b);
+      if (seg.chord.root === null) continue;
+      root = lowRoot(seg.chord, root);
+      const beatInBar = b % ctx.beatsPerBar;
+      const barInChord = Math.floor((b - seg.start) / ctx.beatsPerBar);
+      const seventhBar = barInChord % 2 === 1 && part.seventh !== false;
+      const upper = beatInBar % 2 === 0 ? 7 : (seventhBar && beatInBar === 2 ? 10 : 9);
+      const top = beatInBar === 2 && seventhBar ? 10 : upper;
+      [0, late].forEach((off, k) => {
+        const v = (k === 0 ? 0.9 : 0.66) * (beatInBar === 0 ? 1 : 0.92) * (0.93 + r() * 0.07);
+        const len = (k === 0 ? late : 1 - late) * 0.92;
+        out.push(note(b + off, len, root, v, part.palmMute ? { pm: true } : null));
+        out.push(note(b + off + 0.004 * ctx.bpm / 60, len, root + top, v * 0.95, part.palmMute ? { pm: true } : null));
+      });
+    }
+    return out;
+  }
+
+  // ---------------------------------------------------------------- funk scratch
+  function genFunk(part, ctx, r) {
+    const pr = M.rng(M.hashSeed(ctx.seed, 'funk-pattern', part.inst));
+    const pat = part.pattern || pr.pick(FUNK);
+    const g = stepGrid(pat, ctx);
+    const out = [];
+    let prev = null, seg = null, v = null;
+    for (let bar = 0; bar < ctx.bars; bar++) {
+      for (let s = 0; s < g.steps; s++) {
+        let ch = pat[s];
+        if (bar % 4 === 3 && s >= g.steps - 4 && ch === 'x') ch = 'X'; // a stab pickup into the next phrase
+        if (ch === '.') continue;
+        const t = bar * ctx.beatsPerBar + s * g.stepBeats;
+        const sgm = M.chordAt(ctx.progression, t);
+        if (sgm.chord.root === null) continue;
+        if (sgm !== seg) {
+          seg = sgm;
+          const extra = M.chordExtensions(sgm.chord, ctx.keyPc, ctx.scale, 2);
+          v = fretVoicing(sgm.chord, prev, { strings: [2, 3, 4, 5], extra: extra.slice(0, 1), minSound: 3, anyBass: true, noOpen: true, center: 62 }) ||
+            fretVoicing(sgm.chord, prev, { strings: [2, 3, 4, 5], minSound: 3, anyBass: true, noOpen: true, center: 62 });
+          prev = v || prev;
+        }
+        if (!v) continue;
+        const dead = ch === 'x';
+        const up = s % 2 === 1;
+        const strs = up ? v.pitches.slice().reverse() : v.pitches;
+        strs.forEach((p, j) => out.push(note(t + j * 0.003 * ctx.bpm / 60, dead ? 0.06 : 0.18, p, (dead ? 0.5 : 0.95) * (0.9 + r() * 0.1), dead ? { mute: true } : null)));
+      }
+    }
+    return out;
+  }
+
+  function genGuitar(part, ctx, r) {
+    const style = part.style || 'strum';
+    if (style === 'strum') return genStrumGuitar(part, ctx, r);
+    if (style === 'fingerpick') return genFingerpick(part, ctx, r);
+    if (style === 'power') return genPower(part, ctx, r);
+    if (style === 'boogie') return genBoogie(part, ctx, r);
+    if (style === 'funk') return genFunk(part, ctx, r);
+    throw new Error(`unknown guitar style '${style}'`);
+  }
+
+  // ---------------------------------------------------------------- blues licks
+  // [eighth, length in eighths, semitones above the tonic, articulation]. Generic pentatonic and
+  // blues vocabulary (bend = up a whole step into the note, curl = a quarter-tone nudge on the
+  // minor 3rd, slide = slide in from below, vib = vibrato).
+  const LICKS = {
+    call: [
+      [[0, 1, 7], [1, 1, 10], [2, 2, 12, 'bend'], [4, 1, 10], [5, 1, 7], [6, 2, 10, 'vib']],
+      [[0, 3, 19, 'bend'], [3, 1, 15], [4, 1, 12], [5, 1, 10], [6, 2, 7, 'vib']],
+      [[0, 1, 10], [1, 1, 12], [2, 1, 15, 'curl'], [3, 1, 12], [4, 1, 10], [5, 1, 7], [6, 2, 10, 'vib']],
+      [[1, 1, 12], [2, 2, 15, 'curl'], [4, 1, 17], [5, 3, 19, 'vib']],
+      [[0, 2, 22, 'bend'], [2, 2, 22, 'bend'], [4, 1, 19], [5, 1, 15], [6, 2, 17, 'vib']],
+    ],
+    answer: [
+      [[0, 2, 15, 'curl'], [2, 1, 12], [3, 1, 10], [4, 4, 12, 'vib']],
+      [[0, 2, 7, 'slide'], [2, 1, 10], [3, 1, 7], [4, 1, 5], [5, 1, 3, 'curl'], [6, 2, 0, 'vib']],
+      [[0, 1, 3, 'slide'], [1, 1, 4], [2, 1, 7], [3, 1, 9], [4, 1, 7], [5, 1, 4], [6, 2, 0, 'vib']],
+      [[0, 1, 15], [1, 1, 12], [2, 1, 10], [3, 1, 7], [4, 1, 6], [5, 1, 5], [6, 1, 3, 'curl'], [7, 1, 0]],
+    ],
+    short: [
+      [[1, 1, 10], [2, 3, 12, 'vib']],
+      [[0, 1, 15, 'curl'], [1, 3, 12, 'vib']],
+      [[2, 3, 7, 'bend'], [5, 1, 5], [6, 2, 3, 'curl']],
+    ],
+    turn: [
+      [[0, 1, 12], [1, 1, 11], [2, 1, 10], [3, 1, 9], [4, 4, 7, 'vib']],
+      [[0, 1, 12], [1, 1, 9], [2, 1, 10], [3, 1, 7], [4, 4, 7, 'vib']],
+    ],
+  };
+
+  function genLicks(part, ctx) {
+    const r = M.rng(M.hashSeed(ctx.seed, 'licks', part.inst));
+    const range = part.range || [52, 79];
+    let base = M.nearestWithPc(ctx.keyPc, range[0] + 3);
+    if (base < range[0]) base += 12;
+    const late = ctx.steps % 3 === 0 ? 2 / 3 : 0.5;
+    const pos = (k) => Math.floor(k / 2) + (k % 2 ? late : 0);
+    const callA = r.pick(LICKS.call), answer = r.pick(LICKS.answer), resolve = r.pick(LICKS.answer.filter((l) => l !== answer)) || answer;
+    const shorts = LICKS.short, turn = r.pick(LICKS.turn);
+    // bar plan: which lick (or none) starts in each bar
+    const plan = new Array(ctx.bars).fill(null);
+    if (ctx.bars === 12) {
+      plan[0] = callA; plan[1] = r.pick(shorts); plan[4] = callA; plan[5] = r.pick(shorts);
+      plan[8] = r.pick(LICKS.call.filter((l) => l !== callA)); plan[9] = answer; plan[10] = resolve; plan[11] = turn;
+    } else {
+      for (let g = 0; g * 4 < ctx.bars; g++) {
+        const b = g * 4;
+        if (g % 2 === 0) { plan[b] = callA; if (b + 1 < ctx.bars) plan[b + 1] = r.pick(shorts); }
+        else { plan[b] = answer; if (b + 2 < ctx.bars) plan[b + 2] = r() < 0.5 ? r.pick(shorts) : null; }
+      }
+      if (ctx.bars >= 4) plan[ctx.bars - 1] = turn;
+    }
+    const out = [];
+    const ART = { bend: { bend: 2 }, curl: { bend: 0.5, bendTime: 0.08 }, slide: { slide: 2 }, vib: { vib: 30 } };
+    plan.forEach((lick, bar) => {
+      if (!lick) return;
+      // a pickup: start an eighth early when the previous bar is silent
+      const pickup = bar > 0 && !plan[bar - 1] && r() < 0.4 ? -late : 0;
+      lick.forEach(([k, len, semi, art], i) => {
+        let p = base + semi;
+        while (p > range[1]) p -= 12;
+        const t = bar * ctx.beatsPerBar + pos(k) + (i === 0 ? pickup : 0);
+        const end = bar * ctx.beatsPerBar + pos(k + len);
+        const d = Math.max(0.12, end - t - (art === 'vib' ? 0 : 0.04));
+        const v = (i === 0 ? 0.88 : 0.76) + (art === 'bend' ? 0.08 : 0);
+        out.push(Object.assign(note((t + ctx.totalBeats) % ctx.totalBeats, Math.min(d, ctx.totalBeats - ((t + ctx.totalBeats) % ctx.totalBeats)), p, v * (0.94 + r() * 0.06)), art ? ART[art] : null));
+      });
+    });
+    out.sort((a, b) => a.t - b.t);
+    // the first lick doubles as the cue's motif (stingers quote it)
+    const steps8 = ctx.steps / 8;
+    const rhythm = callA.map(([k, len]) => ({ at: Math.round(k * steps8), len: Math.max(1, Math.round(len * steps8)), rest: false }));
+    const offsets = callA.map(([, , semi]) => Math.round((semi - callA[0][2]) * 7 / 12));
+    out.motif = { rhythm, offsets, shape: 'licks', form: ['licks'], unitBeats: ctx.beatsPerBar, notes: [] };
+    return out;
+  }
+
+  Object.assign(M, { TUNING, fretVoicing, lowRoot, genGuitar, genLicks, STRUMS, POWER, TRAVIS, FUNK_SCRATCH: FUNK, LICKS });
+})(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));
+
 // ---- compose.js
 // Composition: a mood preset + a seed -> a cue (notes per part, grouped into intensity stems),
 // plus stingers, an intro pickup and an ending. Time is in beats; the renderer turns it into audio.
@@ -1020,7 +1409,7 @@
 
   const ROLE_TARGET = { // part loudness before the final mix normalization (LUFS, gated)
     drums: -18, perc: -26, bass: -20, pad: -24, stabs: -22, arp: -24, ostinato: -22, broken: -23,
-    pulse: -27, drone: -25, cluster: -27, melody: -20, counter: -24, bells: -26, fx: -26, strum: -23,
+    pulse: -27, drone: -25, cluster: -27, melody: -20, counter: -24, bells: -26, fx: -26, strum: -23, guitar: -21,
   };
   const LIGHT_DRUMS = ['hat', 'openhat', 'shaker', 'tick', 'rim', 'ride'];
 
@@ -1035,6 +1424,15 @@
     const steps = preset.steps || beatsPerBar * 4;
     const keyPc = M.keyPitchClass(key);
     const progression = M.parseProgression(o.progression || preset.progression, keyPc, mode, beatsPerBar, bars);
+    // `turnaround`: the second half of the last bar becomes this chord (usually V7 or bVII),
+    // pulling the loop back to bar 1 instead of just restarting it.
+    if (preset.turnaround && o.progression === undefined) {
+      const last = progression[progression.length - 1];
+      const half = Math.max(1, Math.floor(beatsPerBar / 2));
+      const chord = M.parseChord(preset.turnaround, keyPc, mode);
+      if (last.length > half) { last.length -= half; progression.push({ chord, start: last.start + last.length, length: half }); }
+      else progression[progression.length - 1] = { chord, start: last.start, length: last.length };
+    }
     return {
       preset, seed, key, keyPc, mode, bpm, beatsPerBar, bars, steps,
       stepBeats: beatsPerBar / steps,
@@ -1052,33 +1450,63 @@
   }
 
   // ---------------------------------------------------------------- drums
+  // Drums. Like a drummer, not a loop: every second bar adds a kick variation, every fourth bar
+  // ends with a snare pickup and an open hat, backbeat grooves get ghost notes between the
+  // hits, and `fill` rolls into the loop point on the toms.
+  const GHOSTED = ['backbeat', 'lofi', 'breakbeat', 'rock', 'funk', 'shuffle', 'halftime', 'punk'];
   function genDrums(part, ctx, r) {
     const pat = M.DRUMS[part.pattern];
     if (!pat) throw new Error(`unknown drum pattern '${part.pattern}'`);
     const voices = part.voices || Object.keys(pat).filter((k) => k !== 'steps');
     const stepBeats = ctx.beatsPerBar / pat.steps;
+    const S = pat.steps;
     const out = [];
+    const vr = M.rng(M.hashSeed(ctx.seed, 'drum-variation', part.pattern));
+    const kit = voices.includes('kick') && (voices.includes('snare') || voices.includes('clap'));
+    const vary = part.variation !== false && kit;
+    const hit = (voice, s) => voices.includes(voice) && pat[voice] && M.velocityOf(pat[voice][s]) > 0;
+    // one extra kick for the second bar of each pair, on an empty off-beat 8th or 16th
+    const kickCands = [];
+    for (let s = 1; s < S; s++) if (!hit('kick', s) && !hit('snare', s) && s % (S / ctx.beatsPerBar) !== 0) kickCands.push(s);
+    const extraKick = kickCands.length ? vr.pick(kickCands) : -1;
+    // ghost notes: quiet snare taps on empty 16ths (the same ones each bar: a groove, not noise)
+    const ghosts = [];
+    if ((part.ghosts || (part.ghosts === undefined && GHOSTED.includes(part.pattern))) && voices.includes('snare') && S === 16) {
+      const cands = [];
+      for (let s = 1; s < S; s += 2) if (!hit('snare', s) && !hit('snare', s - 1) && !hit('snare', (s + 1) % S)) cands.push(s);
+      for (let k = 0; k < 2 && cands.length; k++) ghosts.push(cands.splice(Math.floor(vr() * cands.length), 1)[0]);
+    }
     for (let bar = 0; bar < ctx.bars; bar++) {
       const lastBar = bar === ctx.bars - 1;
-      const fillFrom = part.fill && lastBar ? pat.steps - pat.steps / ctx.beatsPerBar * (part.fillBeats || 1) : Infinity;
+      const fillFrom = part.fill && lastBar ? S - S / ctx.beatsPerBar * (part.fillBeats || 1) : Infinity;
+      const pickup = vary && !Number.isFinite(fillFrom) && bar % 4 === 3 && ctx.bars >= 4;
       for (const voice of voices) {
         const line = pat[voice];
         if (!line) continue;
-        for (let s = 0; s < pat.steps; s++) {
+        for (let s = 0; s < S; s++) {
           if (s >= fillFrom && ['snare', 'tom', 'kick', 'taiko', 'hat'].includes(voice)) continue;
-          const vel = M.velocityOf(line[s]);
+          let vel = M.velocityOf(line[s]);
+          let v = voice;
+          if (pickup && s >= S - 2 && voice === 'hat') { if (s === S - 2) v = 'openhat'; else continue; }
           if (!vel) continue;
           const t = bar * ctx.beatsPerBar + s * stepBeats;
-          out.push(note(t, stepBeats, voice, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' ? (s % 3) : 0 }));
+          out.push(note(t, stepBeats, v, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' ? (s % 3) : 0 }));
         }
+      }
+      const base = bar * ctx.beatsPerBar;
+      if (vary && bar % 2 === 1 && extraKick >= 0 && extraKick < fillFrom) out.push(note(base + extraKick * stepBeats, stepBeats, 'kick', 0.62 + r() * 0.1));
+      for (const g of ghosts) if (g < fillFrom && !(pickup && g >= S - 2)) out.push(note(base + g * stepBeats, stepBeats, 'snare', 0.22 + r() * 0.08));
+      if (pickup && voices.includes('snare')) {
+        out.push(note(base + (S - 2) * stepBeats, stepBeats, 'snare', 0.5 + r() * 0.1));
+        out.push(note(base + (S - 1) * stepBeats, stepBeats, 'snare', 0.75 + r() * 0.1));
       }
       if (part.fill && lastBar) {
         // Fill: a crescendo roll over the last beat(s) on toms if present, else snare.
         const fillVoice = voices.includes('tom') ? 'tom' : voices.includes('snare') ? 'snare' : voices.includes('taiko') ? 'taiko' : null;
         if (fillVoice) {
-          const n = pat.steps - fillFrom;
+          const n = S - fillFrom;
           for (let i = 0; i < n; i++) {
-            const t = bar * ctx.beatsPerBar + (fillFrom + i) * stepBeats;
+            const t = base + (fillFrom + i) * stepBeats;
             out.push(note(t, stepBeats, fillVoice, 0.55 + 0.45 * (i / Math.max(1, n - 1)), { pitch: fillVoice === 'tom' ? 2 - Math.floor((i / n) * 3) : 0 }));
           }
         }
@@ -1138,7 +1566,7 @@
       }
       return out;
     }
-    const rhythmName = { ostinato16: 'ostinato16', chug: 'chug16', gallop: 'gallop16', eighths: 'eighths', offbeat: 'offbeat', octaves: 'eighths', quarters: 'quarters', syncopated: 'syncopated', tresillo: 'tresillo', '808': 'trap808', halftime: 'halftime', heartbeat: 'heartbeat' }[style] || part.rhythm;
+    const rhythmName = { funk: 'funk16', ostinato16: 'ostinato16', chug: 'chug16', gallop: 'gallop16', eighths: 'eighths', offbeat: 'offbeat', octaves: 'eighths', quarters: 'quarters', syncopated: 'syncopated', tresillo: 'tresillo', '808': 'trap808', halftime: 'halftime', heartbeat: 'heartbeat' }[style] || part.rhythm;
     if (!rhythmName) throw new Error(`unknown bass style '${style}'`);
     const hits = rhythmHits(part.rhythm || rhythmName, ctx);
     // A one-bar riff in chord degrees (R root, 8 octave, 5 fifth, 3 third, 7 seventh), the same
@@ -1149,6 +1577,7 @@
       if (style === 'octaves') return i % 2 === 1 ? (i % 4 === 3 && rr() < 0.35 ? '5' : '8') : 'R';
       if (style === 'ostinato16' || style === 'chug') return i % 8 === 7 && rr() < 0.6 ? rr.pick(['5', '8', '7']) : 'R';
       if (style === 'offbeat') return i === hits.length - 1 && rr() < 0.5 ? '8' : 'R';
+      if (style === 'funk') return h.vel <= 0.4 ? 'R' : rr.pick(['8', 'R', '7', '8', '5', 'R']);
       const odds = style === 'quarters' ? 0.6 : 0.35;
       return rr() < odds ? rr.pick(['5', '8', '5', '7', '3']) : 'R';
     });
@@ -1179,7 +1608,8 @@
         if (cands.length) p = cands.sort((a, b) => Math.abs(a - root) - Math.abs(b - root))[0];
       }
       const len = style === '808' ? Math.min(h.len, seg.start + seg.length - t) : Math.min(h.len, 0.5) * gate;
-      out.push(note(t, Math.max(0.1, len), p, h.vel * (0.92 + r() * 0.1), style === '808' && r() < 0.25 ? { glide: 12 } : null));
+      const extra = style === '808' && r() < 0.25 ? { glide: 12 } : h.vel <= 0.4 ? { mute: true } : null; // ghost notes are dead thumps
+      out.push(note(t, Math.max(0.1, extra && extra.mute ? 0.1 : len), p, h.vel * (0.92 + r() * 0.1), extra));
     });
     return out;
   }
@@ -1397,12 +1827,22 @@
     const rootLow = M.nearestWithPc(ctx.keyPc, 12 * ((part.octave === undefined ? 1 : part.octave) + 1) + 5);
     const every = (part.every || ctx.bars) * bar;
     const out = [];
-    if (style === 'riser') {
-      const len = (part.bars || 2) * bar;
-      for (let end = every; end <= L + 1e-9; end += every) out.push(note(end - len, len, 60, 0.9, { inst: 'riser' }));
-    } else if (style === 'swell') {
+    if (style === 'roll') {
+      // A snare roll that builds into the phrase: 8ths, then 16ths, getting louder.
       const len = (part.bars || 1) * bar;
-      for (let end = every; end <= L + 1e-9; end += every) out.push(note(end - len, len, rootLow + 24, 0.8, { inst: 'swell' }));
+      for (let end = every; end <= L + 1e-9; end += every) {
+        const start = end - len;
+        for (let t = start; t < end - 1e-9;) {
+          const k = (t - start) / len;
+          out.push(note(t, 0.25, 'snare', 0.3 + 0.65 * k * k));
+          t += k < 0.5 && len > bar ? 0.5 : 0.25;
+        }
+      }
+    } else if (style === 'fill') {
+      // A tom fill across the last beat (high to low), the drummer's way into the next phrase.
+      for (let end = every; end <= L + 1e-9; end += every) {
+        for (let i = 0; i < 4; i++) out.push(note(end - 1 + i * 0.25, 0.25, 'tom', 0.6 + 0.12 * i, { pitch: Math.max(0, 2 - Math.floor(i * 3 / 4)) }));
+      }
     } else if (style === 'crash' || style === 'impact') {
       for (let t = 0; t < L - 1e-9; t += every) out.push(note(t, 2, style === 'impact' ? rootLow : 60, 0.95, { inst: style }));
     } else if (style === 'braam') {
@@ -1412,14 +1852,6 @@
         out.push(note(t, (part.bars || 2) * bar * 0.9, root, 0.95, { inst: 'braam' }));
         out.push(note(t, (part.bars || 2) * bar * 0.9, root + 7, 0.7, { inst: 'braam' }));
       }
-    } else if (style === 'shepard') {
-      out.push(note(0, L, M.nearestWithPc(ctx.keyPc, 60), 0.8, { inst: 'shepard', hold: true, down: !!part.down }));
-    } else if (style === 'wind') {
-      out.push(note(0, L, 60, 0.8, { inst: 'wind', hold: true }));
-    } else if (style === 'scrape') {
-      const r = M.rng(M.hashSeed(ctx.seed, 'scrape'));
-      const n = part.count || Math.max(1, Math.round(ctx.bars / 3));
-      for (let i = 0; i < n; i++) out.push(note(r() * (L - 2), 1.5 + r() * 2, r.int(70, 90), 0.5 + r() * 0.4, { inst: 'scrape' }));
     } else throw new Error(`unknown fx style '${style}'`);
     return out;
   }
@@ -1427,7 +1859,8 @@
   const GENERATORS = {
     drums: genDrums, bass: genBass, pad: genPad, stabs: genStabs, arp: genArp, ostinato: genOstinato,
     broken: genBroken, strum: genStrum, pulse: genPulse, drone: genDrone, cluster: genCluster,
-    melody: (p, c, r) => (p.style === 'bells' ? M.genBells(p, c, r) : p.style === 'counter' ? M.genCounter(p, c, r) : M.genMelody(p, c, r)),
+    melody: (p, c, r) => (p.style === 'bells' ? M.genBells(p, c, r) : p.style === 'counter' ? M.genCounter(p, c, r) : p.style === 'licks' ? M.genLicks(p, c, r) : M.genMelody(p, c, r)),
+    guitar: (p, c, r) => M.genGuitar(p, c, r),
     counter: (p, c, r) => M.genCounter(p, c, r), bells: (p, c, r) => M.genBells(p, c, r), fx: genFx,
   };
 
@@ -1441,7 +1874,7 @@
 
   function defaultInst(part) {
     if (part.role === 'fx') return part.style;
-    return part.inst || { drums: 'kit', bass: 'synthbass', pad: 'pad', stabs: 'brass', arp: 'pluck', ostinato: 'spiccato', broken: 'piano', strum: 'guitar', pulse: 'musicbox', drone: 'drone', cluster: 'tremolo', melody: 'lead', counter: 'strings', bells: 'bell', fx: 'fx' }[part.role];
+    return part.inst || { drums: 'kit', bass: 'synthbass', pad: 'pad', stabs: 'brass', arp: 'pluck', ostinato: 'spiccato', broken: 'piano', strum: 'guitar', pulse: 'musicbox', drone: 'drone', cluster: 'tremolo', guitar: 'acoustic', melody: 'lead', counter: 'strings', bells: 'bell', fx: 'fx' }[part.role];
   }
 
   // preset + {seed, key, mode, bpm, bars, progression} -> cue
@@ -1452,7 +1885,7 @@
     preset.stems.forEach((stem, si) => stem.parts.forEach((part, pi) => {
       if (leadKey === null && part.role === 'melody' && !['bells', 'counter'].includes(part.style)) {
         leadKey = si + ':' + pi;
-        ctx.lead = M.genMelody(part, ctx, M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role)));
+        ctx.lead = (part.style === 'licks' ? M.genLicks : M.genMelody)(part, ctx, M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role)));
         ctx.motif = ctx.lead.motif;
       }
     }));
@@ -1463,11 +1896,13 @@
         if (!gen) throw new Error(`unknown part role '${part.role}' in stem '${stem.name}'`);
         const r = M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role));
         const notes = leadKey === si + ':' + pi ? ctx.lead.map((x) => Object.assign({}, x)) : gen(part, ctx, r);
+        if (part.octaves) notes.push(...notes.filter((n) => typeof n.p === 'number').map((n) => Object.assign({}, n, { p: n.p + 12, v: n.v * 0.75 }))); // doubled an octave up
         if (part.detune) notes.forEach((n) => { n.detune = part.detune; });
         return { role: part.role, inst: defaultInst(part), notes, target: roleTarget(part) + (part.level || 0), pan: part.pan || 0, def: part };
       });
       return { name: stem.name, min: stem.min || 0, full: stem.full === undefined ? stem.min || 0 : stem.full, parts, fx: stem };
     });
+    if (M.perform) M.perform(stems, ctx, preset);
     return {
       name: (opts && opts.name) || preset.id || 'cue',
       title: preset.title,
@@ -1520,7 +1955,7 @@
         p('crash', [n(0, 2, 60, 0.9)], -24),
       ] }),
       alert: () => ({ beats: 4, parts: [
-        p('riser', [n(0, 1, 60, 0.9)], -24),
+        p('taiko', [0, 0.25, 0.5, 0.75].map((x, i) => n(x, 0.25, 'tom', 0.45 + 0.15 * i, { pitch: 2 - Math.min(2, i) })), -24),
         p('braam', [n(1, 2.5, tonic(1) + 12, 1), n(1, 2.5, tonic(1) + 19, 0.7)], -18),
         p('taiko', [n(1, 1, 'taiko', 1), n(1.5, 1, 'taiko', 0.7)], -20),
       ] }),
@@ -1553,7 +1988,7 @@
       jumpscare: () => ({ beats: 3, parts: [
         p('tremolo', [0, 1, 6, 11, 13].map((i) => n(0, 1.5, tonic(5) + i, 1, { sfz: true })), -16),
         p('impact', [n(0, 2.5, tonic(1), 1)], -16),
-        p('scrape', [n(0.05, 2, 80, 1)], -22),
+        p('strings', [0, 1, 6].map((i) => n(0, 0.4, tonic(6) + i, 1, { sfz: true })), -20),
       ] }),
       discover: () => {
         const r0 = tonic(5);
@@ -1576,16 +2011,17 @@
         return { beats: 3 * step + 1, parts: [p('sqlead', notes, -20)] };
       },
       tension: () => ({ beats: 8, parts: [
-        p('shepard', [n(0, 8, tonic(4), 0.8)], -24),
-        p('tremolo', [0, 1].map((i) => n(0, 8, tonic(4) + i, 0.6)), -27),
+        p('tremolo', [0, 1].map((i) => n(0, 8, tonic(4) + i, 0.6)), -25),
+        p('drone', [n(0, 8, tonic(2), 0.7)], -27),
+        p('kick', [0, 0.4, 2, 2.4, 4, 4.4, 5.5, 5.9, 7, 7.35].map((x) => n(x, 0.3, 'kick', 0.8)), -24),
       ] }),
       // Intro: one bar that ends exactly on the loop's downbeat.
       intro: () => {
-        const parts = [p('riser', [n(0, bar, 60, 0.9)], -23)];
-        const rollSteps = ctx.steps / bar; // one beat of 16ths
+        // a snare roll building across the bar, toms on the last beat
         const notes = [];
-        for (let i = 0; i < rollSteps; i++) notes.push(n(bar - 1 + i / rollSteps, 1 / rollSteps, 'snare', 0.5 + 0.5 * (i / rollSteps)));
-        parts.push(p('kit', notes, -21));
+        for (let t = 0; t < bar - 1 - 1e-9; t += t < bar / 2 ? 0.5 : 0.25) notes.push(n(t, 0.25, 'snare', 0.3 + 0.5 * (t / bar)));
+        for (let i = 0; i < 4; i++) notes.push(n(bar - 1 + i * 0.25, 0.25, 'tom', 0.65 + 0.1 * i, { pitch: Math.max(0, 2 - Math.floor(i * 3 / 4)) }));
+        const parts = [p('kit', notes, -21)];
         return { beats: bar, parts };
       },
       // Ending: a final tonic chord with a hit, played on a bar line when the cue stops.
@@ -1609,6 +2045,98 @@
   }
 
   Object.assign(M, { compose, ROLE_TARGET, GENERATORS, STINGER_KINDS: ['hit', 'alert', 'victory', 'fail', 'jumpscare', 'discover', 'levelup', 'tension'] });
+})(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));
+
+// ---- perform.js
+// Performance: the difference between notes and music. After composition, every part is
+// "played" once:
+//
+//   * Timing feel (preset `feel.groove`): laidback (snare and bass a touch late, the pocket of
+//     blues, soul, lo-fi and funk), push (everything a hair early: punk, chases), straight or
+//     tight. Plus small human variation (`feel.humanize`, 0-1; synths and sequencers get a
+//     quarter of it, so they stay machine-tight).
+//   * Dynamics: accents on strong beats for rhythm parts, small random velocity variation, and a
+//     swell across each 4-bar phrase.
+//   * Articulation on melodies and counterlines: vibrato on held notes, slides into notes after
+//     a leap, and (guitars, harmonica) bends up into notes reached from below.
+//
+// Timing goes into `off` (beats), which the renderer applies and wraps around the loop point;
+// note times stay on the grid, so MIDI stays editable and loops stay exactly the loop length.
+(function (M) {
+  'use strict';
+
+  const SYNTH = ['arp', 'sqlead', 'synthbass', 'fmbass', 'bass808', 'reese', 'pluck', 'subbass'];
+  const GROOVES = {
+    straight: {},
+    tight: {},
+    laidback: { snare: 14, clap: 12, rim: 8, bass: 9, melody: 12, guitar: 5, hat: -2 },
+    push: { snare: -3, kick: -2, bass: -4, guitar: -6, melody: -5, hat: -3, ride: -3 },
+  };
+  // Vibrato (cents) for instruments that don't already have their own.
+  const VIB = { brass: 10, horn: 10, strings: 12, leadgtr: 28, bluesgtr: 28, cleangtr: 18, crunchgtr: 22, distgtr: 22, harmonica: 25, nylon: 12, acoustic: 10 };
+  const SLIDERS = ['lead', 'sqlead', 'brass', 'horn', 'strings', 'whistle', 'flute', 'leadgtr', 'bluesgtr', 'cleangtr', 'crunchgtr', 'distgtr', 'harmonica', 'nylon', 'acoustic'];
+  const BENDERS = ['leadgtr', 'bluesgtr', 'cleangtr', 'crunchgtr', 'distgtr', 'harmonica'];
+  const ACCENTED = ['bass', 'arp', 'ostinato', 'guitar', 'strum', 'pulse', 'broken', 'stabs'];
+
+  function perform(stems, ctx, preset) {
+    const feel = Object.assign({ groove: 'straight', humanize: 0.5 }, preset.feel || {});
+    const groove = GROOVES[feel.groove] || {};
+    if (feel.groove === 'tight') feel.humanize = Math.min(feel.humanize, 0.15);
+    const msToBeats = ctx.bpm / 60000;
+    const bar = ctx.beatsPerBar;
+    stems.forEach((stem) => stem.parts.forEach((part, pi) => {
+      const r = M.rng(M.hashSeed(ctx.seed, 'perform', stem.name, pi));
+      const def = part.def || {};
+      const human = feel.humanize * (SYNTH.includes(part.inst) ? 0.25 : 1) * (def.humanize === undefined ? 1 : def.humanize);
+      const roleKey = part.role === 'melody' || part.role === 'counter' ? 'melody' : part.role === 'bass' ? 'bass' : part.role === 'guitar' || part.role === 'strum' ? 'guitar' : null;
+      for (const n of part.notes) {
+        if (n.hold) continue;
+        const drum = typeof n.p === 'string';
+        const pos = ((n.t % bar) + bar) % bar;
+        const onBar = pos < 1e-6;
+        const onBeat = Math.abs(pos - Math.round(pos)) < 1e-6;
+        // timing
+        let ms = drum ? groove[n.p] || 0 : roleKey ? groove[roleKey] || 0 : 0;
+        const sigma = drum ? (n.p === 'kick' ? 2.5 : 4) : roleKey === 'melody' ? 9 : 6;
+        ms += Math.max(-2.5, Math.min(2.5, r.gauss())) * sigma * human * (onBar ? 0.5 : 1);
+        if (part.role === 'fx' || part.role === 'pad' || part.role === 'drone' || part.role === 'cluster') ms = 0;
+        if (ms) n.off = (n.off || 0) + Math.max(-25, Math.min(25, ms)) * msToBeats;
+        // dynamics
+        if (!drum && ACCENTED.includes(part.role)) {
+          const acc = onBar ? 1 : onBeat ? (bar === 4 && Math.abs(pos - 2) < 1e-6 ? 0.95 : 0.9) : 0.84;
+          n.v *= 1 - 0.5 * (1 - acc);
+        }
+        n.v *= 1 + (r() - 0.5) * 0.12 * human;
+        if (part.role !== 'drums' && part.role !== 'fx' && ctx.bars >= 4) {
+          const ph = (n.t % (4 * bar)) / (4 * bar);
+          n.v *= 0.95 + 0.07 * Math.sin(Math.PI * ph);
+        }
+        n.v = Math.max(0.05, Math.min(1, n.v));
+      }
+      if ((part.role === 'melody' || part.role === 'counter') && !['licks', 'bells'].includes(def.style)) articulate(part, ctx, r, feel);
+    }));
+  }
+
+  function articulate(part, ctx, r, feel) {
+    const inst = part.inst;
+    const notes = part.notes.filter((n) => typeof n.p === 'number').sort((a, b) => a.t - b.t);
+    const slideOdds = feel.slides === undefined ? 0.3 : feel.slides;
+    const bendOdds = feel.bends === undefined ? 0.3 : feel.bends;
+    const scale = M.scalePitches(ctx.keyPc, ctx.melodyScale, 20, 110);
+    notes.forEach((n, i) => {
+      const prev = notes[i - 1];
+      if (n.d >= 0.9 && VIB[inst]) n.vib = VIB[inst];
+      if (!prev || prev.t + prev.d < n.t - 0.3) return; // after a rest: a clean attack
+      const leap = n.p - prev.p;
+      if (BENDERS.includes(inst) && leap > 0 && n.d >= 0.5 && r() < bendOdds) {
+        const below = scale.filter((p) => p < n.p).pop();
+        if (below !== undefined && n.p - below <= 2 && below > prev.p - 1) { n.bend = n.p - below; return; }
+      }
+      if (SLIDERS.includes(inst) && Math.abs(leap) >= 3 && r() < slideOdds) n.slide = Math.sign(leap) * Math.min(2, Math.abs(leap) - 1);
+    });
+  }
+
+  Object.assign(M, { perform, GROOVES });
 })(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));
 
 // ---- dsp.js
@@ -1842,6 +2370,28 @@
   const cents = (c) => Math.pow(2, c / 1200);
   const VIB14 = cents(14) - 1, VIB18 = cents(18) - 1, VIB25 = cents(25) - 1;
   const UP7 = cents(7), DOWN6 = cents(-6), UP4 = cents(4), DOWN4 = cents(-4);
+
+  // Performance articulations carried on a note (set by perform.js): slide (scoop in from
+  // `slide` semitones away; positive = from below), bend (start `bend` semitones flat and bend
+  // up to pitch, guitar/harmonica style), hammer (start `hammer` semitones lower, then snap to
+  // pitch: a hammer-on), vib (extra delayed vibrato, cents). Returns t -> frequency multiplier,
+  // or null when the note has none.
+  function pitchMod(c) {
+    const n = c.note || {};
+    const slide = n.slide || 0, bend = n.bend || 0, hammer = n.hammer || 0, vib = n.vib || 0;
+    if (!slide && !bend && !hammer && !vib) return null;
+    const bendAt = n.bendAt === undefined ? 0.04 : n.bendAt, bendTime = n.bendTime || 0.11;
+    const vibDelay = Math.min(0.3, c.dur * 0.35), vibDepth = cents(vib) - 1, rate = 5.3;
+    return function (t) {
+      let semis = 0;
+      if (slide) semis -= slide * Math.max(0, 1 - t / 0.07);
+      if (bend) { const k = Math.min(1, Math.max(0, (t - bendAt) / bendTime)); semis -= bend * (1 - k * k * (3 - 2 * k)); }
+      if (hammer && t < 0.07) semis -= hammer;
+      let m = Math.pow(2, semis / 12);
+      if (vib && t > vibDelay) m *= 1 + vibDepth * Math.min(1, (t - vibDelay) / 0.25) * sin(TAU * rate * (t - vibDelay));
+      return m;
+    };
+  }
 
   // ---------------------------------------------------------------- drums
   const HAT_FREQS = [205.3, 304.4, 369.6, 522.7, 540, 800];
@@ -2207,13 +2757,15 @@
     const lp = new SVF();
     const det = [cents(-5), cents(5), 0.5];
     const ph = det.map(() => c.rng());
+    const pm = pitchMod(c); let pmv = 1;
     for (let i = 0; i < n; i++) {
       const t = i / sr;
       if ((i & 15) === 0) {
         const open = (1 - exp(-t * o.open)) * (0.72 + 0.28 * exp(-t * 3));
         lp.setup(o.base + (o.range * c.vel) * open * (t > c.dur ? exp(-(t - c.dur) * 6) : 1), 0.8, sr);
       }
-      const scoop = Math.pow(2, -o.scoop / 1200 * exp(-t * 25));
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      const scoop = Math.pow(2, -o.scoop / 1200 * exp(-t * 25)) * pmv;
       let x = 0;
       for (let k = 0; k < 3; k++) { const d = c.f * det[k] * scoop / sr; ph[k] += d; ph[k] -= Math.floor(ph[k]); x += k === 2 ? square(ph[k], d) * o.sub : saw(ph[k], d) * 0.6; }
       const y = tanh(o.drive * lp.tick(x)) / Math.min(o.drive, 1.6);
@@ -2240,12 +2792,14 @@
   };
   tonal.lead = function (c) {
     const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.15), g = amp(c.vel);
+    const pm = pitchMod(c); let pmv = 1;
     const lp = new SVF();
     let a = c.rng(), b = c.rng();
     for (let i = 0; i < n; i++) {
       const t = i / sr;
       if ((i & 15) === 0) lp.setup(2400 + 1600 * c.vel, 0.8, sr);
-      const vib = 1 + VIB18 * sin(TAU * 5.5 * t) * Math.min(1, Math.max(0, (t - 0.25) / 0.3));
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      const vib = (1 + VIB18 * sin(TAU * 5.5 * t) * Math.min(1, Math.max(0, (t - 0.25) / 0.3))) * pmv;
       const da = c.f * vib * DOWN4 / sr, db = c.f * vib * UP4 / sr;
       a += da; a -= Math.floor(a); b += db; b -= Math.floor(b);
       const x = saw(a, da) * 0.6 + square(b, db) * 0.35;
@@ -2254,10 +2808,12 @@
   };
   tonal.sqlead = function (c) { // chiptune pulse
     const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.04), g = amp(c.vel);
+    const pm = pitchMod(c); let pmv = 1;
     let a = c.rng();
     for (let i = 0; i < n; i++) {
       const t = i / sr;
-      const vib = 1 + VIB25 * sin(TAU * 6 * t) * Math.min(1, Math.max(0, (t - 0.18) / 0.2));
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      const vib = (1 + VIB25 * sin(TAU * 6 * t) * Math.min(1, Math.max(0, (t - 0.18) / 0.2))) * pmv;
       const d = c.f * vib / sr;
       a += d; a -= Math.floor(a);
       w(i, square(a, d, 0.25) * 0.5 * adsr(t, c.dur, 0.002, 0.08, 0.8, 0.03) * g);
@@ -2267,12 +2823,14 @@
     const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + o.r), g = amp(c.vel);
     const bp = new SVF(); bp.setup(c.f * 2, 12, sr);
     const vibDepth = cents(o.vib) - 1;
+    const pm = pitchMod(c); let pmv = 1;
     let ph = 0;
     for (let i = 0; i < n; i++) {
       const t = i / sr;
       const vib = 1 + vibDepth * sin(TAU * 6 * t) * Math.min(1, Math.max(0, (t - 0.15) / 0.25));
       const scoop = Math.pow(2, -50 / 1200 * exp(-t * 30));
-      ph += c.f * vib * scoop / sr;
+      if ((i & 15) === 0 && pm) pmv = pm(t);
+      ph += c.f * vib * scoop * pmv / sr;
       bp.tick(c.rng() * 2 - 1);
       const x = sin(TAU * ph) + o.h2 * sin(2 * TAU * ph) + o.h3 * sin(3 * TAU * ph) + bp.band * o.breath;
       w(i, x * adsr(t, c.dur, o.a, 0.1, 0.9, o.r) * 0.6 * g);
@@ -2292,33 +2850,6 @@
   };
 
   // ---------------------------------------------------------------- fx
-  tonal.riser = function (c) {
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.03), g = amp(c.vel);
-    const fl = new SVF(), fr = new SVF();
-    let ph = 0;
-    for (let i = 0; i < n; i++) {
-      const t = i / sr, k = Math.min(1, t / c.dur);
-      if ((i & 15) === 0) { const cut = 300 * Math.pow(8000 / 300, k); fl.setup(cut, 2.5, sr); fr.setup(cut * 1.07, 2.5, sr); }
-      fl.tick(c.rng() * 2 - 1); fr.tick(c.rng() * 2 - 1);
-      ph += (300 * Math.pow(5, k)) / sr;
-      const e = k * k * (t > c.dur ? Math.max(0, 1 - (t - c.dur) / 0.03) : 1) * g;
-      w(i, (fl.band * 1.6 + sin(TAU * ph) * 0.12) * e, (fr.band * 1.6 + sin(TAU * ph * 1.003) * 0.12) * e);
-    }
-  };
-  tonal.swell = function (c) { // reverse-cymbal-like swell into the downbeat
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.02), g = amp(c.vel);
-    const hp = new SVF(); hp.setup(2500, 0.7, sr);
-    const lp = new SVF();
-    let ph = 0;
-    for (let i = 0; i < n; i++) {
-      const t = i / sr, k = Math.min(1, t / c.dur);
-      if ((i & 31) === 0) lp.setup(200 + 3000 * k * k, 1, sr);
-      hp.tick(c.rng() * 2 - 1);
-      const d = c.f / sr; ph += d; ph -= Math.floor(ph);
-      const e = k * k * k * (t > c.dur ? 0 : 1) * g;
-      w(i, (hp.high * 0.8 + lp.tick(saw(ph, d)) * 0.5) * e);
-    }
-  };
   tonal.impact = function (c) {
     const w = writer(c), sr = c.sr, n = samplesFor(c, 3), g = amp(c.vel);
     const lp = new SVF();
@@ -2332,53 +2863,6 @@
       w(i, tanh(2.2 * x) * 0.85 * g);
     }
   };
-  tonal.shepard = function (c) { // endless rise (or fall): 8 octave-spaced tones under a fixed bell curve
-    const w = writer(c), sr = c.sr, total = c.dur, n = samplesFor(c, total + 0.5), g = amp(c.vel);
-    const K = 8, center = Math.log2(c.f);
-    const ph = new Float64Array(K), inc = new Float64Array(K), gain = new Float64Array(K);
-    for (let i = 0; i < n; i++) {
-      const t = i / sr;
-      if ((i & 15) === 0) {
-        let pos = (t / total) % 1;
-        if (c.note.down) pos = 1 - pos;
-        for (let k = 0; k < K; k++) {
-          const oct = k - K / 2 + pos;
-          inc[k] = Math.pow(2, center + oct) / sr;
-          gain[k] = exp(-(oct * oct) / 3.2);
-        }
-      }
-      let x = 0;
-      for (let k = 0; k < K; k++) { ph[k] += inc[k]; ph[k] -= Math.floor(ph[k]); x += sin(TAU * ph[k]) * gain[k]; }
-      w(i, x * 0.3 * g * Math.min(1, t / 0.5) * (t > total ? Math.max(0, 1 - (t - total) / 0.5) : 1));
-    }
-  };
-  tonal.wind = function (c) {
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 1), g = amp(c.vel);
-    const fl = new SVF(), fr = new SVF();
-    const p1 = c.rng() * TAU, p2 = c.rng() * TAU;
-    for (let i = 0; i < n; i++) {
-      const t = i / sr;
-      if ((i & 31) === 0) {
-        const m = 0.5 + 0.3 * sin(TAU * 0.13 * t + p1) + 0.2 * sin(TAU * 0.071 * t + p2);
-        fl.setup(250 + 900 * m, 2.2, sr); fr.setup(260 + 950 * (1 - m * 0.8), 2.2, sr);
-      }
-      fl.tick(c.rng() * 2 - 1); fr.tick(c.rng() * 2 - 1);
-      const e = adsr(t, c.dur, 1.5, 0.1, 1, 1) * (0.6 + 0.4 * sin(TAU * 0.09 * t + p2)) * g;
-      w(i, fl.band * e * 1.4, fr.band * e * 1.4);
-    }
-  };
-  tonal.scrape = function (c) { // metallic, inharmonic, bending down: dread textures and jump scares
-    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.5), g = amp(c.vel);
-    const bp = new SVF(); bp.setup(2200, 1.5, sr);
-    for (let i = 0; i < n; i++) {
-      const t = i / sr;
-      const bend = Math.pow(2, -t * 0.4);
-      const f = c.f > 0 ? c.f * bend : 600;
-      const x = sin(TAU * f * t + 6 * exp(-t * 1.2) * sin(TAU * f * 1.414 * t));
-      bp.tick(x + (c.rng() * 2 - 1) * 0.2);
-      w(i, (bp.band * 1.5 + x * 0.2) * adsr(t, c.dur, 0.15, 0.4, 0.6, 0.5) * g);
-    }
-  };
 
   // Drum voices are also playable as instruments (fx parts, one-shots).
   const INSTRUMENTS = Object.assign({}, tonal);
@@ -2387,14 +2871,179 @@
 
   const DRUM_VOICES = Object.keys(drums).filter((k) => drums[k]);
 
-  Object.assign(M, { INSTRUMENTS, DRUM_VOICES, drums });
+  Object.assign(M, { INSTRUMENTS, DRUM_VOICES, drums, pitchMod });
+  M.INST_KIT = { writer, samplesFor, adsr, amp, cents, tonal, INSTRUMENTS };
+})(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));
+
+// ---- guitar-sound.js
+// Guitar sounds: a plucked-string model (Karplus-Strong with a pick-position comb, pitch bends,
+// palm muting and a body or pickup), electric bass, a blues harmonica, and guitar amps.
+//
+// Amps are applied to a whole part after its notes are summed, the way six strings go into one
+// amplifier: a power chord through distortion growls (intermodulation) instead of sounding like
+// three separately fuzzed notes. renderLoopPart / renderOneShot call M.applyAmp for any part
+// whose instrument has an entry in M.AMP_OF.
+//
+// Note flags (set by the guitar generators and perform.js): pm (palm mute), mute (dead "chk"
+// strum), bend / slide / hammer / vib (see pitchMod in instruments.js).
+(function (M) {
+  'use strict';
+  const TAU = Math.PI * 2;
+  const { SVF } = M;
+  const { writer, samplesFor, adsr, amp } = M.INST_KIT;
+  const exp = Math.exp, sin = Math.sin, tanh = Math.tanh;
+
+  function gstring(c, o) {
+    const w = writer(c), sr = c.sr, note = c.note || {};
+    const dead = !!note.mute, pmute = !!note.pm;
+    const decay = dead ? 0.045 : pmute ? 0.16 : o.decay;
+    const ring = dead ? 0 : pmute ? 0.01 : (o.ring === undefined ? 0.08 : o.ring);
+    const n = samplesFor(c, Math.min(c.dur + ring + 0.25, decay * 1.6 + 0.3));
+    const g = amp(c.vel) * (o.level || 1) * (dead ? 0.6 : 1);
+    const pm = M.pitchMod(c);
+    const size = Math.ceil(sr / (c.f * 0.78)) + 4;
+    const buf = new Float32Array(size);
+    // Excitation: filtered noise (brighter when picked harder), minus a delayed copy for the
+    // pick position (plucking near the bridge = thin and bright, near the neck = round).
+    const bright = Math.min(0.98, o.bright * (pmute ? 0.4 : 1) * (dead ? 0.5 : 1) * (0.55 + 0.45 * c.vel));
+    const N0 = sr / c.f - 0.5;
+    const ex = new Float32Array(size);
+    let lp = 0;
+    const b = 0.04 + 0.92 * bright;
+    for (let i = 0; i < size; i++) { lp += b * ((c.rng() * 2 - 1) - lp); ex[i] = lp; }
+    const pickD = Math.max(1, Math.round((o.pick || 0.15) * N0));
+    for (let i = 0; i < size; i++) buf[i] = ex[i] - (i >= pickD ? ex[i - pickD] : 0) * 0.9;
+    const loss = Math.pow(10, -3 / (c.f * decay));
+    const smooth = pmute ? 0.35 : dead ? 0.3 : (o.smooth === undefined ? 0.5 : o.smooth); // loop low-pass (string damping)
+    let wi = size - 1, last = 0, mult = 1;
+    const tone = new SVF(); tone.setup(o.tone || 5000, 0.6, sr);
+    const bodies = o.body ? o.body.map(([f, q]) => { const s = new SVF(); s.setup(f, q, sr); return s; }) : null;
+    const hp = new SVF(); hp.setup(o.hp || 70, 0.7, sr);
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      if (pm && (i & 15) === 0) mult = pm(t);
+      const N = Math.min(size - 2, sr / (c.f * mult) - 0.5);
+      const rp = wi - N;
+      const i0 = Math.floor(rp), fr = rp - i0;
+      const a = buf[((i0 % size) + size) % size], bb = buf[(((i0 + 1) % size) + size) % size];
+      const y = a + (bb - a) * fr;
+      const damp = t > c.dur + ring ? 0.93 : 1;
+      buf[((wi % size) + size) % size] = ((1 - smooth) * y + smooth * last) * loss * damp;
+      last = y;
+      wi++;
+      let out = tone.tick(y);
+      if (bodies) { let s = 0; for (let k = 0; k < bodies.length; k++) { bodies[k].tick(y); s += bodies[k].band * o.body[k][2]; } out = out * 0.8 + s; }
+      hp.tick(out);
+      const fade = t > c.dur + ring ? Math.max(0, 1 - (t - c.dur - ring) / 0.25) : 1;
+      w(i, hp.high * g * fade * Math.min(1, t / 0.0008));
+    }
+  }
+
+  const T = M.INSTRUMENTS;
+  // Steel-string acoustic: bright pick, three body resonances (air, top, wood).
+  T.acoustic = (c) => gstring(c, { bright: 0.8, decay: 3.2, pick: 0.12, tone: 7000, ring: 0.15, body: [[105, 2.5, 0.5], [210, 2, 0.35], [420, 1.5, 0.2]], level: 1.1 });
+  // Nylon string: softer, rounder, picked nearer the neck.
+  T.nylon = (c) => gstring(c, { bright: 0.45, decay: 2.6, pick: 0.22, tone: 3800, ring: 0.2, smooth: 0.55, body: [[98, 2.5, 0.5], [200, 2, 0.3]], level: 1.2 });
+  // Electric guitars: the string and pickup here; the amp (clean, blues, crunch, distortion,
+  // lead) is applied to the whole part (AMP_OF below).
+  const electric = (decay, bright) => (c) => gstring(c, { bright, decay, pick: 0.2, tone: 4200, ring: 0.06, hp: 90 });
+  T.cleangtr = electric(3.5, 0.65);
+  T.bluesgtr = electric(4.5, 0.6);
+  T.crunchgtr = electric(4, 0.6);
+  T.distgtr = electric(4.5, 0.55);
+  T.leadgtr = electric(7, 0.6);
+  // Picked electric bass: a string plus a sine for weight on small speakers' harmonics.
+  T.ebass = function (c) {
+    gstring(c, { bright: 0.55, decay: 2.2, pick: 0.18, tone: 2600, ring: 0.03, hp: 35, level: 1 });
+    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.08), g = amp(c.vel) * 0.35;
+    const pm = M.pitchMod(c);
+    let ph = 0, mult = 1;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      if (pm && (i & 15) === 0) mult = pm(t);
+      ph += c.f * mult / sr;
+      w(i, tanh(1.5 * sin(TAU * ph)) * adsr(t, c.dur, 0.004, 0.3, 0.7, 0.06) * g);
+    }
+  };
+  // Blues harp: a reedy pulse through two formants, breath, and bends.
+  T.harmonica = function (c) {
+    const w = writer(c), sr = c.sr, n = samplesFor(c, c.dur + 0.1), g = amp(c.vel);
+    const pm = M.pitchMod(c);
+    const f1 = new SVF(), f2 = new SVF(), br = new SVF(), lp = new SVF();
+    f1.setup(1100, 2.5, sr); f2.setup(2600, 3, sr); br.setup(1800, 1.2, sr); lp.setup(4500, 0.7, sr);
+    let ph = c.rng(), mult = 1;
+    for (let i = 0; i < n; i++) {
+      const t = i / sr;
+      if ((i & 15) === 0) mult = (pm ? pm(t) : 1) * Math.pow(2, -30 / 1200 * exp(-t * 20));
+      const d = c.f * mult / sr;
+      ph += d; ph -= Math.floor(ph);
+      const x = M.square(ph, d, 0.32) * 0.8 + M.saw(ph, d) * 0.3;
+      br.tick(c.rng() * 2 - 1);
+      f1.tick(x); f2.tick(x);
+      const y = lp.tick(f1.band + f2.band * 0.6 + x * 0.25 + br.band * 0.12);
+      const e = adsr(t, c.dur, 0.035, 0.15, 0.85, 0.08) * (1 + 0.08 * sin(TAU * 4.8 * t) * Math.min(1, t / 0.4));
+      w(i, tanh(1.6 * y) * 0.7 * e * g);
+    }
+  };
+
+  // ---------------------------------------------------------------- amps
+  // pre: drive into the clipper; tight: high-pass before it (keeps palm mutes from farting out);
+  // cab: speaker roll-off; mid: [freq, gain] presence peak; bias: asymmetry (even harmonics).
+  const AMPS = {
+    clean: { pre: 1.4, tight: 60, cab: 6000, mid: [1200, 0.15], bias: 0.05 },
+    blues: { pre: 3.5, tight: 90, cab: 4800, mid: [900, 0.35], bias: 0.15 },
+    crunch: { pre: 7, tight: 110, cab: 4500, mid: [1000, 0.3], bias: 0.12 },
+    dist: { pre: 22, tight: 140, cab: 4200, mid: [1400, 0.25], bias: 0.08, scoop: [500, -0.3] },
+    lead: { pre: 30, tight: 160, cab: 4600, mid: [1600, 0.4], bias: 0.1 },
+  };
+  const AMP_OF = { cleangtr: 'clean', bluesgtr: 'blues', crunchgtr: 'crunch', distgtr: 'dist', leadgtr: 'lead' };
+
+  function ampPass(L, R, a, sr) {
+    let peak = 0;
+    for (let i = 0; i < L.length; i++) peak = Math.max(peak, Math.abs(L[i]), Math.abs(R[i]));
+    if (!peak) return;
+    const norm = 0.5 / peak;
+    const chans = [L, R].map(() => ({ tight: new SVF(), cab1: new SVF(), cab2: new SVF(), mid: new SVF(), scoop: new SVF() }));
+    chans.forEach((ch) => {
+      ch.tight.setup(a.tight, 0.7, sr); ch.cab1.setup(a.cab, 0.7, sr); ch.cab2.setup(a.cab * 1.15, 0.9, sr);
+      ch.mid.setup(a.mid[0], 1.2, sr); if (a.scoop) ch.scoop.setup(a.scoop[0], 1, sr);
+    });
+    const off = tanh(a.bias);
+    [L, R].forEach((X, k) => {
+      const ch = chans[k];
+      for (let i = 0; i < X.length; i++) {
+        ch.tight.tick(X[i] * norm);
+        const x = ch.tight.high * a.pre;
+        let y = (tanh(x + a.bias) - off) / Math.min(a.pre, 3);
+        ch.mid.tick(y); y += ch.mid.band * a.mid[1];
+        if (a.scoop) { ch.scoop.tick(y); y += ch.scoop.band * a.scoop[1]; }
+        ch.cab1.tick(y); ch.cab2.tick(ch.cab1.low);
+        X[i] = ch.cab2.low;
+      }
+    });
+  }
+
+  // Loops: run the amp over two passes and keep the second, so the filters are in steady state
+  // and the loop point stays seamless. One-shots: one pass.
+  function applyAmp(buf, inst, sr, loop) {
+    const a = AMPS[AMP_OF[inst]];
+    if (!a) return;
+    const n = buf.L.length;
+    if (!loop) { ampPass(buf.L, buf.R, a, sr); return; }
+    const L = new Float32Array(2 * n), R = new Float32Array(2 * n);
+    L.set(buf.L); L.set(buf.L, n); R.set(buf.R); R.set(buf.R, n);
+    ampPass(L, R, a, sr);
+    buf.L.set(L.subarray(n)); buf.R.set(R.subarray(n));
+  }
+
+  Object.assign(M, { AMPS, AMP_OF, applyAmp, GUITAR_INSTRUMENTS: ['acoustic', 'nylon', 'cleangtr', 'bluesgtr', 'crunchgtr', 'distgtr', 'leadgtr'] });
 })(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));
 
 // ---- render.js
 // Rendering: cue -> stereo stems that loop seamlessly, plus one-shots (stingers, intro, ending).
 //
 // Seamless loops: every part is rendered with its full release tail and then folded back onto
-// the loop start (periodic summation), held notes (drones, shepard tones, wind) are crossfaded
+// the loop start (periodic summation), held notes (drones, clusters) are crossfaded
 // into themselves, and reverb / delay run on the loop repeated until they reach steady state, so
 // the last sample of each stem flows into the first exactly as it will when the game loops it.
 //
@@ -2422,13 +3071,16 @@
     return { secPerBeat, loopSamples, warp };
   }
 
-  function renderNotes(notes, part, buf, cue, tm, sr, seedKey, lengthOverride) {
+  // `off` (beats) is a performance offset (perform.js: laid-back snare, rushed pickup...). In a
+  // loop a note pushed before 0 wraps to the end (`wrap` = loop length in samples).
+  function renderNotes(notes, part, buf, cue, tm, sr, seedKey, lengthOverride, wrap) {
     const instName = part.inst;
     notes.forEach((n, ni) => {
       const name = typeof n.p === 'string' ? n.p : (n.inst || instName);
       const inst = M.INSTRUMENTS[name];
       if (!inst) throw new Error(`unknown instrument '${name}'`);
-      const start = Math.round(tm.warp(n.t) * tm.secPerBeat * sr);
+      let start = Math.round((tm.warp(n.t) + (n.off || 0)) * tm.secPerBeat * sr);
+      if (start < 0) start = wrap ? start + wrap : 0;
       if (start >= buf.L.length) return;
       inst({
         L: buf.L, R: buf.R, start, sr,
@@ -2459,7 +3111,7 @@
     const regular = part.notes.filter((n) => !n.hold), held = part.notes.filter((n) => n.hold);
     if (regular.length) {
       const buf = stereo(Ls + Math.round(opt.tail * sr));
-      renderNotes(regular, part, buf, cue, tm, sr, `${stemName}/${pi}`);
+      renderNotes(regular, part, buf, cue, tm, sr, `${stemName}/${pi}`, undefined, Ls);
       for (let i = 0; i < buf.L.length; i++) { const k = i % Ls; out.L[k] += buf.L[i]; out.R[k] += buf.R[i]; }
     }
     if (held.length) {
@@ -2474,6 +3126,7 @@
         } else { out.L[i] += buf.L[i]; out.R[i] += buf.R[i]; }
       }
     }
+    if (M.applyAmp) M.applyAmp(out, part.inst, sr, true);
     const measured = normalizePart(out, part.target, sr);
     return { buf: out, measured };
   }
@@ -2544,6 +3197,7 @@
     shot.parts.forEach((part, pi) => {
       const buf = stereo(n);
       renderNotes(part.notes, part, buf, cue, noSwing, sr, `${shot.name}/${pi}`);
+      if (M.applyAmp) M.applyAmp(buf, part.inst, sr, false);
       normalizePart(buf, part.target, sr);
       for (let i = 0; i < n; i++) { out.L[i] += buf.L[i]; out.R[i] += buf.R[i]; }
     });
@@ -2676,7 +3330,8 @@
     epiano: 4, piano: 0, musicbox: 10, marimba: 12, celesta: 8, bell: 14, organ: 19,
     strings: 48, tremolo: 44, spiccato: 48, pad: 90, warmpad: 89, darkpad: 94, drone: 95, choir: 52, glass: 92,
     brass: 61, horn: 60, braam: 57, arp: 81, lead: 81, sqlead: 80, whistle: 78, flute: 73,
-    riser: 102, swell: 102, impact: 116, shepard: 99, wind: 122, scrape: 119,
+    impact: 116,
+    acoustic: 25, nylon: 24, cleangtr: 27, bluesgtr: 27, crunchgtr: 29, distgtr: 30, leadgtr: 30, ebass: 34, harmonica: 22,
   };
   const GM_DRUMS = { kick: 36, snare: 38, clap: 39, rim: 37, tick: 76, hat: 42, openhat: 46, ride: 51, crash: 49, shaker: 70, taiko: 35, kick808: 36 };
   const TOMS = [41, 45, 48];
@@ -2963,7 +3618,7 @@
 <script>
 (function () {
   'use strict';
-  const MOODS = {"exploration":{"title":"Open-world exploration","vibe":"Wide, curious and hopeful; room to breathe between discoveries","genres":["open world","adventure","rpg","free roam"],"bpm":92,"key":"D","mode":"lydian","progression":"I:2 II:2 vi:2 V:2","room":{"size":0.85,"damp":0.35},"stems":[{"name":"bed","min":0,"full":0,"reverb":0.45,"parts":[{"role":"pad","inst":"warmpad","octave":4},{"role":"bass","style":"sustain","inst":"subbass","octave":2,"level":-4}]},{"name":"motion","min":0.15,"full":0.3,"reverb":0.4,"delay":{"beats":0.75,"feedback":0.3,"mix":0.2},"parts":[{"role":"arp","inst":"harp","pattern":"wave","rate":2,"octave":4,"span":2},{"role":"drums","pattern":"shaker16","level":-2}]},{"name":"groove","min":0.35,"full":0.55,"reverb":0.2,"parts":[{"role":"drums","pattern":"halftime","voices":["kick","snare","hat"],"fill":true},{"role":"bass","style":"quarters","inst":"pluckbass","octave":2}]},{"name":"melody","min":0.6,"full":0.8,"reverb":0.45,"parts":[{"role":"melody","inst":"flute","density":"sparse","octave":5}]},{"name":"swell","min":0.85,"full":1,"reverb":0.5,"parts":[{"role":"counter","inst":"strings","range":[62,79]},{"role":"pad","inst":"choir","octave":4,"level":-3}]}],"stingers":["discover","hit","levelup"]},"action_combat":{"title":"Action combat","vibe":"Driving, aggressive, heroic danger: a mission shootout or an arena fight","genres":["shooter","battlegrounds","action","gta-style mission"],"bpm":140,"key":"D","mode":"aeolian","progression":"i:2 VI VII i:2 iv V","room":{"size":0.7,"damp":0.5},"stems":[{"name":"bed","min":0,"full":0,"reverb":0.35,"parts":[{"role":"drone","inst":"drone","octave":2},{"role":"pad","inst":"darkpad","octave":3,"level":-2}]},{"name":"pulse","min":0.2,"full":0.35,"reverb":0.15,"parts":[{"role":"bass","style":"ostinato16","inst":"synthbass","octave":2},{"role":"drums","pattern":"action_light"}]},{"name":"drums","min":0.45,"full":0.6,"reverb":0.18,"parts":[{"role":"drums","pattern":"action","voices":["kick","snare","tom"],"fill":true},{"role":"ostinato","inst":"spiccato","octave":3}]},{"name":"brass","min":0.7,"full":0.85,"reverb":0.35,"parts":[{"role":"melody","inst":"brass","density":"medium","range":[57,74],"contour":"leap","form":"sentence"},{"role":"stabs","inst":"horn","rhythm":"stab_end","octave":3,"level":-4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.3,"parts":[{"role":"fx","style":"braam","every":4,"bars":2,"octave":1},{"role":"fx","style":"riser","every":8,"bars":2},{"role":"fx","style":"crash","every":4}]}],"stingers":["alert","hit","victory","fail"]},"car_chase":{"title":"Car chase / wanted level","vibe":"Pulsing synth sequencer that climbs with the heat: cops on your tail","genres":["gta-style","driving","heist getaway","police chase"],"bpm":128,"key":"E","mode":"aeolian","progression":"i:2 VII:2 VI:2 VII:2","room":{"size":0.65,"damp":0.5},"stems":[{"name":"sequencer","min":0,"full":0,"reverb":0.25,"delay":{"beats":0.75,"feedback":0.35,"mix":0.18},"parts":[{"role":"arp","inst":"arp","pattern":"groups3","rate":1,"octave":3,"span":2},{"role":"pad","inst":"darkpad","octave":3,"level":-3}]},{"name":"pursuit","min":0.25,"full":0.4,"reverb":0.1,"pump":0.3,"parts":[{"role":"bass","style":"octaves","inst":"synthbass","octave":2},{"role":"drums","pattern":"hats16"}]},{"name":"drums","min":0.5,"full":0.65,"reverb":0.15,"parts":[{"role":"drums","pattern":"chase","voices":["kick","snare","tom"],"fill":true}]},{"name":"lead","min":0.7,"full":0.85,"reverb":0.3,"delay":{"beats":0.75,"feedback":0.35,"mix":0.22},"parts":[{"role":"melody","style":"hook","inst":"lead","octave":4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.25,"parts":[{"role":"stabs","inst":"brass","rhythm":"tresillo","octave":4},{"role":"fx","style":"riser","every":4,"bars":1},{"role":"fx","style":"crash","every":4}]}],"stingers":["alert","hit","fail"]},"heist_stealth":{"title":"Heist / stealth","vibe":"Cool, ticking, sneaky: everything is fine until it isn't","genres":["heist","stealth","infiltration","spy"],"bpm":96,"key":"A","mode":"dorian","progression":"i:2 IV:2 i:2 VII:2","room":{"size":0.6,"damp":0.55},"stems":[{"name":"clock","min":0,"full":0,"reverb":0.3,"parts":[{"role":"drums","pattern":"tick8"},{"role":"pad","inst":"darkpad","octave":3,"level":-3}]},{"name":"prowl","min":0.2,"full":0.4,"reverb":0.2,"parts":[{"role":"bass","style":"syncopated","inst":"pluckbass","octave":2},{"role":"ostinato","inst":"pizz","shape":[0,2,1,2],"rate":2,"octave":3,"level":-3}]},{"name":"suspense","min":0.45,"full":0.65,"reverb":0.35,"parts":[{"role":"pad","inst":"tremolo","octave":4,"voices":3,"level":-2},{"role":"pulse","inst":"musicbox","rhythm":"quarters","notes":[4,0],"octave":5,"level":-3}]},{"name":"drums","min":0.7,"full":0.85,"reverb":0.15,"parts":[{"role":"drums","pattern":"breakbeat","voices":["kick","snare","hat"],"fill":true}]},{"name":"alarm","min":0.9,"full":1,"reverb":0.3,"parts":[{"role":"stabs","inst":"brass","rhythm":"pushes","octave":4},{"role":"fx","style":"riser","every":4,"bars":2}]}],"stingers":["alert","discover","fail","victory"]},"horror_dread":{"title":"Horror dread (exploring)","vibe":"Something is here with you: no melody, just pressure that builds as the threat gets closer","genres":["horror","survival horror","haunted house","liminal"],"bpm":60,"key":"C#","mode":"phrygian","progression":"i:4 II:2 i:2","room":{"size":0.95,"damp":0.6},"oneShotReverb":0.45,"stems":[{"name":"drone","min":0,"full":0,"reverb":0.5,"parts":[{"role":"drone","inst":"drone","octave":2,"intervals":[0,1]},{"role":"fx","style":"wind","level":2}]},{"name":"unease","min":0.15,"full":0.35,"reverb":0.6,"parts":[{"role":"cluster","inst":"tremolo","octave":4,"intervals":[0,1,6],"level":-2},{"role":"bells","inst":"musicbox","detune":-30,"chance":0.12,"range":[72,91],"level":-4}]},{"name":"pulse","min":0.4,"full":0.6,"reverb":0.4,"parts":[{"role":"drums","pattern":"heartbeat","voices":["kick"],"level":2},{"role":"pad","inst":"darkpad","octave":2}]},{"name":"threat","min":0.65,"full":0.85,"reverb":0.5,"parts":[{"role":"fx","style":"shepard","octave":4},{"role":"drums","pattern":"heartbeat_fast","voices":["kick"],"level":-2}]},{"name":"peak","min":0.9,"full":1,"reverb":0.45,"parts":[{"role":"fx","style":"braam","every":4,"bars":2,"octave":1},{"role":"fx","style":"scrape","count":3},{"role":"drums","pattern":"horror_pulse","voices":["kick","tom"]}]}],"stingers":["jumpscare","tension","fail","discover"]},"horror_chase":{"title":"Horror chase","vibe":"Run. Relentless low pounding and screeching strings while the monster closes in","genres":["horror","monster chase","escape"],"bpm":165,"key":"D","mode":"phrygian","progression":"i II i vii","room":{"size":0.85,"damp":0.55},"stems":[{"name":"dread","min":0,"full":0,"reverb":0.35,"parts":[{"role":"ostinato","inst":"spiccato","shape":[0,1,0,1,0,2,0,1],"octave":3},{"role":"drone","inst":"drone","octave":2,"intervals":[0,1],"level":-2}]},{"name":"pound","min":0.25,"full":0.45,"reverb":0.25,"parts":[{"role":"drums","pattern":"pound","fill":true}]},{"name":"chug","min":0.5,"full":0.65,"reverb":0.15,"parts":[{"role":"bass","style":"chug","inst":"reese","octave":2}]},{"name":"screech","min":0.7,"full":0.85,"reverb":0.4,"parts":[{"role":"cluster","inst":"tremolo","octave":5,"intervals":[0,1,6,11]},{"role":"fx","style":"scrape","count":4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.35,"parts":[{"role":"fx","style":"shepard","octave":4,"level":2},{"role":"fx","style":"crash","every":2},{"role":"fx","style":"riser","every":4,"bars":1}]}],"stingers":["jumpscare","fail","hit"]},"horror_lullaby":{"title":"Creepy lullaby","vibe":"A child's music box in an empty house: sweet, out of tune and wrong","genres":["horror","creepy cute","toy horror","haunted"],"bpm":84,"beatsPerBar":3,"steps":12,"key":"A","mode":"harmonic_minor","progression":"i iv V i VI iv V:2","room":{"size":0.92,"damp":0.5},"stems":[{"name":"musicbox","min":0,"full":0,"reverb":0.55,"parts":[{"role":"melody","inst":"musicbox","density":"medium","phrase":2,"range":[69,88],"detune":-12},{"role":"drone","inst":"drone","octave":2,"level":-6}]},{"name":"waltz","min":0.25,"full":0.45,"reverb":0.4,"parts":[{"role":"broken","inst":"celesta","octave":4,"rate":2,"level":-3,"detune":20},{"role":"drums","pattern":"waltz","voices":["kick","rim"],"level":-3}]},{"name":"choir","min":0.5,"full":0.7,"reverb":0.6,"parts":[{"role":"pad","inst":"choir","octave":4,"voices":3},{"role":"cluster","inst":"tremolo","octave":3,"intervals":[0,1],"level":-5}]},{"name":"wrong","min":0.75,"full":0.9,"reverb":0.55,"parts":[{"role":"counter","inst":"musicbox","range":[60,76],"detune":-45,"every":1},{"role":"fx","style":"shepard","octave":4,"down":true}]},{"name":"peak","min":0.92,"full":1,"reverb":0.5,"parts":[{"role":"fx","style":"scrape","count":3},{"role":"fx","style":"braam","every":4,"bars":2,"octave":1,"level":-2}]}],"stingers":["jumpscare","tension","discover"]},"epic_boss":{"title":"Epic boss fight","vibe":"Huge, mythic and dangerous: choir, taiko and brass against something bigger than you","genres":["boss fight","fantasy","rpg","battlegrounds finale"],"bpm":150,"key":"C","mode":"aeolian","progression":"i VI III VII i VI iv V","room":{"size":0.9,"damp":0.4},"stems":[{"name":"choir","min":0,"full":0,"reverb":0.5,"parts":[{"role":"pad","inst":"choir","octave":4},{"role":"drone","inst":"drone","octave":2,"level":-3}]},{"name":"taiko","min":0.2,"full":0.4,"reverb":0.35,"parts":[{"role":"drums","pattern":"taiko","fill":true}]},{"name":"strings","min":0.45,"full":0.6,"reverb":0.3,"parts":[{"role":"ostinato","inst":"spiccato","shape":[0,0,2,0,1,0,2,1],"octave":3},{"role":"bass","style":"sustain","inst":"subbass","octave":2}]},{"name":"brass","min":0.65,"full":0.8,"reverb":0.45,"parts":[{"role":"melody","inst":"brass","density":"sparse","range":[55,72],"contour":"leap","form":"sentence"},{"role":"counter","inst":"horn","range":[48,64],"level":-3}]},{"name":"peak","min":0.85,"full":1,"reverb":0.35,"parts":[{"role":"drums","pattern":"epic","voices":["kick","snare","crash"]},{"role":"fx","style":"braam","every":4,"bars":2,"octave":1},{"role":"stabs","inst":"choir","rhythm":"stab2","octave":5,"length":1.5,"level":-3}]}],"stingers":["alert","hit","victory","fail"]},"cozy_village":{"title":"Cozy village / simulator","vibe":"Warm, safe, a little bouncy: the place you come home to","genres":["simulator","tycoon","farming","cozy","hangout"],"bpm":100,"key":"F","mode":"ionian","swing":0.2,"swingGrid":8,"progression":"I vi IV V I iii IV V","room":{"size":0.55,"damp":0.6},"stems":[{"name":"guitar","min":0,"full":0,"reverb":0.3,"parts":[{"role":"strum","inst":"guitar","rhythm":"tresillo","octave":3},{"role":"pad","inst":"warmpad","octave":4,"level":-6}]},{"name":"bass","min":0.15,"full":0.3,"reverb":0.15,"parts":[{"role":"bass","style":"walking","inst":"pizz","octave":2},{"role":"drums","pattern":"shaker16","level":-3}]},{"name":"drums","min":0.35,"full":0.5,"reverb":0.2,"parts":[{"role":"drums","pattern":"lofi","voices":["kick","snare","rim"],"level":-2}]},{"name":"melody","min":0.55,"full":0.75,"reverb":0.35,"parts":[{"role":"melody","inst":"marimba","density":"medium","octave":5}]},{"name":"sparkle","min":0.8,"full":1,"reverb":0.45,"parts":[{"role":"bells","inst":"celesta","chance":0.35,"range":[77,96]},{"role":"counter","inst":"strings","range":[60,77],"level":-3}]}],"stingers":["discover","levelup","victory"]},"sad_emotional":{"title":"Sad / emotional","vibe":"Loss and memory: quiet piano, then strings that say what the characters can't","genres":["story","cutscene","memorial","ending"],"bpm":72,"key":"E","mode":"aeolian","progression":"i VI III VII i VI iv V","room":{"size":0.85,"damp":0.45},"stems":[{"name":"piano","min":0,"full":0,"reverb":0.45,"parts":[{"role":"broken","inst":"piano","pattern":"nine","octave":3}]},{"name":"strings","min":0.25,"full":0.45,"reverb":0.5,"parts":[{"role":"pad","inst":"strings","octave":4}]},{"name":"melody","min":0.5,"full":0.7,"reverb":0.5,"parts":[{"role":"melody","inst":"piano","density":"sparse","range":[64,83],"contour":"fall","form":"period"}]},{"name":"cello","min":0.75,"full":0.9,"reverb":0.5,"parts":[{"role":"counter","inst":"strings","range":[48,64]}]},{"name":"swell","min":0.9,"full":1,"reverb":0.55,"parts":[{"role":"pad","inst":"choir","octave":4,"level":-2}]}],"stingers":["fail","discover"]},"victory_triumph":{"title":"Victory / triumph","vibe":"You did it: bright brass, marching snare, a moment to feel big","genres":["results screen","win","celebration","round end"],"bpm":120,"key":"Bb","mode":"ionian","progression":"I bVII IV I vi IV V:2","room":{"size":0.8,"damp":0.4},"stems":[{"name":"strings","min":0,"full":0,"reverb":0.4,"parts":[{"role":"pad","inst":"strings","octave":4},{"role":"bass","style":"sustain","inst":"subbass","octave":2,"level":-4}]},{"name":"march","min":0.25,"full":0.45,"reverb":0.25,"parts":[{"role":"drums","pattern":"march","fill":true}]},{"name":"fanfare","min":0.5,"full":0.7,"reverb":0.4,"parts":[{"role":"melody","style":"fanfare","inst":"brass","octave":4}]},{"name":"horns","min":0.75,"full":0.9,"reverb":0.4,"parts":[{"role":"counter","inst":"horn","range":[55,70]}]},{"name":"peak","min":0.9,"full":1,"reverb":0.35,"parts":[{"role":"pad","inst":"choir","octave":4,"level":-2},{"role":"drums","pattern":"epic","voices":["taiko","crash"]}]}],"stingers":["victory","levelup","hit"]},"cyberpunk_night":{"title":"Cyberpunk night / synthwave","vibe":"Neon, rain and chrome: cool, moody and a little dangerous","genres":["cyberpunk","sci-fi city","synthwave","night city"],"bpm":105,"key":"A","mode":"aeolian","progression":"i:2 VI:2 III:2 VII:2","room":{"size":0.8,"damp":0.35},"stems":[{"name":"pads","min":0,"full":0,"reverb":0.45,"delay":{"beats":0.75,"feedback":0.4,"mix":0.2},"parts":[{"role":"pad","inst":"pad","octave":4},{"role":"arp","inst":"arp","pattern":"pedal","rate":2,"octave":4,"span":1,"colors":2,"level":-4}]},{"name":"bass","min":0.2,"full":0.35,"reverb":0.1,"pump":0.35,"parts":[{"role":"bass","style":"octaves","inst":"synthbass","octave":2}]},{"name":"drums","min":0.4,"full":0.55,"reverb":0.3,"parts":[{"role":"drums","pattern":"synthwave","fill":true}]},{"name":"lead","min":0.6,"full":0.8,"reverb":0.35,"delay":{"beats":0.75,"feedback":0.4,"mix":0.25},"parts":[{"role":"melody","style":"hook","inst":"lead","octave":5}]},{"name":"shine","min":0.85,"full":1,"reverb":0.4,"parts":[{"role":"bells","inst":"glass","chance":0.25,"range":[72,91]},{"role":"fx","style":"riser","every":8,"bars":2},{"role":"fx","style":"crash","every":8}]}],"stingers":["alert","discover","hit"]},"scifi_space":{"title":"Sci-fi / space","vibe":"Vast, weightless, faintly alien: drifting between stars","genres":["space","sci-fi","station","alien world"],"bpm":80,"key":"E","mode":"lydian","progression":"I:2 II:2 I:2 vii:2","room":{"size":0.95,"damp":0.3},"stems":[{"name":"space","min":0,"full":0,"reverb":0.55,"parts":[{"role":"pad","inst":"glass","octave":4},{"role":"drone","inst":"drone","octave":2,"level":-4}]},{"name":"signal","min":0.2,"full":0.4,"reverb":0.4,"delay":{"beats":0.75,"feedback":0.45,"mix":0.25},"parts":[{"role":"arp","inst":"pluck","pattern":"spread","rate":1,"octave":4,"span":2}]},{"name":"drive","min":0.45,"full":0.65,"reverb":0.25,"parts":[{"role":"drums","pattern":"halftime","voices":["kick","snare","hat"]},{"role":"bass","style":"eighths","inst":"subbass","octave":2}]},{"name":"theme","min":0.7,"full":0.85,"reverb":0.5,"parts":[{"role":"melody","inst":"lead","density":"sparse","octave":5}]},{"name":"cosmos","min":0.9,"full":1,"reverb":0.55,"parts":[{"role":"fx","style":"shepard","octave":4,"level":-2},{"role":"pad","inst":"strings","octave":4,"level":-3}]}],"stingers":["discover","alert","levelup"]},"western_desert":{"title":"Western / desert","vibe":"Sun, dust and a standoff: tremolo guitar, a lonely whistle, galloping hooves","genres":["western","desert","frontier","showdown"],"bpm":100,"steps":12,"key":"A","mode":"phrygian_dominant","progression":"I:2 II:2 vii:2 I:2","room":{"size":0.9,"damp":0.35},"stems":[{"name":"guitar","min":0,"full":0,"reverb":0.55,"parts":[{"role":"strum","inst":"tremguitar","rhythm":"triplet12","octave":3},{"role":"drone","inst":"drone","octave":2,"level":-6}]},{"name":"gallop","min":0.25,"full":0.45,"reverb":0.25,"parts":[{"role":"drums","pattern":"gallop"},{"role":"bass","style":"sustain","inst":"pluckbass","octave":2}]},{"name":"whistle","min":0.5,"full":0.7,"reverb":0.6,"parts":[{"role":"melody","inst":"whistle","density":"sparse","range":[72,91],"contour":"turn"}]},{"name":"choir","min":0.75,"full":0.9,"reverb":0.55,"parts":[{"role":"pad","inst":"choir","octave":4},{"role":"counter","inst":"horn","range":[52,67],"level":-3}]},{"name":"showdown","min":0.9,"full":1,"reverb":0.45,"parts":[{"role":"fx","style":"impact","every":4},{"role":"stabs","inst":"brass","rhythm":"once","octave":3,"length":2}]}],"stingers":["alert","victory","fail"]},"menu_lobby":{"title":"Menu / lobby (lo-fi)","vibe":"Relaxed and friendly: something to hang out to while the round loads","genres":["lobby","menu","hangout","chill"],"bpm":84,"key":"F","mode":"ionian","swing":0.15,"swingGrid":8,"progression":"ii7 V7 Imaj7:2 vi7:2 ii7 V7","room":{"size":0.6,"damp":0.65},"stems":[{"name":"keys","min":0,"full":0,"reverb":0.35,"parts":[{"role":"pad","inst":"epiano","octave":4,"voices":4}]},{"name":"bass","min":0.15,"full":0.3,"reverb":0.1,"parts":[{"role":"bass","style":"syncopated","inst":"subbass","octave":2}]},{"name":"beat","min":0.35,"full":0.5,"reverb":0.2,"parts":[{"role":"drums","pattern":"lofi"}]},{"name":"melody","min":0.55,"full":0.75,"reverb":0.4,"delay":{"beats":0.75,"feedback":0.3,"mix":0.18},"parts":[{"role":"melody","inst":"epiano","density":"sparse","octave":5}]},{"name":"sparkle","min":0.8,"full":1,"reverb":0.45,"parts":[{"role":"bells","inst":"celesta","chance":0.25,"range":[77,94]},{"role":"pad","inst":"warmpad","octave":4,"level":-4}]}],"stingers":["levelup","discover"]},"racing_drive":{"title":"Racing / driving","vibe":"Foot down, wind in your face: bright, fast and confident","genres":["racing","driving","open road","speedrun"],"bpm":128,"key":"E","mode":"ionian","progression":"I:2 bVII:2 IV:2 I:2","room":{"size":0.6,"damp":0.45},"stems":[{"name":"synths","min":0,"full":0,"reverb":0.35,"delay":{"beats":0.75,"feedback":0.3,"mix":0.15},"parts":[{"role":"pad","inst":"pad","octave":4,"level":-2},{"role":"arp","inst":"arp","pattern":"broken","rate":1,"octave":4,"span":1}]},{"name":"bass","min":0.2,"full":0.4,"reverb":0.1,"pump":0.3,"parts":[{"role":"bass","style":"offbeat","inst":"synthbass","octave":2}]},{"name":"drums","min":0.45,"full":0.6,"reverb":0.15,"parts":[{"role":"drums","pattern":"four_floor","fill":true}]},{"name":"lead","min":0.65,"full":0.8,"reverb":0.3,"parts":[{"role":"melody","style":"hook","inst":"lead","octave":5}]},{"name":"peak","min":0.85,"full":1,"reverb":0.3,"parts":[{"role":"stabs","inst":"pad","rhythm":"pushes","octave":5,"level":-2},{"role":"fx","style":"riser","every":8,"bars":2},{"role":"fx","style":"crash","every":4}]}],"stingers":["hit","victory","levelup"]},"obby_upbeat":{"title":"Obby / upbeat chiptune","vibe":"Bouncy, bright and silly: jump, fall, laugh, try again","genres":["obby","platformer","minigames","kids"],"bpm":132,"key":"C","mode":"ionian","progression":"I V vi IV","room":{"size":0.45,"damp":0.6},"stems":[{"name":"bounce","min":0,"full":0,"reverb":0.2,"parts":[{"role":"arp","inst":"marimba","pattern":"alberti","rate":2,"octave":4,"span":1},{"role":"pad","inst":"warmpad","octave":4,"level":-6}]},{"name":"bass","min":0.15,"full":0.3,"reverb":0.1,"parts":[{"role":"bass","style":"octaves","inst":"fmbass","octave":2}]},{"name":"drums","min":0.35,"full":0.5,"reverb":0.12,"parts":[{"role":"drums","pattern":"chiptune","fill":true}]},{"name":"lead","min":0.55,"full":0.75,"reverb":0.2,"parts":[{"role":"melody","style":"hook","inst":"sqlead","octave":5}]},{"name":"sparkle","min":0.8,"full":1,"reverb":0.3,"parts":[{"role":"counter","inst":"sqlead","range":[60,76],"every":1,"level":-5},{"role":"bells","inst":"celesta","chance":0.3,"range":[79,96]}]}],"stingers":["levelup","fail","victory","discover"]},"battle_lobby_countdown":{"title":"Round countdown / pre-match","vibe":"Get ready: a rising, ticking build that hands off to the match music on the downbeat","genres":["battle royale","round start","countdown","pvp"],"bpm":120,"key":"G","mode":"aeolian","progression":"i:2 VI:2 iv:2 V:2","room":{"size":0.7,"damp":0.5},"stems":[{"name":"tick","min":0,"full":0,"reverb":0.3,"parts":[{"role":"drums","pattern":"clock"},{"role":"pad","inst":"darkpad","octave":3}]},{"name":"pulse","min":0.25,"full":0.45,"reverb":0.15,"parts":[{"role":"bass","style":"eighths","inst":"synthbass","octave":2},{"role":"pulse","inst":"pluck","rhythm":"eighths","notes":[0,4],"octave":5,"level":-3}]},{"name":"build","min":0.5,"full":0.7,"reverb":0.2,"parts":[{"role":"drums","pattern":"march","voices":["snare"]},{"role":"ostinato","inst":"spiccato","octave":3}]},{"name":"rise","min":0.75,"full":0.9,"reverb":0.3,"parts":[{"role":"fx","style":"riser","every":4,"bars":4},{"role":"pad","inst":"strings","octave":4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.3,"parts":[{"role":"drums","pattern":"action","voices":["kick","tom"],"fill":true},{"role":"fx","style":"crash","every":4}]}],"stingers":["alert","hit"]}};
+  const MOODS = {"exploration":{"title":"Open-world exploration","vibe":"Wide, curious and hopeful; room to breathe between discoveries","genres":["open world","adventure","rpg","free roam"],"bpm":92,"key":"D","mode":"lydian","progression":"I:2 II:2 vi:2 V:2","room":{"size":0.85,"damp":0.35},"stems":[{"name":"bed","min":0,"full":0,"reverb":0.45,"parts":[{"role":"pad","inst":"warmpad","octave":4},{"role":"bass","style":"sustain","inst":"subbass","octave":2,"level":-4}]},{"name":"motion","min":0.15,"full":0.3,"reverb":0.4,"delay":{"beats":0.75,"feedback":0.3,"mix":0.2},"parts":[{"role":"arp","inst":"harp","pattern":"wave","rate":2,"octave":4,"span":2},{"role":"drums","pattern":"shaker16","level":-2}]},{"name":"groove","min":0.35,"full":0.55,"reverb":0.2,"parts":[{"role":"drums","pattern":"halftime","voices":["kick","snare","hat"],"fill":true},{"role":"bass","style":"quarters","inst":"pluckbass","octave":2}]},{"name":"melody","min":0.6,"full":0.8,"reverb":0.45,"parts":[{"role":"melody","inst":"flute","density":"sparse","octave":5}]},{"name":"swell","min":0.85,"full":1,"reverb":0.5,"parts":[{"role":"counter","inst":"strings","range":[62,79]},{"role":"pad","inst":"choir","octave":4,"level":-3}]}],"stingers":["discover","hit","levelup"]},"action_combat":{"title":"Action combat","vibe":"Driving, aggressive, heroic danger: a mission shootout or an arena fight","genres":["shooter","battlegrounds","action","gta-style mission"],"bpm":140,"key":"D","mode":"aeolian","progression":"i:2 VI VII i:2 iv V","room":{"size":0.7,"damp":0.5},"stems":[{"name":"bed","min":0,"full":0,"reverb":0.35,"parts":[{"role":"drone","inst":"drone","octave":2},{"role":"pad","inst":"darkpad","octave":3,"level":-2}]},{"name":"pulse","min":0.2,"full":0.35,"reverb":0.15,"parts":[{"role":"bass","style":"ostinato16","inst":"synthbass","octave":2},{"role":"drums","pattern":"action_light"}]},{"name":"drums","min":0.45,"full":0.6,"reverb":0.18,"parts":[{"role":"drums","pattern":"action","voices":["kick","snare","tom"],"fill":true},{"role":"ostinato","inst":"spiccato","octave":3}]},{"name":"brass","min":0.7,"full":0.85,"reverb":0.35,"parts":[{"role":"melody","inst":"brass","density":"medium","range":[57,74],"contour":"leap","form":"sentence"},{"role":"stabs","inst":"horn","rhythm":"stab_end","octave":3,"level":-4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.3,"parts":[{"role":"fx","style":"braam","every":4,"bars":2,"octave":1},{"role":"fx","style":"roll","every":8,"bars":1},{"role":"fx","style":"crash","every":4}]}],"stingers":["alert","hit","victory","fail"]},"car_chase":{"title":"Car chase / wanted level","vibe":"Pulsing synth sequencer that climbs with the heat: cops on your tail","genres":["gta-style","driving","heist getaway","police chase"],"bpm":128,"key":"E","mode":"aeolian","progression":"i:2 VII:2 VI:2 VII:2","room":{"size":0.65,"damp":0.5},"stems":[{"name":"sequencer","min":0,"full":0,"reverb":0.25,"delay":{"beats":0.75,"feedback":0.35,"mix":0.18},"parts":[{"role":"arp","inst":"arp","pattern":"groups3","rate":1,"octave":3,"span":2},{"role":"pad","inst":"darkpad","octave":3,"level":-3}]},{"name":"pursuit","min":0.25,"full":0.4,"reverb":0.1,"pump":0.3,"parts":[{"role":"bass","style":"octaves","inst":"synthbass","octave":2},{"role":"drums","pattern":"hats16"}]},{"name":"drums","min":0.5,"full":0.65,"reverb":0.15,"parts":[{"role":"drums","pattern":"chase","voices":["kick","snare","tom"],"fill":true}]},{"name":"lead","min":0.7,"full":0.85,"reverb":0.3,"delay":{"beats":0.75,"feedback":0.35,"mix":0.22},"parts":[{"role":"melody","style":"hook","inst":"lead","octave":4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.25,"parts":[{"role":"stabs","inst":"brass","rhythm":"tresillo","octave":4},{"role":"fx","style":"fill","every":4},{"role":"fx","style":"crash","every":4}]}],"stingers":["alert","hit","fail"]},"heist_stealth":{"title":"Heist / stealth","vibe":"Cool, ticking, sneaky: everything is fine until it isn't","genres":["heist","stealth","infiltration","spy"],"bpm":96,"key":"A","mode":"dorian","progression":"i:2 IV:2 i:2 VII:2","room":{"size":0.6,"damp":0.55},"stems":[{"name":"clock","min":0,"full":0,"reverb":0.3,"parts":[{"role":"drums","pattern":"tick8"},{"role":"pad","inst":"darkpad","octave":3,"level":-3}]},{"name":"prowl","min":0.2,"full":0.4,"reverb":0.2,"parts":[{"role":"bass","style":"syncopated","inst":"pluckbass","octave":2},{"role":"ostinato","inst":"pizz","shape":[0,2,1,2],"rate":2,"octave":3,"level":-3}]},{"name":"suspense","min":0.45,"full":0.65,"reverb":0.35,"parts":[{"role":"pad","inst":"tremolo","octave":4,"voices":3,"level":-2},{"role":"pulse","inst":"musicbox","rhythm":"quarters","notes":[4,0],"octave":5,"level":-3}]},{"name":"drums","min":0.7,"full":0.85,"reverb":0.15,"parts":[{"role":"drums","pattern":"breakbeat","voices":["kick","snare","hat"],"fill":true}]},{"name":"alarm","min":0.9,"full":1,"reverb":0.3,"parts":[{"role":"stabs","inst":"brass","rhythm":"pushes","octave":4},{"role":"fx","style":"fill","every":4}]}],"stingers":["alert","discover","fail","victory"]},"horror_dread":{"title":"Horror dread (exploring)","vibe":"Something is here with you: no melody, just pressure that builds as the threat gets closer","genres":["horror","survival horror","haunted house","liminal"],"bpm":60,"key":"C#","mode":"phrygian","progression":"i:4 II:2 i:2","room":{"size":0.95,"damp":0.6},"oneShotReverb":0.45,"stems":[{"name":"drone","min":0,"full":0,"reverb":0.5,"parts":[{"role":"drone","inst":"drone","octave":2,"intervals":[0,1]},{"role":"pad","inst":"darkpad","octave":3,"voices":2,"level":-6}]},{"name":"unease","min":0.15,"full":0.35,"reverb":0.6,"parts":[{"role":"cluster","inst":"tremolo","octave":4,"intervals":[0,1,6],"level":-2},{"role":"bells","inst":"musicbox","detune":-30,"chance":0.12,"range":[72,91],"level":-4}]},{"name":"pulse","min":0.4,"full":0.6,"reverb":0.4,"parts":[{"role":"drums","pattern":"heartbeat","voices":["kick"],"level":2},{"role":"pad","inst":"darkpad","octave":2}]},{"name":"threat","min":0.65,"full":0.85,"reverb":0.5,"parts":[{"role":"cluster","inst":"tremolo","octave":5,"intervals":[0,1],"level":-4},{"role":"drums","pattern":"heartbeat_fast","voices":["kick"],"level":-2}]},{"name":"peak","min":0.9,"full":1,"reverb":0.45,"parts":[{"role":"fx","style":"braam","every":4,"bars":2,"octave":1},{"role":"drums","pattern":"horror_pulse","voices":["kick","tom"]}]}],"stingers":["jumpscare","tension","fail","discover"]},"horror_chase":{"title":"Horror chase","vibe":"Run. Relentless low pounding and screeching strings while the monster closes in","genres":["horror","monster chase","escape"],"bpm":165,"key":"D","mode":"phrygian","progression":"i II i vii","room":{"size":0.85,"damp":0.55},"stems":[{"name":"dread","min":0,"full":0,"reverb":0.35,"parts":[{"role":"ostinato","inst":"spiccato","shape":[0,1,0,1,0,2,0,1],"octave":3},{"role":"drone","inst":"drone","octave":2,"intervals":[0,1],"level":-2}]},{"name":"pound","min":0.25,"full":0.45,"reverb":0.25,"parts":[{"role":"drums","pattern":"pound","fill":true}]},{"name":"chug","min":0.5,"full":0.65,"reverb":0.15,"parts":[{"role":"bass","style":"chug","inst":"reese","octave":2}]},{"name":"screech","min":0.7,"full":0.85,"reverb":0.4,"parts":[{"role":"cluster","inst":"tremolo","octave":5,"intervals":[0,1,6,11]}]},{"name":"peak","min":0.9,"full":1,"reverb":0.35,"parts":[{"role":"drums","pattern":"pound","voices":["tom"],"level":-2},{"role":"fx","style":"crash","every":2},{"role":"fx","style":"fill","every":4}]}],"stingers":["jumpscare","fail","hit"]},"horror_lullaby":{"title":"Creepy lullaby","vibe":"A child's music box in an empty house: sweet, out of tune and wrong","genres":["horror","creepy cute","toy horror","haunted"],"bpm":84,"beatsPerBar":3,"steps":12,"key":"A","mode":"harmonic_minor","progression":"i iv V i VI iv V:2","room":{"size":0.92,"damp":0.5},"stems":[{"name":"musicbox","min":0,"full":0,"reverb":0.55,"parts":[{"role":"melody","inst":"musicbox","density":"medium","phrase":2,"range":[69,88],"detune":-12},{"role":"drone","inst":"drone","octave":2,"level":-6}]},{"name":"waltz","min":0.25,"full":0.45,"reverb":0.4,"parts":[{"role":"broken","inst":"celesta","octave":4,"rate":2,"level":-3,"detune":20},{"role":"drums","pattern":"waltz","voices":["kick","rim"],"level":-3}]},{"name":"choir","min":0.5,"full":0.7,"reverb":0.6,"parts":[{"role":"pad","inst":"choir","octave":4,"voices":3},{"role":"cluster","inst":"tremolo","octave":3,"intervals":[0,1],"level":-5}]},{"name":"wrong","min":0.75,"full":0.9,"reverb":0.55,"parts":[{"role":"counter","inst":"musicbox","range":[60,76],"detune":-45,"every":1},{"role":"drone","inst":"darkpad","octave":3,"intervals":[0,6],"level":-4}]},{"name":"peak","min":0.92,"full":1,"reverb":0.5,"parts":[{"role":"fx","style":"braam","every":4,"bars":2,"octave":1,"level":-2}]}],"stingers":["jumpscare","tension","discover"]},"epic_boss":{"title":"Epic boss fight","vibe":"Huge, mythic and dangerous: choir, taiko and brass against something bigger than you","genres":["boss fight","fantasy","rpg","battlegrounds finale"],"bpm":150,"key":"C","mode":"aeolian","progression":"i VI III VII i VI iv V","room":{"size":0.9,"damp":0.4},"stems":[{"name":"choir","min":0,"full":0,"reverb":0.5,"parts":[{"role":"pad","inst":"choir","octave":4},{"role":"drone","inst":"drone","octave":2,"level":-3}]},{"name":"taiko","min":0.2,"full":0.4,"reverb":0.35,"parts":[{"role":"drums","pattern":"taiko","fill":true}]},{"name":"strings","min":0.45,"full":0.6,"reverb":0.3,"parts":[{"role":"ostinato","inst":"spiccato","shape":[0,0,2,0,1,0,2,1],"octave":3},{"role":"bass","style":"sustain","inst":"subbass","octave":2}]},{"name":"brass","min":0.65,"full":0.8,"reverb":0.45,"parts":[{"role":"melody","inst":"brass","density":"sparse","range":[55,72],"contour":"leap","form":"sentence"},{"role":"counter","inst":"horn","range":[48,64],"level":-3}]},{"name":"peak","min":0.85,"full":1,"reverb":0.35,"parts":[{"role":"drums","pattern":"epic","voices":["kick","snare","crash"]},{"role":"fx","style":"braam","every":4,"bars":2,"octave":1},{"role":"stabs","inst":"choir","rhythm":"stab2","octave":5,"length":1.5,"level":-3}]}],"stingers":["alert","hit","victory","fail"]},"cozy_village":{"title":"Cozy village / simulator","vibe":"Warm, safe, a little bouncy: the place you come home to","genres":["simulator","tycoon","farming","cozy","hangout"],"bpm":100,"key":"F","mode":"ionian","swing":0.2,"swingGrid":8,"progression":"I vi IV V I iii IV V","room":{"size":0.55,"damp":0.6},"stems":[{"name":"guitar","min":0,"full":0,"reverb":0.3,"parts":[{"role":"strum","inst":"guitar","rhythm":"tresillo","octave":3},{"role":"pad","inst":"warmpad","octave":4,"level":-6}]},{"name":"bass","min":0.15,"full":0.3,"reverb":0.15,"parts":[{"role":"bass","style":"walking","inst":"pizz","octave":2},{"role":"drums","pattern":"shaker16","level":-3}]},{"name":"drums","min":0.35,"full":0.5,"reverb":0.2,"parts":[{"role":"drums","pattern":"lofi","voices":["kick","snare","rim"],"level":-2}]},{"name":"melody","min":0.55,"full":0.75,"reverb":0.35,"parts":[{"role":"melody","inst":"marimba","density":"medium","octave":5}]},{"name":"sparkle","min":0.8,"full":1,"reverb":0.45,"parts":[{"role":"bells","inst":"celesta","chance":0.35,"range":[77,96]},{"role":"counter","inst":"strings","range":[60,77],"level":-3}]}],"stingers":["discover","levelup","victory"]},"sad_emotional":{"title":"Sad / emotional","vibe":"Loss and memory: quiet piano, then strings that say what the characters can't","genres":["story","cutscene","memorial","ending"],"bpm":72,"key":"E","mode":"aeolian","progression":"i VI III VII i VI iv V","room":{"size":0.85,"damp":0.45},"stems":[{"name":"piano","min":0,"full":0,"reverb":0.45,"parts":[{"role":"broken","inst":"piano","pattern":"nine","octave":3}]},{"name":"strings","min":0.25,"full":0.45,"reverb":0.5,"parts":[{"role":"pad","inst":"strings","octave":4}]},{"name":"melody","min":0.5,"full":0.7,"reverb":0.5,"parts":[{"role":"melody","inst":"piano","density":"sparse","range":[64,83],"contour":"fall","form":"period"}]},{"name":"cello","min":0.75,"full":0.9,"reverb":0.5,"parts":[{"role":"counter","inst":"strings","range":[48,64]}]},{"name":"swell","min":0.9,"full":1,"reverb":0.55,"parts":[{"role":"pad","inst":"choir","octave":4,"level":-2}]}],"stingers":["fail","discover"]},"victory_triumph":{"title":"Victory / triumph","vibe":"You did it: bright brass, marching snare, a moment to feel big","genres":["results screen","win","celebration","round end"],"bpm":120,"key":"Bb","mode":"ionian","progression":"I bVII IV I vi IV V:2","room":{"size":0.8,"damp":0.4},"stems":[{"name":"strings","min":0,"full":0,"reverb":0.4,"parts":[{"role":"pad","inst":"strings","octave":4},{"role":"bass","style":"sustain","inst":"subbass","octave":2,"level":-4}]},{"name":"march","min":0.25,"full":0.45,"reverb":0.25,"parts":[{"role":"drums","pattern":"march","fill":true}]},{"name":"fanfare","min":0.5,"full":0.7,"reverb":0.4,"parts":[{"role":"melody","style":"fanfare","inst":"brass","octave":4}]},{"name":"horns","min":0.75,"full":0.9,"reverb":0.4,"parts":[{"role":"counter","inst":"horn","range":[55,70]}]},{"name":"peak","min":0.9,"full":1,"reverb":0.35,"parts":[{"role":"pad","inst":"choir","octave":4,"level":-2},{"role":"drums","pattern":"epic","voices":["taiko","crash"]}]}],"stingers":["victory","levelup","hit"]},"cyberpunk_night":{"title":"Cyberpunk night / synthwave","vibe":"Neon, rain and chrome: cool, moody and a little dangerous","genres":["cyberpunk","sci-fi city","synthwave","night city"],"bpm":105,"key":"A","mode":"aeolian","progression":"i:2 VI:2 III:2 VII:2","room":{"size":0.8,"damp":0.35},"stems":[{"name":"pads","min":0,"full":0,"reverb":0.45,"delay":{"beats":0.75,"feedback":0.4,"mix":0.2},"parts":[{"role":"pad","inst":"pad","octave":4},{"role":"arp","inst":"arp","pattern":"pedal","rate":2,"octave":4,"span":1,"colors":2,"level":-4}]},{"name":"bass","min":0.2,"full":0.35,"reverb":0.1,"pump":0.35,"parts":[{"role":"bass","style":"octaves","inst":"synthbass","octave":2}]},{"name":"drums","min":0.4,"full":0.55,"reverb":0.3,"parts":[{"role":"drums","pattern":"synthwave","fill":true}]},{"name":"lead","min":0.6,"full":0.8,"reverb":0.35,"delay":{"beats":0.75,"feedback":0.4,"mix":0.25},"parts":[{"role":"melody","style":"hook","inst":"lead","octave":5}]},{"name":"shine","min":0.85,"full":1,"reverb":0.4,"parts":[{"role":"bells","inst":"glass","chance":0.25,"range":[72,91]},{"role":"fx","style":"roll","every":8,"bars":1},{"role":"fx","style":"crash","every":8}]}],"stingers":["alert","discover","hit"]},"scifi_space":{"title":"Sci-fi / space","vibe":"Vast, weightless, faintly alien: drifting between stars","genres":["space","sci-fi","station","alien world"],"bpm":80,"key":"E","mode":"lydian","progression":"I:2 II:2 I:2 vii:2","room":{"size":0.95,"damp":0.3},"stems":[{"name":"space","min":0,"full":0,"reverb":0.55,"parts":[{"role":"pad","inst":"glass","octave":4},{"role":"drone","inst":"drone","octave":2,"level":-4}]},{"name":"signal","min":0.2,"full":0.4,"reverb":0.4,"delay":{"beats":0.75,"feedback":0.45,"mix":0.25},"parts":[{"role":"arp","inst":"pluck","pattern":"spread","rate":1,"octave":4,"span":2}]},{"name":"drive","min":0.45,"full":0.65,"reverb":0.25,"parts":[{"role":"drums","pattern":"halftime","voices":["kick","snare","hat"]},{"role":"bass","style":"eighths","inst":"subbass","octave":2}]},{"name":"theme","min":0.7,"full":0.85,"reverb":0.5,"parts":[{"role":"melody","inst":"lead","density":"sparse","octave":5}]},{"name":"cosmos","min":0.9,"full":1,"reverb":0.55,"parts":[{"role":"bells","inst":"glass","chance":0.2,"range":[76,95],"level":-3},{"role":"pad","inst":"strings","octave":4,"level":-3}]}],"stingers":["discover","alert","levelup"]},"western_desert":{"title":"Western / desert","vibe":"Sun, dust and a standoff: tremolo guitar, a lonely whistle, galloping hooves","genres":["western","desert","frontier","showdown"],"bpm":100,"steps":12,"key":"A","mode":"phrygian_dominant","progression":"I:2 II:2 vii:2 I:2","room":{"size":0.9,"damp":0.35},"stems":[{"name":"guitar","min":0,"full":0,"reverb":0.55,"parts":[{"role":"strum","inst":"tremguitar","rhythm":"triplet12","octave":3},{"role":"drone","inst":"drone","octave":2,"level":-6}]},{"name":"gallop","min":0.25,"full":0.45,"reverb":0.25,"parts":[{"role":"drums","pattern":"gallop"},{"role":"bass","style":"sustain","inst":"pluckbass","octave":2}]},{"name":"whistle","min":0.5,"full":0.7,"reverb":0.6,"parts":[{"role":"melody","inst":"whistle","density":"sparse","range":[72,91],"contour":"turn"}]},{"name":"choir","min":0.75,"full":0.9,"reverb":0.55,"parts":[{"role":"pad","inst":"choir","octave":4},{"role":"counter","inst":"horn","range":[52,67],"level":-3}]},{"name":"showdown","min":0.9,"full":1,"reverb":0.45,"parts":[{"role":"fx","style":"impact","every":4},{"role":"stabs","inst":"brass","rhythm":"once","octave":3,"length":2}]}],"stingers":["alert","victory","fail"]},"menu_lobby":{"title":"Menu / lobby (lo-fi)","vibe":"Relaxed and friendly: something to hang out to while the round loads","genres":["lobby","menu","hangout","chill"],"bpm":84,"key":"F","mode":"ionian","swing":0.15,"swingGrid":8,"progression":"ii7 V7 Imaj7:2 vi7:2 ii7 V7","room":{"size":0.6,"damp":0.65},"stems":[{"name":"keys","min":0,"full":0,"reverb":0.35,"parts":[{"role":"pad","inst":"epiano","octave":4,"voices":4}]},{"name":"bass","min":0.15,"full":0.3,"reverb":0.1,"parts":[{"role":"bass","style":"syncopated","inst":"subbass","octave":2}]},{"name":"beat","min":0.35,"full":0.5,"reverb":0.2,"parts":[{"role":"drums","pattern":"lofi"}]},{"name":"melody","min":0.55,"full":0.75,"reverb":0.4,"delay":{"beats":0.75,"feedback":0.3,"mix":0.18},"parts":[{"role":"melody","inst":"epiano","density":"sparse","octave":5}]},{"name":"sparkle","min":0.8,"full":1,"reverb":0.45,"parts":[{"role":"bells","inst":"celesta","chance":0.25,"range":[77,94]},{"role":"pad","inst":"warmpad","octave":4,"level":-4}]}],"stingers":["levelup","discover"]},"racing_drive":{"title":"Racing / driving","vibe":"Foot down, wind in your face: bright, fast and confident","genres":["racing","driving","open road","speedrun"],"bpm":128,"key":"E","mode":"ionian","progression":"I:2 bVII:2 IV:2 I:2","room":{"size":0.6,"damp":0.45},"stems":[{"name":"synths","min":0,"full":0,"reverb":0.35,"delay":{"beats":0.75,"feedback":0.3,"mix":0.15},"parts":[{"role":"pad","inst":"pad","octave":4,"level":-2},{"role":"arp","inst":"arp","pattern":"broken","rate":1,"octave":4,"span":1}]},{"name":"bass","min":0.2,"full":0.4,"reverb":0.1,"pump":0.3,"parts":[{"role":"bass","style":"offbeat","inst":"synthbass","octave":2}]},{"name":"drums","min":0.45,"full":0.6,"reverb":0.15,"parts":[{"role":"drums","pattern":"four_floor","fill":true}]},{"name":"lead","min":0.65,"full":0.8,"reverb":0.3,"parts":[{"role":"melody","style":"hook","inst":"lead","octave":5}]},{"name":"peak","min":0.85,"full":1,"reverb":0.3,"parts":[{"role":"stabs","inst":"pad","rhythm":"pushes","octave":5,"level":-2},{"role":"fx","style":"roll","every":8,"bars":1},{"role":"fx","style":"crash","every":4}]}],"stingers":["hit","victory","levelup"]},"obby_upbeat":{"title":"Obby / upbeat chiptune","vibe":"Bouncy, bright and silly: jump, fall, laugh, try again","genres":["obby","platformer","minigames","kids"],"bpm":132,"key":"C","mode":"ionian","progression":"I V vi IV","room":{"size":0.45,"damp":0.6},"stems":[{"name":"bounce","min":0,"full":0,"reverb":0.2,"parts":[{"role":"arp","inst":"marimba","pattern":"alberti","rate":2,"octave":4,"span":1},{"role":"pad","inst":"warmpad","octave":4,"level":-6}]},{"name":"bass","min":0.15,"full":0.3,"reverb":0.1,"parts":[{"role":"bass","style":"octaves","inst":"fmbass","octave":2}]},{"name":"drums","min":0.35,"full":0.5,"reverb":0.12,"parts":[{"role":"drums","pattern":"chiptune","fill":true}]},{"name":"lead","min":0.55,"full":0.75,"reverb":0.2,"parts":[{"role":"melody","style":"hook","inst":"sqlead","octave":5}]},{"name":"sparkle","min":0.8,"full":1,"reverb":0.3,"parts":[{"role":"counter","inst":"sqlead","range":[60,76],"every":1,"level":-5},{"role":"bells","inst":"celesta","chance":0.3,"range":[79,96]}]}],"stingers":["levelup","fail","victory","discover"]},"battle_lobby_countdown":{"title":"Round countdown / pre-match","vibe":"Get ready: a rising, ticking build that hands off to the match music on the downbeat","genres":["battle royale","round start","countdown","pvp"],"bpm":120,"key":"G","mode":"aeolian","progression":"i:2 VI:2 iv:2 V:2","room":{"size":0.7,"damp":0.5},"stems":[{"name":"tick","min":0,"full":0,"reverb":0.3,"parts":[{"role":"drums","pattern":"clock"},{"role":"pad","inst":"darkpad","octave":3}]},{"name":"pulse","min":0.25,"full":0.45,"reverb":0.15,"parts":[{"role":"bass","style":"eighths","inst":"synthbass","octave":2},{"role":"pulse","inst":"pluck","rhythm":"eighths","notes":[0,4],"octave":5,"level":-3}]},{"name":"build","min":0.5,"full":0.7,"reverb":0.2,"parts":[{"role":"drums","pattern":"march","voices":["snare"]},{"role":"ostinato","inst":"spiccato","octave":3}]},{"name":"rise","min":0.75,"full":0.9,"reverb":0.3,"parts":[{"role":"fx","style":"roll","every":4,"bars":2},{"role":"pad","inst":"strings","octave":4}]},{"name":"peak","min":0.9,"full":1,"reverb":0.3,"parts":[{"role":"drums","pattern":"action","voices":["kick","tom"],"fill":true},{"role":"fx","style":"crash","every":4}]}],"stingers":["alert","hit"]},"acoustic_campfire":{"title":"Acoustic campfire","vibe":"Wood smoke, stars and friends: a fingerpicked guitar, a strummed second guitar, a harmonica that sings","genres":["survival","camping","adventure","hangout","story"],"bpm":96,"key":"G","mode":"ionian","swing":0.12,"swingGrid":8,"progression":"I V vi IV I IV V:2","feel":{"groove":"laidback","humanize":0.7},"room":{"size":0.6,"damp":0.55},"oneShotInst":{"brass":"acoustic","keys":"nylon","bell":"acoustic"},"stems":[{"name":"picking","min":0,"full":0,"reverb":0.3,"parts":[{"role":"guitar","style":"fingerpick","inst":"acoustic","pan":-0.25},{"role":"pad","inst":"warmpad","octave":4,"level":-9}]},{"name":"strum","min":0.2,"full":0.35,"reverb":0.25,"parts":[{"role":"guitar","style":"strum","inst":"acoustic","pattern":"folk","pan":0.35,"level":-3}]},{"name":"band","min":0.4,"full":0.55,"reverb":0.2,"parts":[{"role":"drums","pattern":"folk","level":-2},{"role":"bass","style":"quarters","inst":"pizz","octave":2}]},{"name":"harmonica","min":0.6,"full":0.8,"reverb":0.35,"parts":[{"role":"melody","inst":"harmonica","density":"sparse","range":[60,84],"contour":"arch","form":"period"}]},{"name":"strings","min":0.85,"full":1,"reverb":0.5,"parts":[{"role":"counter","inst":"strings","range":[55,72],"level":-3},{"role":"bells","inst":"celesta","chance":0.15,"range":[79,96],"level":-6}]}],"stingers":["discover","levelup","victory"]},"blues_roadhouse":{"title":"Blues roadhouse","vibe":"Smoky bar, slow swagger: a shuffle guitar, walking bass, organ, a lead guitar that bends and cries","genres":["noir","detective","western","bar","roleplay"],"bpm":88,"steps":12,"bars":12,"key":"A","mode":"mixolydian","melodyScale":"blues","progression":"I7:4 IV7:2 I7:2 V7 IV7 I7 V7","feel":{"groove":"laidback","humanize":0.8},"room":{"size":0.5,"damp":0.6},"oneShotInst":{"brass":"bluesgtr","keys":"organ"},"stems":[{"name":"shuffle","min":0,"full":0,"reverb":0.25,"parts":[{"role":"guitar","style":"boogie","inst":"bluesgtr","pan":-0.3}]},{"name":"band","min":0.25,"full":0.4,"reverb":0.2,"parts":[{"role":"drums","pattern":"shuffle"},{"role":"bass","style":"walking","inst":"ebass","octave":2}]},{"name":"organ","min":0.45,"full":0.6,"reverb":0.3,"parts":[{"role":"pad","inst":"organ","octave":4,"voices":4,"level":-2}]},{"name":"lead","min":0.65,"full":0.85,"reverb":0.35,"parts":[{"role":"melody","style":"licks","inst":"bluesgtr","range":[52,79],"pan":0.2}]},{"name":"horns","min":0.88,"full":1,"reverb":0.3,"parts":[{"role":"stabs","inst":"brass","rhythm":"X.....x....x","octave":4,"level":-3}]}],"stingers":["hit","victory","fail"]},"punk_skate":{"title":"Punk skate","vibe":"Fast, loud, reckless fun: palm-muted power chords, a polka-fast skate beat, an octave guitar hook","genres":["skate","parkour","sports","arcade","racing"],"bpm":184,"key":"E","mode":"ionian","progression":"I V vi IV I IV V:2","feel":{"groove":"push","humanize":0.45},"room":{"size":0.35,"damp":0.7},"oneShotInst":{"brass":"crunchgtr","lead":"leadgtr"},"stems":[{"name":"verse","min":0,"full":0,"reverb":0.12,"parts":[{"role":"guitar","style":"power","inst":"distgtr","pattern":"punk","pan":-0.5}]},{"name":"drive","min":0.2,"full":0.35,"reverb":0.1,"parts":[{"role":"drums","pattern":"skate"},{"role":"bass","style":"eighths","inst":"ebass","octave":2}]},{"name":"open","min":0.45,"full":0.6,"reverb":0.12,"parts":[{"role":"guitar","style":"power","inst":"distgtr","pattern":"punk_open","pan":0.5},{"role":"fx","style":"crash","every":4}]},{"name":"hook","min":0.65,"full":0.8,"reverb":0.2,"parts":[{"role":"melody","style":"hook","inst":"leadgtr","range":[62,81],"octaves":true,"contour":"rise"}]},{"name":"gang","min":0.88,"full":1,"reverb":0.3,"parts":[{"role":"counter","inst":"choir","range":[55,72],"every":2,"level":-2},{"role":"fx","style":"fill","every":4}]}],"stingers":["hit","levelup","fail","victory"]},"rock_anthem":{"title":"Rock anthem","vibe":"Big, proud, arena lights: ringing chords, a chugging drive, a singing lead guitar","genres":["sports","superhero","tournament","racing","tycoon"],"bpm":126,"key":"D","mode":"mixolydian","progression":"I:2 VII:2 IV:2 I V","feel":{"groove":"straight","humanize":0.5},"room":{"size":0.6,"damp":0.5},"oneShotInst":{"brass":"crunchgtr","lead":"leadgtr"},"stems":[{"name":"ring","min":0,"full":0,"reverb":0.4,"parts":[{"role":"guitar","style":"power","inst":"crunchgtr","pattern":"anthem"},{"role":"pad","inst":"warmpad","octave":4,"level":-8}]},{"name":"groove","min":0.25,"full":0.45,"reverb":0.2,"parts":[{"role":"drums","pattern":"rock","crash":true},{"role":"bass","style":"eighths","inst":"ebass","octave":2}]},{"name":"drive","min":0.5,"full":0.65,"reverb":0.2,"parts":[{"role":"guitar","style":"power","inst":"distgtr","pattern":"drive","pan":-0.6},{"role":"guitar","style":"power","inst":"distgtr","pattern":"rock","pan":0.6,"level":-1}]},{"name":"lead","min":0.7,"full":0.85,"reverb":0.4,"parts":[{"role":"melody","inst":"leadgtr","density":"medium","range":[62,86],"form":"sentence","contour":"leap"}]},{"name":"peak","min":0.9,"full":1,"reverb":0.45,"parts":[{"role":"counter","inst":"strings","range":[57,74]},{"role":"pad","inst":"choir","octave":4,"level":-4},{"role":"fx","style":"fill","every":4}]}],"stingers":["hit","victory","levelup"]},"funk_strut":{"title":"Funk strut","vibe":"Cool, sly, in the pocket: chicken-scratch guitar, a popping bass, tight horns","genres":["heist","city","dance","roleplay","tycoon"],"bpm":104,"key":"E","mode":"dorian","swing":0.08,"swingGrid":16,"progression":"i7:2 IV7:2","feel":{"groove":"laidback","humanize":0.5},"room":{"size":0.45,"damp":0.6},"stems":[{"name":"scratch","min":0,"full":0,"reverb":0.15,"parts":[{"role":"guitar","style":"funk","inst":"cleangtr","pan":0.3},{"role":"pad","inst":"epiano","octave":4,"voices":4,"level":-9}]},{"name":"bass","min":0.2,"full":0.35,"reverb":0.1,"parts":[{"role":"bass","style":"funk","inst":"ebass","octave":2}]},{"name":"drums","min":0.4,"full":0.55,"reverb":0.15,"parts":[{"role":"drums","pattern":"funk"}]},{"name":"horns","min":0.6,"full":0.8,"reverb":0.25,"parts":[{"role":"melody","style":"hook","inst":"brass","range":[60,79]},{"role":"stabs","inst":"brass","rhythm":"....X..x......X.","octave":4,"level":-4}]},{"name":"peak","min":0.85,"full":1,"reverb":0.35,"parts":[{"role":"pad","inst":"organ","octave":4,"voices":4,"level":-5},{"role":"fx","style":"fill","every":4}]}],"stingers":["hit","discover","victory"]}};
   const KIT = {"Director":{"Attack":1.5,"Release":0.15,"IntensityHold":3,"StateHold":6},"Transition":{"Sync":"Bar","Fade":1.5,"Lead":0.12},"LayerFade":0.8,"Stinger":{"Sync":"Beat","Duck":0.5,"Release":1.2}};
   // true in the published (artifact) build, where pages can't hand out files: hide downloads.
   const PUBLISHED = false;

@@ -18,7 +18,7 @@
 | pulse | 0.2 | 0.35 | bass (ostinato16) on synthbass; drums (action_light) on kit |
 | drums | 0.45 | 0.6 | drums (action) on kit; ostinato on spiccato |
 | brass | 0.7 | 0.85 | melody on brass; stabs on horn |
-| peak | 0.9 | 1 | fx (braam) on braam; fx (riser) on riser; fx (crash) on crash |
+| peak | 0.9 | 1 | fx (braam) on braam; fx (roll) on roll; fx (crash) on crash |
 
 Any combination of stems from the bottom up must sound finished: the bed alone is the calm version, all stems together the climax.
 

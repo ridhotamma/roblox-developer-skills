@@ -39,16 +39,19 @@ for (const [file, content] of cli.outputs()) {
       for (const n of part.notes) {
         if (typeof n.p !== 'number') continue;
         const pc = ((n.p % 12) + 12) % 12;
+        if (part.role === 'melody' && part.def.style === 'licks') continue; // blues licks are chromatic on purpose
         if (part.role === 'melody') {
           checked++;
           if (!melodyScale.includes((pc - keyPc + 12) % 12)) { bad++; if (bad < 4) console.log(`     ${id}/${stem.name} melody ${M.noteName(n.p)} not in ${p.melodyScale || p.mode}`); }
-        } else if (['pad', 'arp', 'ostinato', 'stabs', 'strum'].includes(part.role)) {
+        } else if (['pad', 'arp', 'ostinato', 'stabs', 'strum'].includes(part.role) || (part.role === 'guitar' && part.def.style !== 'boogie')) {
           checked++;
           const seg = cue.chords.find((c) => n.t >= c.start - 1e-6 && n.t < c.start + c.length - 1e-6) || cue.chords[cue.chords.length - 1];
           // arpeggios may add the chord's diatonic 9th / 7th (colours, never avoid notes)
           const pseg = M.chordAt(cue.ctx.progression, n.t);
-          const extra = part.role === 'arp' ? M.chordExtensions(pseg.chord, keyPc, cue.ctx.scale, part.def.colors === undefined ? 1 : part.def.colors) : [];
-          if (!seg.pcs.includes(pc) && !extra.includes(pc)) { bad++; if (bad < 4) console.log(`     ${id}/${stem.name} ${part.role} ${M.noteName(n.p)} not in ${seg.symbol}`); }
+          const extra = part.role === 'arp' ? M.chordExtensions(pseg.chord, keyPc, cue.ctx.scale, part.def.colors === undefined ? 1 : part.def.colors) : part.role === 'guitar' ? M.chordExtensions(pseg.chord, keyPc, cue.ctx.scale, 2) : [];
+          // guitars anticipate a change by an 8th (a "push"): the next chord is fine there
+          const ahead = part.role === 'guitar' ? M.chordAt(cue.ctx.progression, (n.t + 0.55) % (cue.bars * cue.beatsPerBar)).chord.pcs : [];
+          if (!seg.pcs.includes(pc) && !extra.includes(pc) && !ahead.includes(pc)) { bad++; if (bad < 4) console.log(`     ${id}/${stem.name} ${part.role} ${M.noteName(n.p)} not in ${seg.symbol}`); }
         }
         if (n.t < 0 || n.t >= cue.bars * cue.beatsPerBar) { bad++; console.log(`     ${id} note outside the loop at beat ${n.t}`); }
       }
@@ -65,7 +68,7 @@ for (const [file, content] of cli.outputs()) {
     const ctx = cue.ctx;
     const parts = cue.stems.flatMap((s) => s.parts);
     const mel = parts.find((x) => x.role === 'melody' && !['bells', 'counter'].includes(x.def.style));
-    if (!mel) continue;
+    if (!mel || mel.def.style === 'licks') continue;
     forms.add(ctx.motif.form.join(' '));
     const ns = mel.notes;
     ns.forEach((n, i) => {
@@ -139,7 +142,7 @@ for (const id of toRender) {
   const peakOk = M.gainToDb(r.mix.peak) <= -0.95;
   const finite = r.stems.every((s) => s.L.every(Number.isFinite));
   // A stem that doesn't start with a hit must flow across the loop point like any other sample.
-  const sustained = r.stems.filter((s, i) => !cue.stems[i].parts.some((p) => p.notes.some((n) => n.t === 0 && (typeof n.p === 'string' || ['stabs', 'arp', 'ostinato', 'broken', 'strum', 'pulse', 'melody', 'bass', 'counter', 'bells', 'fx'].includes(p.role)))));
+  const sustained = r.stems.filter((s, i) => !cue.stems[i].parts.some((p) => p.notes.some((n) => n.t === 0 && (typeof n.p === 'string' || ['stabs', 'arp', 'ostinato', 'broken', 'strum', 'guitar', 'pulse', 'melody', 'bass', 'counter', 'bells', 'fx'].includes(p.role)))));
   const seams = sustained.map((s) => seamOk(s.L));
   ok(lengths && finite && levelOk && peakOk && seams.every((x) => x < 1.5),
     `${id}: ${r.stems.length} stems x ${expect} samples, mix ${r.mix.lufs.toFixed(1)} LUFS, peak ${M.gainToDb(r.mix.peak).toFixed(1)} dB, seams ${seams.map((x) => x.toFixed(2)).join('/') || '-'}`);
