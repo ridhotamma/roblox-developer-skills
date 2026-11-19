@@ -137,10 +137,6 @@
     hat(c) { metallic(c, 1.7, 65, 7000, 0.12, 1.0); },
     openhat(c) { metallic(c, 1.7, 7, 6500, 0.7, 0.8); },
     ride(c) { metallic(c, 2.4, 3.2, 5000, 1.3, 0.5); },
-    crash(c) {
-      metallic(c, 2.1, 1.4, 3500, 3.0, 0.7);
-      noiseHit(c, 'high', 3000, 0.7, 1.6, 3.0, 0.5);
-    },
     shaker(c) { noiseHit(c, 'band', 7000, 0.9, 32, 0.15, 1.2, 0.008); },
     tom(c) {
       const w = writer(c), n = samplesFor(c, 0.8), sr = c.sr, g = amp(c.vel);
@@ -524,10 +520,10 @@
     let ph = 0;
     for (let i = 0; i < n; i++) {
       const t = i / sr;
-      if ((i & 15) === 0) lp.setup(200 + 4000 * exp(-t * 6), 0.9, sr);
+      if ((i & 15) === 0) lp.setup(120 + 500 * exp(-t * 10), 0.8, sr); // a dark thud, no hiss
       ph += c.f * (1 + 1.5 * exp(-t * 9)) / sr;
       lp.tick(c.rng() * 2 - 1);
-      const x = sin(TAU * ph) * exp(-t * 1.6) + lp.low * exp(-t * 4) * 0.9;
+      const x = sin(TAU * ph) * exp(-t * 1.6) + lp.low * exp(-t * 8) * 0.6;
       w(i, tanh(2.2 * x) * 0.85 * g);
     }
   };

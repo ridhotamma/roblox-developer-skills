@@ -26,7 +26,7 @@ Pin the vibe in one sentence ("relentless, the monster is right behind you"), th
 Fast ways to push a mood further:
 - **More tension:** add a pedal (one bass note under changing chords), a ticking 8th-note pulse, a minor 2nd or tritone, tremolo strings, take the melody away.
 - **More energy:** double the hat/ostinato rate, add toms, raise the bass an octave in the top layer, add a snare roll or tom fill into each 4-bar phrase (`fx` roll / fill).
-- **More heroic:** major chord on bVII before I, brass on the melody, a fanfare stinger, crash on bar 1.
+- **More heroic:** major chord on bVII before I, brass on the melody, a fanfare stinger, a taiko or impact on bar 1.
 - **More scary:** detune something that should be in tune (music box -12 to -45 cents), slow down, remove the beat, play clusters with tremolo.
 - **More sad:** slower, fewer notes, minor iv, piano alone first, strings only in the top layer.
 
@@ -37,26 +37,26 @@ Each preset ships 5 stems ordered by intensity (bed first) and its stingers. `no
 | Mood | Vibe | Grid | Stems (bed → peak) | Stingers |
 |---|---|---|---|---|
 | `exploration` | Wide, curious, hopeful | 92 BPM, D lydian, I II vi V | warm pad + sub → harp arpeggio + shaker → half-time groove + bass → flute melody → strings counterline + choir | discover, hit, levelup |
-| `action_combat` | Driving, aggressive, heroic danger | 140, D minor, i VI VII i iv V | drone + dark pad → 16th synth-bass ostinato + hats → full drums + spiccato ostinato → brass melody + horn stabs → braams, snare roll, crashes | alert, hit, victory, fail |
+| `action_combat` | Driving, aggressive, heroic danger | 140, D minor, i VI VII i iv V | drone + dark pad → 16th synth-bass ostinato + hats → full drums + spiccato ostinato → brass melody + horn stabs → braams, snare roll | alert, hit, victory, fail |
 | `car_chase` | Pulsing sequencer, wanted level | 128, E minor, i VII VI VII | synth sequencer + dark pad → octave bass with pump + 16th hats → chase drums → synth lead hook (delay) → brass tresillo stabs, tom fills | alert, hit, fail |
 | `heist_stealth` | Cool, ticking, sneaky | 96, A dorian, i IV i VII | clock tick + dark pad → syncopated plucked bass + pizzicato → tremolo strings + music-box pulse → breakbeat → brass pushes + tom fills (alarm) | alert, discover, fail, victory |
 | `horror_dread` | Something is here with you | 60, C# phrygian, i (4 bars) bII i | minor-2nd drone + dark pad → tremolo cluster + detuned music box → heartbeat + dark pad → semitone tremolo + fast heartbeat → braams, low hits | jumpscare, tension, fail, discover |
-| `horror_chase` | Run | 165, D phrygian, i bII i vii | spiccato ostinato + drone → pounding kick/taiko/toms → reese bass chug → screeching cluster → pounding toms + crashes + tom fills | jumpscare, fail, hit |
+| `horror_chase` | Run | 165, D phrygian, i bII i vii | spiccato ostinato + drone → pounding kick/taiko/toms → reese bass chug → screeching cluster → pounding toms + tom fills | jumpscare, fail, hit |
 | `horror_lullaby` | A child's music box in an empty house | 84, 3/4, A harmonic minor | detuned music-box melody → celesta waltz + soft kick → choir + semitone cluster → second, more detuned music box + tritone dark pad → braams | jumpscare, tension, discover |
 | `epic_boss` | Mythic and dangerous | 150, C minor, i VI III VII i VI iv V | choir + drone → taiko ensemble → spiccato ostinato + sub → brass melody + horn counterline → epic drums, braams, choir stabs | alert, hit, victory, fail |
 | `cozy_village` | Warm, safe, bouncy | 100, F major, swing | strummed guitar + warm pad → walking pizzicato bass + shaker → lo-fi drums → marimba melody → celesta sparkles + strings | discover, levelup, victory |
 | `sad_emotional` | Loss and memory | 72, E minor | broken-chord piano → strings → piano melody → cello-range counterline → choir | fail, discover |
-| `victory_triumph` | You did it | 120, Bb major, I bVII IV I | strings + sub → march snare → brass fanfare → horn counterline → choir + taiko/crash | victory, levelup, hit |
+| `victory_triumph` | You did it | 120, Bb major, I bVII IV I | strings + sub → march snare → brass fanfare → horn counterline → choir + taiko | victory, levelup, hit |
 | `cyberpunk_night` | Neon, rain, chrome | 105, A minor | supersaw pad + 8th arp (delay) → octave bass with pump → synthwave drums → lead hook → glass bells, snare roll | alert, discover, hit |
 | `scifi_space` | Vast, weightless, alien | 80, E lydian, I II I vii | glass pad + drone → plucked "pinky" arpeggio (delay) → half-time drums + 8th sub → sparse lead → high glass bells + strings | discover, alert, levelup |
 | `western_desert` | Sun, dust, a standoff | 100, 12/8 feel, A phrygian dominant | tremolo guitar triplets + drone → gallop percussion + bass → whistle melody → choir + horn → impacts + brass hits | alert, victory, fail |
 | `menu_lobby` | Relaxed, friendly lo-fi | 84, F major ii7 V7 Imaj7 vi7, swing | e-piano 7th chords → syncopated sub bass → lo-fi beat → e-piano melody (delay) → celesta + warm pad | levelup, discover |
-| `racing_drive` | Foot down, bright and fast | 128, E major I bVII IV I | supersaw pad + 16th arp → offbeat bass with pump → four-on-floor → lead hook → pad stabs, snare roll, crashes | hit, victory, levelup |
+| `racing_drive` | Foot down, bright and fast | 128, E major I bVII IV I | supersaw pad + 16th arp → offbeat bass with pump → four-on-floor → lead hook → pad stabs, snare roll | hit, victory, levelup |
 | `obby_upbeat` | Bouncy, bright, silly | 132, C major I V vi IV | marimba arpeggio → FM octave bass → chiptune drums → square-wave hook → chip counterline + celesta | levelup, fail, victory, discover |
-| `battle_lobby_countdown` | Get ready | 120, G minor i VI iv V | clock + dark pad → 8th bass + plucked pulse → snare roll + spiccato → 2-bar snare build + strings → action drums + crashes | alert, hit |
+| `battle_lobby_countdown` | Get ready | 120, G minor i VI iv V | clock + dark pad → 8th bass + plucked pulse → snare roll + spiccato → 2-bar snare build + strings → action drums | alert, hit |
 | `acoustic_campfire` | Wood smoke, stars and friends | 96, G major, I V vi IV I IV V, light swing, laid back | Travis-picked acoustic + warm pad → strummed acoustic (folk pattern) → folk kit + upright bass → harmonica melody → strings counterline + celesta | discover, levelup, victory |
 | `blues_roadhouse` | Smoky bar, slow swagger | 88, A, 12-bar blues in triplet shuffle, laid back | boogie shuffle guitar → shuffle drums + walking bass → organ → lead guitar licks with bends (AAB, turnaround) → horn stabs | hit, victory, fail |
-| `punk_skate` | Fast, loud, reckless fun | 184, E major I V vi IV I IV V, pushed | palm-muted power chords (left) → skate beat + 8th bass → open power chords (right) + crashes → octave lead-guitar hook → gang-vocal counterline + tom fills | hit, levelup, fail, victory |
+| `punk_skate` | Fast, loud, reckless fun | 184, E major I V vi IV I IV V, pushed | palm-muted power chords (left) → skate beat + 8th bass → open power chords (right) → octave lead-guitar hook → gang-vocal counterline + tom fills | hit, levelup, fail, victory |
 | `rock_anthem` | Big, proud, arena lights | 126, D mixolydian I bVII IV I V | ringing crunch chords + pad → rock beat + 8th bass → two driving distorted guitars (L/R) → singing lead guitar → strings, choir, tom fills | hit, victory, levelup |
 | `funk_strut` | Cool, sly, in the pocket | 104, E dorian i7 IV7, light 16th swing, laid back | chicken-scratch clean guitar + e-piano → funk bass with ghost notes → funk drums → brass hook + stabs → organ + tom fills | hit, discover, victory |
 
@@ -107,7 +107,7 @@ Fields:
 
 | role | options | inst (default) |
 |---|---|---|
-| `drums` | `pattern` (see below), `voices` subset, `fill` (roll in the last bar), `crash` | kit voices |
+| `drums` | `pattern` (see below), `voices` subset, `fill` (roll in the last bar), `variation` (default on), `ghosts` | kit voices |
 | `bass` | `style`: sustain, drone, walking, ostinato16, chug, gallop, eighths, offbeat, octaves, quarters, syncopated, tresillo, funk (16ths with octave pops and ghost notes), 808, halftime, heartbeat; `octave` (2). Rhythmic styles play a one-bar riff (root, octave, 5th, 3rd, 7th below) and step into each new chord | synthbass |
 | `pad` | `octave` (4), `voices` (4) | pad |
 | `stabs` | `rhythm`, `octave`, `length` (beats), `bassNote` | brass |
@@ -121,7 +121,7 @@ Fields:
 | `melody` | `style` motif/hook/fanfare; `form` sentence/period/aaba/call/hook (seeded if absent); `contour` leap/arch/valley/rise/fall/zigzag/neighbor/turn (picked from the mode if absent); `density` sparse/medium/dense; `syncopation` 0-1; `range` [lo, hi] MIDI or `octave`; `phrase` (bars per unit); `ending` open/tonic; `legato` | lead |
 | `counter` | `range`, `every` (beats per note). Guide tones moving against the melody, below it, with passing notes where it holds | strings |
 | `bells` | `chance` per beat, `range`. Colour tones (3rd, 5th, 7th, 9th) with grace notes | bell |
-| `fx` | `style` roll (snare build into the phrase, `bars` long), fill (tom fill on the last beat), crash, impact, braam; `every` (bars), `bars`, `octave` | (the style) |
+| `fx` | `style` roll (snare build into the phrase, `bars` long), fill (tom fill on the last beat), impact (a low thud), braam; `every` (bars), `bars`, `octave` | (the style) |
 | `guitar` | `style` strum (`pattern` folk/pop/ballad/drive/island/country/reggae/shuffle/whole/folk16/strummy16 or a string of D d U u x .), fingerpick (`pattern` travis/roll/ballad/waltz, `palmMute`, `hammers`), power (`pattern` punk/punk_open/drive/rock/anthem/stop/gallop/chug16/pushes or a string of O o m . -), boogie (`palmMute`, `seventh`), funk (`pattern`: 16 chars of X x .); `push` (anticipate chord changes, default on), `center` | acoustic |
 
 Every part also takes `level` (dB vs its role's default), `pan` (-1..1), `detune` (cents, mallets), `humanize` (scales the mood's timing looseness for this part); melodies take `octaves: true` (double an octave up) and `style: "licks"` (blues lead from a lick vocabulary; `range`).
@@ -131,7 +131,7 @@ Mood-level options:
 - `turnaround`: a chord (e.g. `"V7"`) that replaces the second half of the last bar and pulls the loop back to bar 1.
 - `oneShotInst`: instruments for the stingers (`brass`, `strings`, `keys`, `bell`, `lead`, `low`), e.g. `{ "brass": "crunchgtr" }` for a guitar victory riff.
 
-- Drum patterns: punk, skate, rock, funk, folk, train, four_floor, synthwave, backbeat, halftime, trap, breakbeat, lofi, chiptune, disco, action, action_light, taiko, epic, march, chase, dnb, clock, tick8, heartbeat, heartbeat_fast, horror_pulse, stalk, pound, shuffle, gallop (12 steps), waltz (12), hats16, hats8, shaker16, ride. Voices: kick, snare, clap, rim, tick, hat, openhat, ride, crash, shaker, tom, taiko.
+- Drum patterns: punk, skate, rock, funk, folk, train, four_floor, synthwave, backbeat, halftime, trap, breakbeat, lofi, chiptune, disco, action, action_light, taiko, epic, march, chase, dnb, clock, tick8, heartbeat, heartbeat_fast, horror_pulse, stalk, pound, shuffle, gallop (12 steps), waltz (12), hats16, hats8, shaker16, ride. Voices: kick, snare, clap, rim, tick, hat, openhat, ride, shaker, tom, taiko.
 - Rhythm names: ostinato16, chug16, gallop16, eighths, offbeat, quarters, syncopated, tresillo, pushes, stab2, stab_end, trap808, halftime, heartbeat, once, twice, triplet12, or a literal string like `"X..x..x.X..x..x."` (X accent, x normal, - ghost, . rest).
 - Instruments: subbass, synthbass, reese, fmbass, bass808, pluckbass, ebass · acoustic, nylon, cleangtr, bluesgtr, crunchgtr, distgtr, leadgtr (electric guitars go through an amp: clean, blues, crunch, distortion, lead) · pluck, harp, guitar, tremguitar, pizz · harmonica · epiano, piano, musicbox, marimba, celesta, bell, organ · strings, tremolo, spiccato, pad, warmpad, darkpad, glass, drone, choir · brass, horn, braam · arp, lead, sqlead, whistle, flute · impact · drum voices.
 - `stingers`: hit, alert, victory, fail, jumpscare, discover, levelup, tension (an intro and an ending are always made unless `"intro": false` / `"ending": false`).

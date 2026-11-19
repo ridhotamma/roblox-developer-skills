@@ -20,7 +20,7 @@
     action: { steps: 16, kick: 'X..x..X...X..x..', snare: '....X.......X..x', tom: '..........x.x.x.', hat: 'XxxxXxxxXxxxXxxx' },
     action_light: { steps: 16, hat: 'X-x-X-x-X-x-X-x-', shaker: 'x-x-x-x-x-x-x-x-' },
     taiko: { steps: 16, taiko: 'X..X..X.X...X.X.', tom: '......x.......x.', rim: 'x.x.x.x.x.x.x.x.' },
-    epic: { steps: 16, kick: 'X.......X.......', taiko: 'X..x..X...X.x...', snare: '........X.......', crash: 'X...............' },
+    epic: { steps: 16, kick: 'X.......X.......', taiko: 'X..x..X...X.x...', snare: '........X.......' },
     march: { steps: 16, snare: 'X.xxX.x.X.xxX.x.', kick: 'X.......X.......' },
     chase: { steps: 16, kick: 'X.xX..x.X.xX..x.', snare: '....X.......X...', hat: 'xxxxxxxxxxxxxxxx', tom: '...........x.xx.' },
     dnb: { steps: 16, kick: 'X.........X.....', snare: '....X.......X...', hat: 'x.xxx.xxx.xxx.xx' },

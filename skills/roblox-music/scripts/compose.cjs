@@ -109,7 +109,7 @@ function validate(moods) {
           }
         }
         if (part.rhythm && !M.RHYTHMS[part.rhythm] && !/^[Xx.\-]+$/.test(part.rhythm)) errors.push(where(`stem '${s.name}': unknown rhythm '${part.rhythm}'`));
-        if (part.role === 'fx' && !['roll', 'fill', 'crash', 'impact', 'braam'].includes(part.style)) errors.push(where(`stem '${s.name}': unknown fx style '${part.style}'`));
+        if (part.role === 'fx' && !['roll', 'fill', 'impact', 'braam'].includes(part.style)) errors.push(where(`stem '${s.name}': unknown fx style '${part.style}'`));
       }
     }
     for (const st of p.stingers || []) if (!M.STINGER_KINDS.includes(st)) errors.push(where(`unknown stinger '${st}'`));

@@ -58,7 +58,7 @@
     impact: 116,
     acoustic: 25, nylon: 24, cleangtr: 27, bluesgtr: 27, crunchgtr: 29, distgtr: 30, leadgtr: 30, ebass: 34, harmonica: 22,
   };
-  const GM_DRUMS = { kick: 36, snare: 38, clap: 39, rim: 37, tick: 76, hat: 42, openhat: 46, ride: 51, crash: 49, shaker: 70, taiko: 35, kick808: 36 };
+  const GM_DRUMS = { kick: 36, snare: 38, clap: 39, rim: 37, tick: 76, hat: 42, openhat: 46, ride: 51, shaker: 70, taiko: 35, kick808: 36 };
   const TOMS = [41, 45, 48];
 
   function vlq(n) {

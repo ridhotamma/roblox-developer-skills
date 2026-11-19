@@ -29,32 +29,32 @@
       "file": "action_combat_pulse.wav",
       "min": 0.2,
       "full": 0.35,
-      "lufs": -23.2,
-      "peakDb": -7.7
+      "lufs": -23.1,
+      "peakDb": -7.6
     },
     {
       "name": "drums",
       "file": "action_combat_drums.wav",
       "min": 0.45,
       "full": 0.6,
-      "lufs": -20.9,
-      "peakDb": -6.3
+      "lufs": -20.8,
+      "peakDb": -6.2
     },
     {
       "name": "brass",
       "file": "action_combat_brass.wav",
       "min": 0.7,
       "full": 0.85,
-      "lufs": -21.2,
-      "peakDb": -10.4
+      "lufs": -21.1,
+      "peakDb": -10.3
     },
     {
       "name": "peak",
       "file": "action_combat_peak.wav",
       "min": 0.9,
       "full": 1,
-      "lufs": -27.4,
-      "peakDb": -12.6
+      "lufs": -28.4,
+      "peakDb": -15.6
     }
   ],
   "oneShots": [
@@ -71,7 +71,7 @@
       "kind": "stinger",
       "file": "action_combat_hit.wav",
       "beats": 2,
-      "seconds": 4.058,
+      "seconds": 4.059,
       "lufs": -17
     },
     {
@@ -79,7 +79,7 @@
       "kind": "stinger",
       "file": "action_combat_victory.wav",
       "beats": 5.5,
-      "seconds": 4.442,
+      "seconds": 4.355,
       "lufs": -17
     },
     {

@@ -54,7 +54,7 @@
 
   // ---------------------------------------------------------------- drums
   // Drums. Like a drummer, not a loop: every second bar adds a kick variation, every fourth bar
-  // ends with a snare pickup and an open hat, backbeat grooves get ghost notes between the
+  // ends with a snare pickup, backbeat grooves get ghost notes between the
   // hits, and `fill` rolls into the loop point on the toms.
   const GHOSTED = ['backbeat', 'lofi', 'breakbeat', 'rock', 'funk', 'shuffle', 'halftime', 'punk'];
   function genDrums(part, ctx, r) {
@@ -89,8 +89,7 @@
         for (let s = 0; s < S; s++) {
           if (s >= fillFrom && ['snare', 'tom', 'kick', 'taiko', 'hat'].includes(voice)) continue;
           let vel = M.velocityOf(line[s]);
-          let v = voice;
-          if (pickup && s >= S - 2 && voice === 'hat') { if (s === S - 2) v = 'openhat'; else continue; }
+          const v = voice;
           if (!vel) continue;
           const t = bar * ctx.beatsPerBar + s * stepBeats;
           out.push(note(t, stepBeats, v, vel * (0.94 + r() * 0.12), { pitch: voice === 'tom' ? (s % 3) : 0 }));
@@ -115,7 +114,6 @@
         }
       }
     }
-    if (part.crash) out.push(note(0, 1, 'crash', 0.9));
     return out;
   }
 
@@ -446,8 +444,8 @@
       for (let end = every; end <= L + 1e-9; end += every) {
         for (let i = 0; i < 4; i++) out.push(note(end - 1 + i * 0.25, 0.25, 'tom', 0.6 + 0.12 * i, { pitch: Math.max(0, 2 - Math.floor(i * 3 / 4)) }));
       }
-    } else if (style === 'crash' || style === 'impact') {
-      for (let t = 0; t < L - 1e-9; t += every) out.push(note(t, 2, style === 'impact' ? rootLow : 60, 0.95, { inst: style }));
+    } else if (style === 'impact') {
+      for (let t = 0; t < L - 1e-9; t += every) out.push(note(t, 2, rootLow, 0.95, { inst: 'impact' }));
     } else if (style === 'braam') {
       for (let t = 0; t < L - 1e-9; t += every) {
         const seg = M.chordAt(ctx.progression, t);
@@ -555,7 +553,7 @@
       hit: () => ({ beats: 2, parts: [
         p('impact', [n(0, 2, tonic(1), 1)], -18),
         p(palette.brass, triad(tonic(3), minor).map((m) => n(0, 0.6, m, 1)), -19),
-        p('crash', [n(0, 2, 60, 0.9)], -24),
+        p('taiko', [n(0, 1, 'taiko', 1)], -22),
       ] }),
       alert: () => ({ beats: 4, parts: [
         p('taiko', [0, 0.25, 0.5, 0.75].map((x, i) => n(x, 0.25, 'tom', 0.45 + 0.15 * i, { pitch: 2 - Math.min(2, i) })), -24),
@@ -574,7 +572,6 @@
         return { beats: at + 4, parts: [
           p(palette.brass, lineNotes.concat(thirds), -18),
           p(palette.strings, triad(r0 - 12, false).concat([r0]).map((m) => n(at, 4, m, 0.8)), -22),
-          p('crash', [n(at, 3, 60, 0.9)], -24),
           p('taiko', [n(at, 1, 'taiko', 1)], -21),
         ] };
       },
@@ -634,7 +631,7 @@
           p(palette.brass, triad(r0, minor).map((m) => n(0, bar, m, 0.9)), -20),
           p(palette.strings, triad(r0 - 12, minor).concat([r0 + 12]).map((m) => n(0, 2 * bar, m, 0.75)), -23),
           p('impact', [n(0, 2, tonic(1), 0.9)], -21),
-          p('crash', [n(0, 2, 60, 0.8)], -25),
+          p('taiko', [n(0, 1, 'taiko', 0.9)], -24),
         ] };
       },
     };

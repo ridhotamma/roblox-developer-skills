@@ -153,7 +153,7 @@ Give each layer its own job and register, so adding one never muddies the others
 | Motion (0.15-0.4) | Time: arpeggio, ostinato, shaker, pulse | mid-high, short notes |
 | Groove (0.35-0.65) | Energy: drums + bass | low and top end |
 | Lead (0.55-0.85) | Identity: the melody or hook | mid-high, one instrument |
-| Peak (0.85-1) | Size: counterlines, choir, braams, snare builds, crashes | everywhere, used sparingly |
+| Peak (0.85-1) | Size: counterlines, choir, braams, snare builds, tom fills | everywhere, used sparingly |
 
 Rules:
 - The bed is always on and must be the quietest-sounding complete piece of music.
@@ -190,7 +190,7 @@ Right notes on a perfect grid at one velocity still sound like a demo. Taste liv
 - **Accents.** Downbeats strongest, beat 3 next, off-beats softest. Uniform velocity is the number one reason programmed music sounds robotic.
 - **Phrase dynamics.** A slight swell across every 4 bars, so a phrase has a shape and not just a level.
 - **Articulation.** Vibrato that arrives late on long notes; slides into a note after a leap; bends up into a note on guitar and harmonica (`slides`, `bends`). Short notes stay short.
-- **Variation.** A drummer never plays the same bar 8 times. The kit adds a kick variation every second bar, a snare pickup and an open hi-hat at the end of every fourth bar, and quiet ghost notes in backbeat grooves. A `fill` or `roll` marks the phrase.
+- **Variation.** A drummer never plays the same bar 8 times. The kit adds a kick variation every second bar, a snare pickup at the end of every fourth bar, and quiet ghost notes in backbeat grooves. A `fill` or `roll` marks the phrase.
 - **Space.** Leave gaps. The blues lead plays in bars 1-2, rests in 3-4, and lets the band answer. Melodies breathe at phrase ends. Layers arrive one at a time.
 - **Turnarounds.** A dominant or bVII in the last half bar (`turnaround`) turns "the loop starts again" into "here we go again".
 
@@ -210,6 +210,6 @@ Genre recipes:
 - **Acoustic:** 85-110 BPM, major keys guitars like (G, C, D, E, A), I V vi IV or I IV V. Fingerpicking in the bed, strumming one layer up, panned apart. Harmonica, whistle or a fingerpicked melody on top. Laid back, light swing.
 - **Blues:** a 12-bar form (I I I I · IV IV I I · V IV I V) in a triplet shuffle at 70-100 BPM. Dominant 7th chords on I, IV and V, and the blues scale for the lead. The lead plays call (bars 1-2), the same call over IV (bars 5-6), an answer (bars 9-11) and a turnaround (bar 12), with space in between: the AAB of a blues verse. Bends into the 5th and the root, a quarter-tone curl on the minor 3rd, vibrato on the last note.
 - **Punk:** 160-200 BPM, three or four chords as power chords, a palm-muted verse into an open chorus, the skate beat (kick on the beat, snare on every off-beat) or the punk beat (an offset kick), everything rushing a little. An octave-doubled guitar hook or gang vocals on top.
-- **Rock:** 110-140 BPM, mixolydian (I bVII IV) or aeolian. Ringing chords to start, then chugging 8ths with pushes, a singing lead guitar with bends and vibrato, a crash on every phrase.
+- **Rock:** 110-140 BPM, mixolydian (I bVII IV) or aeolian. Ringing chords to start, then chugging 8ths with pushes, a singing lead guitar with bends and vibrato, a tom fill into every phrase.
 - **Funk:** 95-115 BPM, one or two chords (i7 IV7 in dorian), the 16th-note scratch guitar, a bass with octave pops and ghost notes, tight horns, the snare a hair late, light 16th swing.
 

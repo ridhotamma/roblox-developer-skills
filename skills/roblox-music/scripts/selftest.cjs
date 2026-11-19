@@ -100,6 +100,22 @@ for (const [file, content] of cli.outputs()) {
   ok(forms.size >= 3, `melodies use several phrase forms (${forms.size})`);
 }
 
+// 2c. no synthetic whooshes, sweeps or cymbal washes (they read as cheap sound effects, not music)
+{
+  const banned = ['riser', 'swell', 'shepard', 'scrape', 'wind', 'crash'];
+  const present = banned.filter((k) => M.INSTRUMENTS[k] || Object.values(M.DRUMS).some((pat) => pat[k]));
+  const used = [];
+  for (const [id, p] of Object.entries(moods)) for (const st of p.stems) for (const part of st.parts) {
+    if (banned.includes(part.style) || banned.includes(part.inst) || (Array.isArray(part.voices) ? part.voices : []).some((v) => banned.includes(v)) || part.crash) used.push(`${id}/${st.name}`);
+  }
+  let inShots = 0;
+  for (const [id, p] of Object.entries(moods)) {
+    const cue = M.compose(Object.assign({ id }, p), { seed: 1 });
+    for (const shot of cue.oneShots) for (const part of shot.parts) if (banned.includes(part.inst) || part.notes.some((n) => banned.includes(n.p) || banned.includes(n.inst))) inShots++;
+  }
+  ok(!present.length && !used.length && !inShots, `no whoosh / sweep / cymbal-wash sounds${present.length ? ' (instruments: ' + present.join(', ') + ')' : ''}${used.length ? ' (moods: ' + used.join(', ') + ')' : ''}${inShots ? ` (${inShots} one-shot parts)` : ''}`);
+}
+
 // 3. chords
 {
   const c = M.parseChord('VI', M.keyPitchClass('A'), 'aeolian');
