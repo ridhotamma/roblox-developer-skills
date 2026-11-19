@@ -45,13 +45,56 @@ for (const [file, content] of cli.outputs()) {
         } else if (['pad', 'arp', 'ostinato', 'stabs', 'strum'].includes(part.role)) {
           checked++;
           const seg = cue.chords.find((c) => n.t >= c.start - 1e-6 && n.t < c.start + c.length - 1e-6) || cue.chords[cue.chords.length - 1];
-          if (!seg.pcs.includes(pc)) { bad++; if (bad < 4) console.log(`     ${id}/${stem.name} ${part.role} ${M.noteName(n.p)} not in ${seg.symbol}`); }
+          // arpeggios may add the chord's diatonic 9th / 7th (colours, never avoid notes)
+          const pseg = M.chordAt(cue.ctx.progression, n.t);
+          const extra = part.role === 'arp' ? M.chordExtensions(pseg.chord, keyPc, cue.ctx.scale, part.def.colors === undefined ? 1 : part.def.colors) : [];
+          if (!seg.pcs.includes(pc) && !extra.includes(pc)) { bad++; if (bad < 4) console.log(`     ${id}/${stem.name} ${part.role} ${M.noteName(n.p)} not in ${seg.symbol}`); }
         }
         if (n.t < 0 || n.t >= cue.bars * cue.beatsPerBar) { bad++; console.log(`     ${id} note outside the loop at beat ${n.t}`); }
       }
     }
   }
-  ok(bad === 0, `melodies in scale, harmony parts on chord tones (${checked} notes)`);
+  ok(bad === 0, `melodies in scale, harmony parts on chord tones or colour tones (${checked} notes)`);
+}
+
+// 2b. melody craft: not a generic 1-and-5 line (references/music-theory.md section 5)
+{
+  let notes = 0, tonicFifth = 0, repeats = 0, strong = 0, clash = 0, unresolved = 0, under = 0, checkedUnder = 0, forms = new Set();
+  for (const [id, p] of Object.entries(moods)) for (const seed of [1, 2, 3]) {
+    const cue = M.compose(Object.assign({ id }, p), { seed });
+    const ctx = cue.ctx;
+    const parts = cue.stems.flatMap((s) => s.parts);
+    const mel = parts.find((x) => x.role === 'melody' && !['bells', 'counter'].includes(x.def.style));
+    if (!mel) continue;
+    forms.add(ctx.motif.form.join(' '));
+    const ns = mel.notes;
+    ns.forEach((n, i) => {
+      notes++;
+      const deg = (n.p - ctx.keyPc + 120) % 12;
+      if (deg === 0 || deg === 7) tonicFifth++;
+      if (i && n.p === ns[i - 1].p) repeats++;
+      const col = M.chordColors(M.chordAt(ctx.progression, n.t).chord, ctx.keyPc, ctx.scale);
+      if (Math.abs(n.t % 1) < 1e-6 && n.d >= 0.45 && col.root !== null) {
+        strong++;
+        if (!col.tones.includes(n.p % 12) && !col.tensions.includes(n.p % 12)) {
+          clash++;
+          const nx = ns[i + 1];
+          const nc = nx && M.chordColors(M.chordAt(ctx.progression, nx.t).chord, ctx.keyPc, ctx.scale);
+          if (!nx || Math.abs(nx.p - n.p) > 2 || !nc.tones.includes(nx.p % 12)) unresolved++;
+        }
+      }
+    });
+    for (const c of (parts.find((x) => x.role === 'counter') || { notes: [] }).notes) {
+      const m = ns.filter((n) => n.t <= c.t + 1e-9 && n.t + n.d > c.t).pop();
+      if (m) { checkedUnder++; if (c.p < m.p) under++; }
+    }
+  }
+  const pct = (a, b) => (100 * a / Math.max(1, b)).toFixed(1);
+  ok(tonicFifth / notes < 0.32, `melodies don't lean on the tonic and fifth (${pct(tonicFifth, notes)}% of ${notes} notes)`);
+  ok(repeats / notes < 0.2, `few repeated notes (${pct(repeats, notes)}%)`);
+  ok(clash / strong < 0.05 && unresolved <= Math.ceil(strong * 0.005), `strong-beat dissonances are rare and resolve by step (${clash} of ${strong}, ${unresolved} unresolved)`);
+  ok(under / Math.max(1, checkedUnder) > 0.97, `counterlines stay under the melody (${pct(under, checkedUnder)}%)`);
+  ok(forms.size >= 3, `melodies use several phrase forms (${forms.size})`);
 }
 
 // 3. chords

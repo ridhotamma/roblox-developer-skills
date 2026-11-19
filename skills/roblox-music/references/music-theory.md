@@ -5,7 +5,7 @@
 2. Chord progressions by mood
 3. Tension and release devices
 4. Rhythm and grooves
-5. Writing the main melody (motifs, hooks, leitmotifs)
+5. Writing the main melody (motifs, development, forms, fitting chords, counterlines, arpeggios)
 6. Arranging stems so every layer works
 7. Mixing and levels
 8. Working with a composer, a DAW or an AI music tool
@@ -85,12 +85,60 @@ Swing (8th-note, 15-30%) makes calm music friendly and human; never swing combat
 
 ## 5. Writing the main melody
 
-- **Motif first.** 3-7 notes, 1-2 bars, with a recognizable rhythm. Repetition is what makes it memorable: state it, repeat it (on the next chord, fitted to it: a *sequence*), vary it, then answer it.
-- **Form for an 8-bar loop:** A (2 bars) · A' (same rhythm, re-fitted) · B (contrast: higher, denser) · A'' (returns, ends on the 5th so the loop leads back to bar 1). The kit's `melody` generator follows this.
-- **Hooks** (racing, synthwave, obby): one bar repeated every bar, fitted to each chord. Simple rhythms with one syncopation.
-- **Strong beats on chord tones,** weak beats on passing notes. Leaps up feel heroic (4ths, 5ths, octaves), steps down feel sad. After a leap, step back the other way.
-- **Range:** keep a melody inside about a 10th; brass 55-74 (G3-D5), flute 72-91, whistle 72-90, lead synths 60-84, music box 69-93.
-- **Leitmotif:** give a character or faction 3-5 notes and reuse them in every mood: heroic in the victory cue, minor and slow in the sad cue, distorted in the boss fight. In the kit: same seed + a different mood/key keeps rhythms but not pitches; for a true leitmotif, write it once in a DAW from the MIDI export and reuse it.
+A generic line is chord roots and fifths, every bar the same, notes moving at random. A melody people remember is one idea, developed. This is what the `melody` generator does, in this order. Write it the same way by hand.
+
+### 5.1 The motif
+- **3-7 notes, 1-2 bars, a rhythm you could tap.** The rhythm is more recognisable than the pitches; give it one syncopation or a pickup (`CELLS.hook`).
+- **A contour, in scale steps,** not a chord shape. The generator's shapes (`contour`):
+
+| Contour | Shape | Feels | Default for |
+|---|---|---|---|
+| `leap` | jump up a 4th-6th, then step down (leap and fill) | heroic, a call to arms | aeolian, mixolydian, fanfares |
+| `arch` | step up to a peak, step down | open, singing | lydian, ionian |
+| `valley` | down, then back up | wistful, searching | harmonic minor |
+| `rise` / `fall` | mostly up / mostly down, with a turn | hope / sadness | lydian / sad cues |
+| `zigzag` | up a 3rd, down a step, repeat (a climbing sequence of 3rds) | restless, clever | dorian |
+| `neighbor` | circles one note: up a step, back, below, back | stalking, uneasy | phrygian, locrian |
+| `turn` | step up, down, down, then a leap | ornamental, exotic, folk | phrygian dominant, dorian |
+
+### 5.2 Development: never the same thing twice in a row
+| Device | What changes | In the generator |
+|---|---|---|
+| Repetition | nothing (use once, then vary) | `BI` (basic idea) |
+| Sequence | same shape from another scale step; the new chord re-colours it | `SEQ` |
+| Varied ending (answer) | same start, last 1-2 notes go somewhere new | `VARY` |
+| Inversion | contour upside down | `INV` |
+| Fragmentation | the first 2 beats only, three times, climbing: the phrase speeds up toward its climax | `CONT` |
+| Contrast | new rhythm, opposite contour, higher register | `CI` |
+| Cadence | the head of the idea, then a long note on a cadence tone | `CAD` |
+
+### 5.3 Phrase forms (`form`)
+- **Sentence** `BI SEQ CONT CAD`: state the idea, state it again on another chord, break it into fragments that climb, then cadence. The drive of action and boss music.
+- **Period** `BI CI SEQ CAD`: a question (the idea, then a contrast that stops on a half cadence) and an answer (the idea again, then a cadence). Lyrical and sad cues.
+- **AABA** `BI VARY CI CAD`: two statements, a bridge, a return. Songs and lobbies.
+- **Call** `BI INV SEQ CAD`: an idea and its mirror image.
+- **Hook** (8 one-bar units) `BI VARY BI CI BI VARY CONT CAD`: call and response. The bar comes back four times, never more than once in a row.
+
+### 5.4 Fitting notes to chords
+- **Strong beats prefer guide tones (3rds and 7ths), then colour tones (the 9th), then the 5th, last the root.** The 3rd and 7th say which chord it is; the root just doubles the bass.
+- **Tensions:** 9ths on major and minor chords, the 11th on minor chords, #11 in lydian. **Avoid notes** are a semitone above a chord tone (the 4th over a major chord, b6 over a minor one, b2 over anything) or a minor 3rd over a major chord: fine in passing, never held on a strong beat unless they resolve.
+- **Appoggiatura:** a dissonance *on* the beat that steps onto a chord tone. It is the most expressive note in a melody (the "sigh"), so the generator allows one when the next note resolves it by step.
+- **Weak beats:** passing notes (step, step through) and neighbour notes (step away, step back) connect the chord tones.
+- **The key's tonic and 5th are cadence notes.** Leaning on them mid-phrase is what makes a line sound generic, so the generator charges extra for them away from cadences. Phrases end on the 2nd, 3rd, 5th or 7th (open, so the loop rolls on); only an `ending: "tonic"` melody closes on 1.
+- **Use the mode's colour note** (lydian #4, dorian 6, mixolydian b7, aeolian b6, phrygian b2, harmonic minor's raised 7th). Without it a mode sounds like plain major or minor.
+
+### 5.5 Shape rules
+- **Mostly steps, some leaps.** About half the intervals are steps; leaps of a 4th-6th mark the important notes.
+- **Gap-fill:** after a leap, change direction, usually by step (Meyer; Narmour; von Hippel and Huron call it regression to the middle of the range). Two leaps in a row in the same direction only to outline one chord.
+- **No tritone leaps, no leaps over an octave, few 7ths.**
+- **One climax per loop,** about 60-75% through, reached once (the end of the fragmentation in a sentence). Everything else stays a few steps below it.
+- **Range:** about a 10th to a 12th. Brass 55-74 (G3-D5), flute 72-91, whistle 72-90, lead synths 60-84, music box 69-93.
+
+### 5.6 The other melodic parts
+- **Counterline:** guide tones (3rds, 7ths) that move by step against the melody's direction (contrary motion), below it, with no parallel 5ths or octaves. It moves when the melody holds and holds when the melody moves; passing notes fill the gaps (`counter`).
+- **Arpeggios:** each chord enters on the inversion nearest the last one, so the figure keeps its register as chords change, and the 9th (or 7th) adds colour. The figure can be broken thirds, Alberti, 3+3+2 groups across the beat, a pedal tone under a moving top, a cascade or a wave, plus a seeded riff. The last bar of every four mirrors it as a turnaround. Root-3rd-5th-up, repeated, is the most generic sound in game music.
+- **Bass:** a one-bar riff on chord degrees (root, octave, 5th, a 7th below) that repeats like a groove, plus an approach note: the last note before a chord change steps into the new root.
+- **Leitmotif:** stingers quote the cue's own motif. Victory plays it in the parallel major, in brass 3rds, and lands on the 3rd. Fail plays it inverted and slowed in minor. Discover plays the head on bells and ends on the 9th. Level-up sequences the first three notes up the scale. For a character theme across cues, write it once in a DAW from the MIDI export and reuse it.
 - **When not to have a melody:** horror exploration, stealth beds, anything under dialogue. Melody pulls attention.
 
 ## 6. Arranging stems so every layer works

@@ -25,7 +25,7 @@ return {
 		Stingers = {
 			discover = { Asset = "", Beats = 4 }, -- exploration_discover.wav
 			hit = { Asset = "", Beats = 2 }, -- exploration_hit.wav
-			levelup = { Asset = "", Beats = 2 }, -- exploration_levelup.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- exploration_levelup.wav
 		},
 	},
 	action_combat = {
@@ -45,8 +45,8 @@ return {
 		Stingers = {
 			alert = { Asset = "", Beats = 4 }, -- action_combat_alert.wav
 			hit = { Asset = "", Beats = 2 }, -- action_combat_hit.wav
-			victory = { Asset = "", Beats = 6 }, -- action_combat_victory.wav
-			fail = { Asset = "", Beats = 6 }, -- action_combat_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- action_combat_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- action_combat_fail.wav
 		},
 	},
 	car_chase = {
@@ -66,7 +66,7 @@ return {
 		Stingers = {
 			alert = { Asset = "", Beats = 4 }, -- car_chase_alert.wav
 			hit = { Asset = "", Beats = 2 }, -- car_chase_hit.wav
-			fail = { Asset = "", Beats = 6 }, -- car_chase_fail.wav
+			fail = { Asset = "", Beats = 6.25 }, -- car_chase_fail.wav
 		},
 	},
 	heist_stealth = {
@@ -86,8 +86,8 @@ return {
 		Stingers = {
 			alert = { Asset = "", Beats = 4 }, -- heist_stealth_alert.wav
 			discover = { Asset = "", Beats = 4 }, -- heist_stealth_discover.wav
-			fail = { Asset = "", Beats = 6 }, -- heist_stealth_fail.wav
-			victory = { Asset = "", Beats = 6 }, -- heist_stealth_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- heist_stealth_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- heist_stealth_victory.wav
 		},
 	},
 	horror_dread = {
@@ -107,7 +107,7 @@ return {
 		Stingers = {
 			jumpscare = { Asset = "", Beats = 3 }, -- horror_dread_jumpscare.wav
 			tension = { Asset = "", Beats = 8 }, -- horror_dread_tension.wav
-			fail = { Asset = "", Beats = 6 }, -- horror_dread_fail.wav
+			fail = { Asset = "", Beats = 6.25 }, -- horror_dread_fail.wav
 			discover = { Asset = "", Beats = 4 }, -- horror_dread_discover.wav
 		},
 	},
@@ -127,7 +127,7 @@ return {
 		Ending = { Asset = "", Beats = 8 }, -- horror_chase_ending.wav
 		Stingers = {
 			jumpscare = { Asset = "", Beats = 3 }, -- horror_chase_jumpscare.wav
-			fail = { Asset = "", Beats = 6 }, -- horror_chase_fail.wav
+			fail = { Asset = "", Beats = 6.25 }, -- horror_chase_fail.wav
 			hit = { Asset = "", Beats = 2 }, -- horror_chase_hit.wav
 		},
 	},
@@ -168,8 +168,8 @@ return {
 		Stingers = {
 			alert = { Asset = "", Beats = 4 }, -- epic_boss_alert.wav
 			hit = { Asset = "", Beats = 2 }, -- epic_boss_hit.wav
-			victory = { Asset = "", Beats = 6 }, -- epic_boss_victory.wav
-			fail = { Asset = "", Beats = 6 }, -- epic_boss_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- epic_boss_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- epic_boss_fail.wav
 		},
 	},
 	cozy_village = {
@@ -188,8 +188,8 @@ return {
 		Ending = { Asset = "", Beats = 8 }, -- cozy_village_ending.wav
 		Stingers = {
 			discover = { Asset = "", Beats = 4 }, -- cozy_village_discover.wav
-			levelup = { Asset = "", Beats = 2 }, -- cozy_village_levelup.wav
-			victory = { Asset = "", Beats = 6 }, -- cozy_village_victory.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- cozy_village_levelup.wav
+			victory = { Asset = "", Beats = 5.5 }, -- cozy_village_victory.wav
 		},
 	},
 	sad_emotional = {
@@ -207,7 +207,7 @@ return {
 		Intro = { Asset = "", Beats = 4 }, -- sad_emotional_intro.wav
 		Ending = { Asset = "", Beats = 8 }, -- sad_emotional_ending.wav
 		Stingers = {
-			fail = { Asset = "", Beats = 6 }, -- sad_emotional_fail.wav
+			fail = { Asset = "", Beats = 6.25 }, -- sad_emotional_fail.wav
 			discover = { Asset = "", Beats = 4 }, -- sad_emotional_discover.wav
 		},
 	},
@@ -226,8 +226,8 @@ return {
 		Intro = { Asset = "", Beats = 4 }, -- victory_triumph_intro.wav
 		Ending = { Asset = "", Beats = 8 }, -- victory_triumph_ending.wav
 		Stingers = {
-			victory = { Asset = "", Beats = 6 }, -- victory_triumph_victory.wav
-			levelup = { Asset = "", Beats = 2 }, -- victory_triumph_levelup.wav
+			victory = { Asset = "", Beats = 5.5 }, -- victory_triumph_victory.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- victory_triumph_levelup.wav
 			hit = { Asset = "", Beats = 2 }, -- victory_triumph_hit.wav
 		},
 	},
@@ -268,7 +268,7 @@ return {
 		Stingers = {
 			discover = { Asset = "", Beats = 4 }, -- scifi_space_discover.wav
 			alert = { Asset = "", Beats = 4 }, -- scifi_space_alert.wav
-			levelup = { Asset = "", Beats = 2 }, -- scifi_space_levelup.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- scifi_space_levelup.wav
 		},
 	},
 	western_desert = {
@@ -287,8 +287,8 @@ return {
 		Ending = { Asset = "", Beats = 8 }, -- western_desert_ending.wav
 		Stingers = {
 			alert = { Asset = "", Beats = 4 }, -- western_desert_alert.wav
-			victory = { Asset = "", Beats = 6 }, -- western_desert_victory.wav
-			fail = { Asset = "", Beats = 6 }, -- western_desert_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- western_desert_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- western_desert_fail.wav
 		},
 	},
 	menu_lobby = {
@@ -306,7 +306,7 @@ return {
 		Intro = { Asset = "", Beats = 4 }, -- menu_lobby_intro.wav
 		Ending = { Asset = "", Beats = 8 }, -- menu_lobby_ending.wav
 		Stingers = {
-			levelup = { Asset = "", Beats = 2 }, -- menu_lobby_levelup.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- menu_lobby_levelup.wav
 			discover = { Asset = "", Beats = 4 }, -- menu_lobby_discover.wav
 		},
 	},
@@ -326,8 +326,8 @@ return {
 		Ending = { Asset = "", Beats = 8 }, -- racing_drive_ending.wav
 		Stingers = {
 			hit = { Asset = "", Beats = 2 }, -- racing_drive_hit.wav
-			victory = { Asset = "", Beats = 6 }, -- racing_drive_victory.wav
-			levelup = { Asset = "", Beats = 2 }, -- racing_drive_levelup.wav
+			victory = { Asset = "", Beats = 5.5 }, -- racing_drive_victory.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- racing_drive_levelup.wav
 		},
 	},
 	obby_upbeat = {
@@ -345,9 +345,9 @@ return {
 		Intro = { Asset = "", Beats = 4 }, -- obby_upbeat_intro.wav
 		Ending = { Asset = "", Beats = 8 }, -- obby_upbeat_ending.wav
 		Stingers = {
-			levelup = { Asset = "", Beats = 2 }, -- obby_upbeat_levelup.wav
-			fail = { Asset = "", Beats = 6 }, -- obby_upbeat_fail.wav
-			victory = { Asset = "", Beats = 6 }, -- obby_upbeat_victory.wav
+			levelup = { Asset = "", Beats = 2.125 }, -- obby_upbeat_levelup.wav
+			fail = { Asset = "", Beats = 6.25 }, -- obby_upbeat_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- obby_upbeat_victory.wav
 			discover = { Asset = "", Beats = 4 }, -- obby_upbeat_discover.wav
 		},
 	},

@@ -26,8 +26,8 @@ Any combination of stems from the bottom up must sound finished: the bed alone i
 
 - **alert** (stinger): 4 beats (1.71 s) + natural tail, in key, lands on a beat.
 - **hit** (stinger): 2 beats (0.86 s) + natural tail, in key, lands on a beat.
-- **victory** (stinger): 6 beats (2.57 s) + natural tail, in key, lands on a beat.
-- **fail** (stinger): 6 beats (2.57 s) + natural tail, in key, lands on a beat.
+- **victory** (stinger): 5.5 beats (2.36 s) + natural tail, in key, lands on a beat.
+- **fail** (stinger): 6.25 beats (2.68 s) + natural tail, in key, lands on a beat.
 - **intro** (intro): 4 beats (1.71 s) + natural tail; its last beat leads into bar 1 of the loop.
 - **ending** (ending): 8 beats (3.43 s) + natural tail; starts on a bar line, ends the cue.
 

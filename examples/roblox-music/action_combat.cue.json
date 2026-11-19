@@ -13,7 +13,7 @@
   "chords": "i:2 VI VII i:2 iv V",
   "mix": {
     "lufs": -16,
-    "peakDb": -2.6
+    "peakDb": -2.7
   },
   "stems": [
     {
@@ -29,8 +29,8 @@
       "file": "action_combat_pulse.wav",
       "min": 0.2,
       "full": 0.35,
-      "lufs": -23.2,
-      "peakDb": -8.4
+      "lufs": -23.1,
+      "peakDb": -8.6
     },
     {
       "name": "drums",
@@ -38,15 +38,15 @@
       "min": 0.45,
       "full": 0.6,
       "lufs": -21,
-      "peakDb": -5.5
+      "peakDb": -6.3
     },
     {
       "name": "brass",
       "file": "action_combat_brass.wav",
       "min": 0.7,
       "full": 0.85,
-      "lufs": -21,
-      "peakDb": -10.1
+      "lufs": -21.2,
+      "peakDb": -10.2
     },
     {
       "name": "peak",
@@ -78,16 +78,16 @@
       "name": "victory",
       "kind": "stinger",
       "file": "action_combat_victory.wav",
-      "beats": 6,
-      "seconds": 4.167,
+      "beats": 5.5,
+      "seconds": 4.442,
       "lufs": -17
     },
     {
       "name": "fail",
       "kind": "stinger",
       "file": "action_combat_fail.wav",
-      "beats": 6,
-      "seconds": 4.69,
+      "beats": 6.25,
+      "seconds": 4.786,
       "lufs": -17
     },
     {

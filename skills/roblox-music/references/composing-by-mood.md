@@ -57,13 +57,13 @@ Each preset ships 5 stems ordered by intensity (bed first) and its stingers. `no
 
 Why they work (the parts worth copying into custom moods):
 - **Combat:** the 16th-note ostinato in the bass (layer 2) is the engine; drums at 0.45-0.6 turn "danger" into "fight"; the melody arrives late (0.7+) so the climax feels earned; braams and risers only at the top.
-- **Chase (GTA-flavoured):** the arpeggiated sequencer is there from intensity 0, so even 1 star feels like motion; the sidechain pump on the bass layer gives the "engine" feel; a hook (one bar repeated, re-fitted to each chord) is more memorable at speed than a long melody.
+- **Chase (GTA-flavoured):** the arpeggiated sequencer is there from intensity 0, so even 1 star feels like motion; the sidechain pump on the bass layer gives the "engine" feel; a hook is more memorable at speed than a long melody: one syncopated bar stated, answered with a new ending, contrasted, then broken into climbing fragments (call and response, not the same bar eight times). The sequencer cuts across the beat in 3+3+2 groups.
 - **Heist:** dorian's major IV keeps it cool instead of sad; the clock tick is the bed; the brass "alarm" layer only appears when it all goes wrong.
 - **Horror dread:** no melody (Dead Space's rule), a minor-second drone, intensity mostly means *closer*: the heartbeat appears at 0.4, the shepard tone (an endless rise that never resolves) at 0.65. The jump-scare stinger is a 5-note cluster with a sforzando and an impact; use it sparingly (every scare loses power).
 - **Horror chase:** tempo 165, everything low and percussive; screeching clusters at 0.7+. Same key family as horror_dread (phrygian) so the hand-over feels like the same nightmare speeding up.
 - **Lullaby:** wrongness = a familiar sound slightly out of tune; the top layers detune further.
 - **Cozy:** swing at 20%, walking bass, small room. Nothing above 0.8 intensity is loud: cozy games rarely need a climax.
-- **Victory:** bVII → I is the "triumphant" move in film and games; the fanfare melody style uses whole-bar rhythmic cells and chord tones.
+- **Victory:** bVII → I is the "triumphant" move in film and games; the fanfare melody opens with a leap and steps back down (leap-and-fill), climbs through a sentence to one high point, and the victory stinger quotes the cue's own motif in the major key, harmonised in thirds.
 
 ## 3. Making a new mood
 
@@ -102,19 +102,19 @@ Fields:
 | role | options | inst (default) |
 |---|---|---|
 | `drums` | `pattern` (see below), `voices` subset, `fill` (roll in the last bar), `crash` | kit voices |
-| `bass` | `style`: sustain, drone, walking, ostinato16, chug, gallop, eighths, offbeat, octaves, quarters, syncopated, tresillo, 808, halftime, heartbeat; `octave` (2) | synthbass |
+| `bass` | `style`: sustain, drone, walking, ostinato16, chug, gallop, eighths, offbeat, octaves, quarters, syncopated, tresillo, 808, halftime, heartbeat; `octave` (2). Rhythmic styles play a one-bar riff (root, octave, 5th, 3rd, 7th below) and step into each new chord | synthbass |
 | `pad` | `octave` (4), `voices` (4) | pad |
 | `stabs` | `rhythm`, `octave`, `length` (beats), `bassNote` | brass |
-| `arp` | `pattern` up/down/updown/pinky/random, `rate` (steps), `octave`, `span` (octaves) | pluck |
-| `ostinato` | `shape` (chord-tone indices), `rate`, `accents`, `octave` (3) | spiccato |
-| `broken` | `octave`, `rate` | piano |
+| `arp` | `pattern` broken (thirds), alberti, groups3 (3+3+2), pedal, cascade, wave, spread, motif (seeded riff), auto, or the plain up/down/updown/pinky/random; `colors` 0/1/2 (add the 9th / 9th and 7th, default 1); `rate` (steps), `octave`, `span` (octaves). Chords enter on the nearest inversion; every 4th bar mirrors the figure | pluck |
+| `ostinato` | `shape` (chord-tone indices; the seed picks one if absent), `rate`, `accents`, `octave` (3). Every 4th bar the shape turns up a chord tone | spiccato |
+| `broken` | `pattern` classic (1 5 10 5), rising (1 5 8 10), nine (1 5 9 10), waltz; `octave`, `rate` | piano |
 | `strum` | `rhythm`, `octave` | guitar |
 | `pulse` | `rhythm`, `notes` (scale degrees, 0-based), `octave` | musicbox |
 | `drone` | `octave` (2), `intervals` ([0, 7]) | drone |
 | `cluster` | `octave`, `intervals` ([0, 1, 6, 11]) | tremolo |
-| `melody` | `style` motif/hook/fanfare, `density` sparse/medium/dense, `range` [lo, hi] MIDI or `octave`, `phrase` bars, `ending` open/tonic, `legato` | lead |
-| `counter` | `range`, `every` (beats per note) | strings |
-| `bells` | `chance` per beat, `range` | bell |
+| `melody` | `style` motif/hook/fanfare; `form` sentence/period/aaba/call/hook (seeded if absent); `contour` leap/arch/valley/rise/fall/zigzag/neighbor/turn (picked from the mode if absent); `density` sparse/medium/dense; `syncopation` 0-1; `range` [lo, hi] MIDI or `octave`; `phrase` (bars per unit); `ending` open/tonic; `legato` | lead |
+| `counter` | `range`, `every` (beats per note). Guide tones moving against the melody, below it, with passing notes where it holds | strings |
+| `bells` | `chance` per beat, `range`. Colour tones (3rd, 5th, 7th, 9th) with grace notes | bell |
 | `fx` | `style` riser/swell/crash/impact/braam/shepard/wind/scrape, `every` (bars), `bars`, `octave`, `count`, `down` | (the style) |
 
 Every part also takes `level` (dB vs its role's default), `pan` (-1..1), `detune` (cents, mallets).
@@ -124,7 +124,7 @@ Every part also takes `level` (dB vs its role's default), `pan` (-1..1), `detune
 - Instruments: subbass, synthbass, reese, fmbass, bass808, pluckbass · pluck, harp, guitar, tremguitar, pizz · epiano, piano, musicbox, marimba, celesta, bell, organ · strings, tremolo, spiccato, pad, warmpad, darkpad, glass, drone, choir · brass, horn, braam · arp, lead, sqlead, whistle, flute · riser, swell, impact, shepard, wind, scrape · drum voices.
 - `stingers`: hit, alert, victory, fail, jumpscare, discover, levelup, tension (an intro and an ending are always made unless `"intro": false` / `"ending": false`).
 
-Variation without editing: `--seed` (new melody, rhythms, fills), `--key`, `--bpm`, `--bars`, `--progression "i VI III VII"`.
+Variation without editing: `--seed` (new motif, form, contour, rhythms, arpeggio riffs, fills), `--key`, `--bpm`, `--bars`, `--progression "i VI III VII"`.
 
 ## 4. Pairing cues for hand-overs
 

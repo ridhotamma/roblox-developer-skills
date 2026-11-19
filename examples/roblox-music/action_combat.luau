@@ -16,7 +16,7 @@
 		Stingers = {
 			alert = { Asset = "", Beats = 4 }, -- action_combat_alert.wav
 			hit = { Asset = "", Beats = 2 }, -- action_combat_hit.wav
-			victory = { Asset = "", Beats = 6 }, -- action_combat_victory.wav
-			fail = { Asset = "", Beats = 6 }, -- action_combat_fail.wav
+			victory = { Asset = "", Beats = 5.5 }, -- action_combat_victory.wav
+			fail = { Asset = "", Beats = 6.25 }, -- action_combat_fail.wav
 		},
 	},

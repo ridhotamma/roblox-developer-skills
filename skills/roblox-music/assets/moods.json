@@ -11,7 +11,7 @@
         { "role": "pad", "inst": "warmpad", "octave": 4 },
         { "role": "bass", "style": "sustain", "inst": "subbass", "octave": 2, "level": -4 } ] },
       { "name": "motion", "min": 0.15, "full": 0.3, "reverb": 0.4, "delay": { "beats": 0.75, "feedback": 0.3, "mix": 0.2 }, "parts": [
-        { "role": "arp", "inst": "harp", "pattern": "updown", "rate": 2, "octave": 4, "span": 2 },
+        { "role": "arp", "inst": "harp", "pattern": "wave", "rate": 2, "octave": 4, "span": 2 },
         { "role": "drums", "pattern": "shaker16", "level": -2 } ] },
       { "name": "groove", "min": 0.35, "full": 0.55, "reverb": 0.2, "parts": [
         { "role": "drums", "pattern": "halftime", "voices": ["kick", "snare", "hat"], "fill": true },
@@ -43,7 +43,7 @@
         { "role": "drums", "pattern": "action", "voices": ["kick", "snare", "tom"], "fill": true },
         { "role": "ostinato", "inst": "spiccato", "octave": 3 } ] },
       { "name": "brass", "min": 0.7, "full": 0.85, "reverb": 0.35, "parts": [
-        { "role": "melody", "inst": "brass", "density": "medium", "range": [57, 74] },
+        { "role": "melody", "inst": "brass", "density": "medium", "range": [57, 74], "contour": "leap", "form": "sentence" },
         { "role": "stabs", "inst": "horn", "rhythm": "stab_end", "octave": 3, "level": -4 } ] },
       { "name": "peak", "min": 0.9, "full": 1, "reverb": 0.3, "parts": [
         { "role": "fx", "style": "braam", "every": 4, "bars": 2, "octave": 1 },
@@ -62,7 +62,7 @@
     "room": { "size": 0.65, "damp": 0.5 },
     "stems": [
       { "name": "sequencer", "min": 0, "full": 0, "reverb": 0.25, "delay": { "beats": 0.75, "feedback": 0.35, "mix": 0.18 }, "parts": [
-        { "role": "arp", "inst": "arp", "pattern": "updown", "rate": 1, "octave": 3, "span": 2 },
+        { "role": "arp", "inst": "arp", "pattern": "groups3", "rate": 1, "octave": 3, "span": 2 },
         { "role": "pad", "inst": "darkpad", "octave": 3, "level": -3 } ] },
       { "name": "pursuit", "min": 0.25, "full": 0.4, "reverb": 0.1, "pump": 0.3, "parts": [
         { "role": "bass", "style": "octaves", "inst": "synthbass", "octave": 2 },
@@ -204,7 +204,7 @@
         { "role": "ostinato", "inst": "spiccato", "shape": [0, 0, 2, 0, 1, 0, 2, 1], "octave": 3 },
         { "role": "bass", "style": "sustain", "inst": "subbass", "octave": 2 } ] },
       { "name": "brass", "min": 0.65, "full": 0.8, "reverb": 0.45, "parts": [
-        { "role": "melody", "inst": "brass", "density": "sparse", "range": [55, 72] },
+        { "role": "melody", "inst": "brass", "density": "sparse", "range": [55, 72], "contour": "leap", "form": "sentence" },
         { "role": "counter", "inst": "horn", "range": [48, 64], "level": -3 } ] },
       { "name": "peak", "min": 0.85, "full": 1, "reverb": 0.35, "parts": [
         { "role": "drums", "pattern": "epic", "voices": ["kick", "snare", "crash"] },
@@ -248,11 +248,11 @@
     "room": { "size": 0.85, "damp": 0.45 },
     "stems": [
       { "name": "piano", "min": 0, "full": 0, "reverb": 0.45, "parts": [
-        { "role": "broken", "inst": "piano", "octave": 3 } ] },
+        { "role": "broken", "inst": "piano", "pattern": "nine", "octave": 3 } ] },
       { "name": "strings", "min": 0.25, "full": 0.45, "reverb": 0.5, "parts": [
         { "role": "pad", "inst": "strings", "octave": 4 } ] },
       { "name": "melody", "min": 0.5, "full": 0.7, "reverb": 0.5, "parts": [
-        { "role": "melody", "inst": "piano", "density": "sparse", "range": [64, 83] } ] },
+        { "role": "melody", "inst": "piano", "density": "sparse", "range": [64, 83], "contour": "fall", "form": "period" } ] },
       { "name": "cello", "min": 0.75, "full": 0.9, "reverb": 0.5, "parts": [
         { "role": "counter", "inst": "strings", "range": [48, 64] } ] },
       { "name": "swell", "min": 0.9, "full": 1, "reverb": 0.55, "parts": [
@@ -295,7 +295,7 @@
     "stems": [
       { "name": "pads", "min": 0, "full": 0, "reverb": 0.45, "delay": { "beats": 0.75, "feedback": 0.4, "mix": 0.2 }, "parts": [
         { "role": "pad", "inst": "pad", "octave": 4 },
-        { "role": "arp", "inst": "arp", "pattern": "updown", "rate": 2, "octave": 4, "span": 1, "level": -4 } ] },
+        { "role": "arp", "inst": "arp", "pattern": "pedal", "rate": 2, "octave": 4, "span": 1, "colors": 2, "level": -4 } ] },
       { "name": "bass", "min": 0.2, "full": 0.35, "reverb": 0.1, "pump": 0.35, "parts": [
         { "role": "bass", "style": "octaves", "inst": "synthbass", "octave": 2 } ] },
       { "name": "drums", "min": 0.4, "full": 0.55, "reverb": 0.3, "parts": [
@@ -322,7 +322,7 @@
         { "role": "pad", "inst": "glass", "octave": 4 },
         { "role": "drone", "inst": "drone", "octave": 2, "level": -4 } ] },
       { "name": "signal", "min": 0.2, "full": 0.4, "reverb": 0.4, "delay": { "beats": 0.75, "feedback": 0.45, "mix": 0.25 }, "parts": [
-        { "role": "arp", "inst": "pluck", "pattern": "pinky", "rate": 1, "octave": 4, "span": 2 } ] },
+        { "role": "arp", "inst": "pluck", "pattern": "spread", "rate": 1, "octave": 4, "span": 2 } ] },
       { "name": "drive", "min": 0.45, "full": 0.65, "reverb": 0.25, "parts": [
         { "role": "drums", "pattern": "halftime", "voices": ["kick", "snare", "hat"] },
         { "role": "bass", "style": "eighths", "inst": "subbass", "octave": 2 } ] },
@@ -350,7 +350,7 @@
         { "role": "drums", "pattern": "gallop" },
         { "role": "bass", "style": "sustain", "inst": "pluckbass", "octave": 2 } ] },
       { "name": "whistle", "min": 0.5, "full": 0.7, "reverb": 0.6, "parts": [
-        { "role": "melody", "inst": "whistle", "density": "sparse", "range": [72, 91] } ] },
+        { "role": "melody", "inst": "whistle", "density": "sparse", "range": [72, 91], "contour": "turn" } ] },
       { "name": "choir", "min": 0.75, "full": 0.9, "reverb": 0.55, "parts": [
         { "role": "pad", "inst": "choir", "octave": 4 },
         { "role": "counter", "inst": "horn", "range": [52, 67], "level": -3 } ] },
@@ -394,7 +394,7 @@
     "stems": [
       { "name": "synths", "min": 0, "full": 0, "reverb": 0.35, "delay": { "beats": 0.75, "feedback": 0.3, "mix": 0.15 }, "parts": [
         { "role": "pad", "inst": "pad", "octave": 4, "level": -2 },
-        { "role": "arp", "inst": "arp", "pattern": "up", "rate": 1, "octave": 4, "span": 1 } ] },
+        { "role": "arp", "inst": "arp", "pattern": "broken", "rate": 1, "octave": 4, "span": 1 } ] },
       { "name": "bass", "min": 0.2, "full": 0.4, "reverb": 0.1, "pump": 0.3, "parts": [
         { "role": "bass", "style": "offbeat", "inst": "synthbass", "octave": 2 } ] },
       { "name": "drums", "min": 0.45, "full": 0.6, "reverb": 0.15, "parts": [
@@ -418,7 +418,7 @@
     "room": { "size": 0.45, "damp": 0.6 },
     "stems": [
       { "name": "bounce", "min": 0, "full": 0, "reverb": 0.2, "parts": [
-        { "role": "arp", "inst": "marimba", "pattern": "up", "rate": 2, "octave": 4, "span": 1 },
+        { "role": "arp", "inst": "marimba", "pattern": "alberti", "rate": 2, "octave": 4, "span": 1 },
         { "role": "pad", "inst": "warmpad", "octave": 4, "level": -6 } ] },
       { "name": "bass", "min": 0.15, "full": 0.3, "reverb": 0.1, "parts": [
         { "role": "bass", "style": "octaves", "inst": "fmbass", "octave": 2 } ] },

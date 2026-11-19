@@ -72,11 +72,25 @@
     dense: [[2, 2], [1, 1, 2], [2, 1, 1], [1, 1, 1, 1], [3, 1], [2, 2], [-1, 1, 2]],
     // cells that span a whole bar of 16 (used for hooks and fanfares)
     bar: [[3, 3, 2, 8], [4, 4, 8], [2, 2, 4, 8], [6, 2, 8], [3, 3, 4, 2, 2], [4, 2, 2, 4, 4]],
+    // one-bar hook rhythms: each has a syncopation or a pickup, the thing that makes a hook stick
+    hook: [[3, 3, 2, 4, 4], [2, 2, 3, 3, 2, 4], [-2, 2, 4, 2, 2, 4], [4, 3, 3, 2, 2, 2], [3, 1, 2, 2, 4, 4], [2, 4, 2, 4, 4], [-4, 2, 2, 3, 3, 2], [3, 3, 4, 2, 4]],
+  };
+
+  // Arpeggio figures: offsets along the chord's tones (0 = the tone nearest the previous chord's,
+  // so each chord comes in on the inversion closest to the last one). Cycled per step within a bar.
+  const ARPS = {
+    alberti: [0, 2, 1, 2],                 // low-high-middle-high (classical left hand)
+    broken: [0, 2, 1, 3, 2, 4, 3, 1],      // broken thirds: climbs by skipping
+    groups3: [0, 1, 2, 0, 1, 2, 3, 2],     // 3+3+2 accents against the beat
+    pedal: [0, 3, 0, 2, 0, 4, 0, 3],       // a low pedal tone under a moving top
+    cascade: [4, 3, 2, 1, 3, 2, 1, 0],     // falling, with a lift halfway
+    wave: [0, 1, 2, 3, 4, 3, 2, 1],        // up and down over five tones (with the 9th: a wide, open sweep)
+    spread: [0, 2, 4, 5, 3, 1],            // six-note figure: drifts across the bar line
   };
 
   function velocityOf(ch) {
     return ch === 'X' ? 1 : ch === 'x' ? 0.72 : ch === '-' ? 0.4 : 0;
   }
 
-  Object.assign(M, { DRUMS, RHYTHMS, CELLS, velocityOf });
+  Object.assign(M, { DRUMS, RHYTHMS, CELLS, ARPS, velocityOf });
 })(typeof MusicEngine !== 'undefined' ? MusicEngine : (globalThis.MusicEngine = globalThis.MusicEngine || {}));

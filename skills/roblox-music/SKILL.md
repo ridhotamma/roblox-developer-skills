@@ -16,9 +16,10 @@ This skill writes the music (original cues composed from a mood, rendered to ste
 3. **States switch on the music's grid.** Explore → combat → boss change on the next beat, bar or phrase, with an intro, an ending or a stinger covering the seam. Never mid-beat, never a hard cut.
 4. **Sources, not switches.** Gameplay reports what's happening (an enemy saw me, wanted level 3, monster 20 studs away); the director picks state and intensity with hysteresis: escalate immediately, calm down slowly, never flip-flop.
 5. **Seamless and in sync.** Every stem exactly the loop length with its tail wrapped to the start; all stems started with one `Play(atTime)`; volumes changed only through faders.
-6. **Leave room.** Melody arrives late in intensity, silence is a state, music ducks under dialogue and stingers, and the mix sits around -16 LUFS so SFX can cut through.
-7. **Per player, and adjustable.** Music runs on each client; the server only states facts. Always give a volume slider and an off switch.
-8. **Original.** Borrow techniques from famous scores, never their melodies or sound-alikes.
+6. **Develop an idea, don't loop a pattern.** One motif, restated as a sequence, answered, fragmented toward a single climax, then cadenced on a non-tonic note so the loop rolls on. Strong beats take 3rds, 7ths and 9ths, not the root; dissonances resolve by step; the mode's colour note is heard. Arpeggios voice-lead between chords and the bass steps into each change. A cue full of 1-3-5 arpeggios and roots and fifths sounds generic however good the sounds are (`references/music-theory.md` §5).
+7. **Leave room.** Melody arrives late in intensity, silence is a state, music ducks under dialogue and stingers, and the mix sits around -16 LUFS so SFX can cut through.
+8. **Per player, and adjustable.** Music runs on each client; the server only states facts. Always give a volume slider and an off switch.
+9. **Original.** Borrow techniques from famous scores, never their melodies or sound-alikes.
 
 ## Decide the mode
 
@@ -27,6 +28,7 @@ This skill writes the music (original cues composed from a mood, rendered to ste
 | "Music for my X game" / a vibe | Pick moods from the table in `references/composing-by-mood.md` §2 (`compose.cjs list`), one per game state. Render them, install the kit, map states. |
 | Music that changes with gameplay (GTA-style, combat music, wanted level) | `references/adaptive-music.md`: states, signals → intensity, hysteresis, transitions. Then the kit's `MusicConfig.States` and sources. |
 | Horror music, scares | `horror_dread` (proximity-driven, no melody), `horror_chase`, `horror_lullaby`; fear emitters (`MusicEmitter` tag); jumpscare stinger. Pair with the `roblox-atmosphere` skill's Tension module. |
+| "The melody is boring / generic / repetitive" | `references/music-theory.md` §5: set the melody's `form` and `contour`, give arps a `pattern` (broken, groups3, pedal...) and `colors`, try `--seed` values; to keep a theme exactly, edit the MIDI. |
 | A custom vibe ("jungle temple", "pirate tavern") | Translate the vibe with `references/composing-by-mood.md` §1, write a mood entry (§3 schema), `check`, `show`, `render`. |
 | Theory help: chords, modes, melody, layering | `references/music-theory.md`. |
 | Implementation trouble (sync, clicks, silence, uploads) | `references/roblox-audio.md` (troubleshooting table at the end). |
@@ -72,7 +74,7 @@ Install steps to give the user:
 - `node <skill>/scripts/compose.cjs analyze stems/*.wav --bpm 140 --bars 8`: loudness, peaks, equal lengths, expected length for the grid, loop-seam check. Use it on stems from any source.
 - `node <skill>/scripts/compose.cjs check` validates `assets/moods.json`; `build` regenerates `MusicCues.luau` and the lab after editing moods or the engine.
 - `node <skill>/tests/run-luau.cjs`: the Luau spec (timeline, director, config/cue consistency) plus a replay of shared scenarios through the kit's Luau and the lab's JS port, failing on any difference (needs the `luau` CLI: `brew install luau` or `rokit add luau-lang/luau`).
-- `node <skill>/scripts/selftest.cjs`: engine checks (scales, seamless loops, levels, MIDI, WAV round trip, generated files current) and the Luau tests.
+- `node <skill>/scripts/selftest.cjs`: engine checks (scales, melody craft: tonic/fifth share, repeated notes, unresolved dissonances, counterline under the melody; seamless loops, levels, MIDI, WAV round trip, generated files current) and the Luau tests.
 
 ## Music lab
 
@@ -81,7 +83,7 @@ Install steps to give the user:
 ## Limits to be honest about
 
 - Instruments are synthesized (subtractive, FM, Karplus-Strong, noise). Synthwave, chiptune, horror textures and hybrid-cinematic percussion sound convincing; orchestral and acoustic instruments (strings, brass, choir, piano, guitar) are good sketches, not sample libraries. For a release-quality score, take the MIDI and `BRIEF.md` to a DAW or a composer and keep the same structure; the kit doesn't care where stems come from.
-- The generator writes idiomatic patterns per mood (progressions, grooves, ostinatos, motif-based melodies); it does not write a memorable theme on demand. Try a few seeds and keep the best, or write the theme by hand in the MIDI.
+- The generator develops a motif with real phrase forms, chord-aware note choice and counterpoint, so lines sound composed rather than random, but it doesn't judge which theme is the catchiest. Try a few seeds (each changes the motif, form and contour), keep the best, or write the theme by hand in the MIDI.
 - `MusicPlayer` relies on `AudioPlayer:Play(atTime)` and `SoundService:GetMixerTime()`; it falls back to frame-accurate starts without them. The kit is a reviewed starting point, not battle-tested in a live game: test with several players, slow devices and StreamingEnabled.
 - Uploaded audio is private until shared with the experience, and each upload counts against the monthly quota.
 
@@ -89,5 +91,5 @@ Install steps to give the user:
 
 - `references/adaptive-music.md`: vertical layering, horizontal re-sequencing, stingers, intros/endings, the director (states, intensity, hysteresis, fear emitters), how GTA V, Red Dead, Dead Space and DOOM do it, designing a game's music map, repetition, multiplayer; sources.
 - `references/composing-by-mood.md`: vibe → tempo, mode, harmony, rhythm, bass, melody, colour, space; every preset explained; the moods.json schema; cue pairings.
-- `references/music-theory.md`: modes, progressions by mood, tension devices, grooves, melody and leitmotif writing, arranging stems, mixing levels, working with a DAW, composer or AI tool.
+- `references/music-theory.md`: modes, progressions by mood, tension devices, grooves, melody writing (motifs, contours, development, sentence/period/AABA forms, guide and colour tones, appoggiaturas, gap-fill, climax, counterlines, non-generic arpeggios, leitmotif stingers), arranging stems, mixing levels, working with a DAW, composer or AI tool.
 - `references/roblox-audio.md`: Audio API vs Sound, keeping stems in sync, seamless loops, upload formats and limits, permissions, loading, ducking with a sidechain compressor, licensing, troubleshooting.

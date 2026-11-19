@@ -133,18 +133,46 @@
     const rhythmName = { ostinato16: 'ostinato16', chug: 'chug16', gallop: 'gallop16', eighths: 'eighths', offbeat: 'offbeat', octaves: 'eighths', quarters: 'quarters', syncopated: 'syncopated', tresillo: 'tresillo', '808': 'trap808', halftime: 'halftime', heartbeat: 'heartbeat' }[style] || part.rhythm;
     if (!rhythmName) throw new Error(`unknown bass style '${style}'`);
     const hits = rhythmHits(part.rhythm || rhythmName, ctx);
-    for (let bar = 0; bar < ctx.bars; bar++) {
-      hits.forEach((h, i) => {
-        const t = bar * ctx.beatsPerBar + h.at;
-        const seg = M.chordAt(ctx.progression, t);
-        if (seg.chord.root === null) return;
-        let p = M.rootNear(seg.chord, center);
-        if (style === 'octaves' && i % 2 === 1) p += 12;
-        if ((style === 'ostinato16' || style === 'chug') && i % 8 === 7 && r() < 0.5) p += 7; // a fifth now and then
-        const len = style === '808' ? Math.min(h.len, seg.start + seg.length - t) : Math.min(h.len, 0.5) * gate;
-        out.push(note(t, Math.max(0.1, len), p, h.vel * (0.92 + r() * 0.1), style === '808' && r() < 0.25 ? { glide: 12 } : null));
-      });
-    }
+    // A one-bar riff in chord degrees (R root, 8 octave, 5 fifth, 3 third, 7 seventh), the same
+    // every bar so the groove is recognisable, re-fitted to each chord.
+    const rr = M.rng(M.hashSeed(ctx.seed, 'bass-riff', style, part.inst));
+    const riff = hits.map((h, i) => {
+      if (i === 0 || ['808', 'heartbeat', 'halftime', 'gallop'].includes(style)) return 'R';
+      if (style === 'octaves') return i % 2 === 1 ? (i % 4 === 3 && rr() < 0.35 ? '5' : '8') : 'R';
+      if (style === 'ostinato16' || style === 'chug') return i % 8 === 7 && rr() < 0.6 ? rr.pick(['5', '8', '7']) : 'R';
+      if (style === 'offbeat') return i === hits.length - 1 && rr() < 0.5 ? '8' : 'R';
+      const odds = style === 'quarters' ? 0.6 : 0.35;
+      return rr() < odds ? rr.pick(['5', '8', '5', '7', '3']) : 'R';
+    });
+    const degreeOf = (chord, token, root) => {
+      if (token === '8') return root + 12;
+      if (token === '5') return root + (chord.intervals[2] || 7);
+      if (token === '3') return root + (chord.intervals[1] || 4);
+      if (token === '7') {
+        for (const i of [10, 11]) if (ctx.scale.includes((chord.root + i - ctx.keyPc + 24) % 12)) return root + i - 12; // the 7th below
+        return root + (chord.intervals[2] || 7);
+      }
+      return root;
+    };
+    const times = [];
+    for (let bar = 0; bar < ctx.bars; bar++) hits.forEach((h, i) => times.push({ t: bar * ctx.beatsPerBar + h.at, h, i }));
+    times.forEach((x, j) => {
+      const { t, h, i } = x;
+      const seg = M.chordAt(ctx.progression, t);
+      if (seg.chord.root === null) return;
+      const root = M.rootNear(seg.chord, center);
+      let p = degreeOf(seg.chord, riff[i], root);
+      // Approach: the last hit before a chord change steps into the next root by a scale step.
+      const nextT = times[(j + 1) % times.length].t;
+      const next = M.chordAt(ctx.progression, nextT);
+      if (style !== 'heartbeat' && style !== '808' && next !== seg && next.chord.root !== null && next.chord.root !== seg.chord.root && t > seg.start + 1e-9) {
+        const target = M.rootNear(next.chord, root);
+        const cands = [target - 2, target - 1, target + 1, target + 2].filter((m) => ctx.scale.includes((m - ctx.keyPc + 120) % 12));
+        if (cands.length) p = cands.sort((a, b) => Math.abs(a - root) - Math.abs(b - root))[0];
+      }
+      const len = style === '808' ? Math.min(h.len, seg.start + seg.length - t) : Math.min(h.len, 0.5) * gate;
+      out.push(note(t, Math.max(0.1, len), p, h.vel * (0.92 + r() * 0.1), style === '808' && r() < 0.25 ? { glide: 12 } : null));
+    });
     return out;
   }
 
@@ -202,39 +230,64 @@
     return out;
   }
 
+  // Arpeggios. Each chord enters on the inversion nearest the last one (voice leading, not
+  // "root position, up, repeat"), the figure can climb in thirds, pedal, cascade or cut across
+  // the beat (see ARPS in patterns.js), `colors` adds the diatonic 9th (1) and 7th (2), and the
+  // last bar of every four mirrors the figure as a turnaround.
   function genArp(part, ctx, r) {
     const octave = part.octave === undefined ? 4 : part.octave;
     const lo = 12 * (octave + 1);
     const span = part.span || 2;
     const rate = (part.rate || 1) * ctx.stepBeats; // in beats
-    const pattern = part.pattern || 'up';
-    const out = [];
-    let i = 0;
-    for (let t = 0; t < ctx.totalBeats - 1e-9; t += rate, i++) {
-      const seg = M.chordAt(ctx.progression, t);
-      if (seg.chord.root === null) continue;
-      const tones = M.chordTonesBetween(seg.chord, lo, lo + 12 * span);
-      if (!tones.length) continue;
-      let idx;
-      const n = tones.length;
-      const local = Math.round((t - seg.start) / rate);
-      if (pattern === 'up') idx = local % n;
-      else if (pattern === 'down') idx = n - 1 - (local % n);
-      else if (pattern === 'updown') { const cyc = Math.max(1, 2 * n - 2); const k = local % cyc; idx = k < n ? k : cyc - k; }
-      else if (pattern === 'pinky') idx = local % 2 === 0 ? n - 1 : (local >> 1) % (n - 1);
-      else idx = Math.floor(r() * n);
-      const accent = Math.abs((t / ctx.beatsPerBar) % 1) < 1e-6 ? 1 : (Math.abs(t % 1) < 1e-6 ? 0.85 : 0.68);
-      out.push(note(t, rate * (part.gate || 0.9), tones[idx], accent * (0.92 + r() * 0.08)));
+    let pattern = part.pattern || 'auto';
+    const pr = M.rng(M.hashSeed(ctx.seed, 'arp-pattern', part.inst));
+    if (pattern === 'auto') pattern = pr.pick(['broken', 'alberti', 'groups3', 'pedal', 'wave', 'motif']);
+    let figure = M.ARPS[pattern];
+    if (pattern === 'motif') { // a seeded riff along the chord tones, mostly stepwise
+      figure = [0];
+      while (figure.length < 8) figure.push(Math.max(0, Math.min(5, figure[figure.length - 1] + pr.pick([-2, -1, 1, 1, 2, 3]))));
     }
-    void i;
+    const colors = part.colors === undefined ? 1 : part.colors;
+    const out = [];
+    let seg = null, ladder = [], base = 0, anchor = lo + 4;
+    for (let t = 0; t < ctx.totalBeats - 1e-9; t += rate) {
+      const s = M.chordAt(ctx.progression, t);
+      if (s.chord.root === null) continue;
+      if (s !== seg) {
+        seg = s;
+        const pcs = s.chord.pcs.concat(M.chordExtensions(s.chord, ctx.keyPc, ctx.scale, colors));
+        ladder = [];
+        for (let m = lo - 12; m <= lo + 12 * (span + 1); m++) if (pcs.includes(m % 12)) ladder.push(m);
+        let bestD = Infinity;
+        ladder.forEach((m, i) => { if (m >= lo - 2 && m <= lo + 9 && Math.abs(m - anchor) < bestD) { bestD = Math.abs(m - anchor); base = i; } });
+        anchor = ladder[base];
+      }
+      const n = Math.max(2, ladder.filter((m) => m >= ladder[base] && m < ladder[base] + 12 * span).length);
+      const local = Math.round((t - seg.start) / rate);
+      const inBar = Math.round((t % ctx.beatsPerBar) / rate);
+      let off;
+      if (figure) {
+        off = figure[inBar % figure.length];
+        if (ctx.bars >= 4 && Math.floor(t / ctx.beatsPerBar) % 4 === 3) off = Math.max(...figure) - off;
+      } else if (pattern === 'up') off = local % n;
+      else if (pattern === 'down') off = n - 1 - (local % n);
+      else if (pattern === 'updown') { const cyc = Math.max(1, 2 * n - 2); const k = local % cyc; off = k < n ? k : cyc - k; }
+      else if (pattern === 'pinky') off = local % 2 === 0 ? n - 1 : (local >> 1) % (n - 1);
+      else off = Math.floor(r() * n);
+      const idx = Math.max(0, Math.min(ladder.length - 1, base + off));
+      const accent = Math.abs((t / ctx.beatsPerBar) % 1) < 1e-6 ? 1 : (Math.abs(t % 1) < 1e-6 ? 0.85 : 0.68);
+      out.push(note(t, rate * (part.gate || 0.9), ladder[idx], accent * (0.92 + r() * 0.08)));
+    }
     return out;
   }
 
-  // Zimmer-style string ostinato: one rhythmic shape, pitches re-fitted to every chord.
+  // Zimmer-style string ostinato: one rhythmic shape, pitches re-fitted to every chord. Without a
+  // `shape`, the seed picks one; every fourth bar shifts it up a chord tone (the figure "turns").
+  const OSTINATO_SHAPES = [[0, 0, 2, 0, 1, 0, 2, 0], [0, 1, 2, 1, 0, 1, 2, 3], [0, 2, 1, 2, 0, 2, 1, 3], [2, 0, 1, 0, 2, 0, 1, 3], [0, 0, 1, 0, 2, 0, 3, 2]];
   function genOstinato(part, ctx, r) {
     const octave = part.octave === undefined ? 3 : part.octave;
     const lo = 12 * (octave + 1) + 2;
-    const shape = part.shape || [0, 0, 2, 0, 1, 0, 2, 0];
+    const shape = part.shape || M.rng(M.hashSeed(ctx.seed, 'ostinato-shape', part.inst)).pick(OSTINATO_SHAPES);
     const rate = (part.rate || 1) * ctx.stepBeats;
     const accents = part.accents || 'X-x-x-X-x-x-X-x-';
     const out = [];
@@ -243,28 +296,34 @@
       const seg = M.chordAt(ctx.progression, t);
       if (seg.chord.root === null) continue;
       const tones = M.chordTonesBetween(seg.chord, lo, lo + 19);
-      const p = tones[Math.min(shape[k % shape.length], tones.length - 1)];
+      const turn = ctx.bars >= 4 && Math.floor(t / ctx.beatsPerBar) % 4 === 3 ? 1 : 0;
+      const p = tones[Math.min(shape[k % shape.length] + turn, tones.length - 1)];
       const vel = M.velocityOf(accents[k % accents.length]) || 0.55;
       out.push(note(t, rate * 0.7, p, vel * (0.93 + r() * 0.07)));
     }
     return out;
   }
 
-  // Piano left hand: root, fifth, tenth, fifth (eighths).
+  // Piano left hand. `pattern`: classic (root 5th 10th 5th), rising (root 5th octave 10th),
+  // nine (root 5th 9th 10th: open, wistful), waltz (root 5th 10th 5th 10th 5th: 3/4 in 8ths).
+  const BROKEN = { classic: ['R', '5', '10', '5'], rising: ['R', '5', '8', '10'], nine: ['R', '5', '9', '10'], waltz: ['R', '5', '10', '5', '10', '5'] };
   function genBroken(part, ctx, r) {
     const octave = part.octave === undefined ? 3 : part.octave;
     const center = 12 * (octave + 1) + 2;
     const out = [];
     const rate = part.rate ? part.rate * ctx.stepBeats : 0.5;
+    const cycle = BROKEN[part.pattern] || (ctx.beatsPerBar === 3 ? BROKEN.waltz : BROKEN.classic);
     let k = 0;
     for (let t = 0; t < ctx.totalBeats - 1e-9; t += rate, k++) {
       const seg = M.chordAt(ctx.progression, t);
       if (seg.chord.root === null) continue;
+      if (Math.abs(t - seg.start) < 1e-9) k = 0; // each chord starts the figure from its root
       const root = M.rootNear(seg.chord, center - 5);
       const third = seg.chord.intervals[1] || 4;
       const fifth = seg.chord.intervals[2] || 7;
-      const cycle = [root, root + fifth, root + 12 + third, root + fifth];
-      out.push(note(t, rate * 1.8, cycle[k % 4], (k % 4 === 0 ? 0.85 : 0.6) * (0.92 + r() * 0.08)));
+      const nine = M.chordColors(seg.chord, ctx.keyPc, ctx.scale).tensions.includes((seg.chord.root + 2) % 12) ? 14 : 12;
+      const off = { R: 0, '5': fifth, '8': 12, '9': nine, '10': 12 + third }[cycle[k % cycle.length]];
+      out.push(note(t, rate * 1.8, root + off, (k % cycle.length === 0 ? 0.85 : 0.6) * (0.92 + r() * 0.08)));
     }
     return out;
   }
@@ -322,163 +381,6 @@
     return ints.map((i) => note(0, ctx.totalBeats, root + i, 0.7, { hold: true }));
   }
 
-  // ---------------------------------------------------------------- melody
-  function barRhythm(density, ctx, r, isEnd) {
-    // Onsets within one bar, in steps: [{at, len, rest}]
-    const stepsPerBeat = ctx.steps / ctx.beatsPerBar;
-    const out = [];
-    if (density === 'hook' || density === 'fanfare') {
-      const cell = r.pick(M.CELLS.bar);
-      let s = 0;
-      for (const c of cell) { const len = Math.round(Math.abs(c) * ctx.steps / 16); if (s >= ctx.steps) break; out.push({ at: s, len: Math.min(len, ctx.steps - s), rest: c < 0 }); s += len; }
-      return out;
-    }
-    const bank = M.CELLS[density] || M.CELLS.medium;
-    let s = 0;
-    while (s < ctx.steps) {
-      let cell = r.pick(bank);
-      const cellLen = cell.reduce((a, c) => a + Math.abs(c), 0);
-      const scale = stepsPerBeat / 4; // cells are written for 4 steps per beat
-      if (cellLen > 4 && s + cellLen * scale > ctx.steps) cell = [4];
-      for (const c of cell) {
-        const len = Math.max(1, Math.round(Math.abs(c) * scale));
-        if (s >= ctx.steps) break;
-        out.push({ at: s, len: Math.min(len, ctx.steps - s), rest: c < 0 });
-        s += len;
-      }
-    }
-    if (isEnd) {
-      // Phrase end: merge the last beat into one long note so the phrase breathes.
-      const lastBeat = ctx.steps - stepsPerBeat * 2;
-      const kept = out.filter((o) => o.at < lastBeat).map((o) => Object.assign({}, o, { len: Math.min(o.len, lastBeat - o.at) }));
-      kept.push({ at: lastBeat, len: stepsPerBeat * 2, rest: false });
-      return kept;
-    }
-    return out;
-  }
-
-  function pitchLine(onsets, ctx, r, opts) {
-    const pitches = opts.pitches;
-    const out = [];
-    let idx = opts.startIdx;
-    let dir = opts.dir || (r() < 0.5 ? 1 : -1);
-    let lastStep = 0;
-    onsets.forEach((o, i) => {
-      if (o.rest) return;
-      const seg = M.chordAt(ctx.progression, o.t);
-      const strong = Math.abs(o.t % 1) < 1e-6;
-      if (i > 0 || opts.moveFirst) {
-        let step;
-        if (Math.abs(lastStep) >= 3) step = -Math.sign(lastStep);
-        else {
-          const x = r();
-          step = x < 0.1 ? 0 : x < 0.65 ? 1 : x < 0.9 ? 2 : r.int(3, 4);
-          step *= dir;
-        }
-        idx += step;
-        lastStep = step;
-        if (r() < 0.22) dir = -dir;
-      }
-      if (idx < 0) { idx = -idx; dir = 1; }
-      if (idx > pitches.length - 1) { idx = 2 * (pitches.length - 1) - idx; dir = -1; }
-      idx = Math.max(0, Math.min(pitches.length - 1, idx));
-      if ((strong || o.cadence) && seg.chord.root !== null) {
-        // snap to the nearest chord tone (search outward)
-        for (let d = 0; d <= 3; d++) {
-          const a = pitches[idx + d], b = pitches[idx - d];
-          if (a !== undefined && seg.chord.pcs.includes(a % 12)) { idx += d; break; }
-          if (b !== undefined && seg.chord.pcs.includes(b % 12)) { idx -= d; break; }
-        }
-      }
-      if (o.cadence !== undefined && o.cadence !== true) {
-        const target = o.cadence; // pitch class to land on
-        for (let d = 0; d <= 4; d++) {
-          if (pitches[idx - d] !== undefined && pitches[idx - d] % 12 === target) { idx -= d; break; }
-          if (pitches[idx + d] !== undefined && pitches[idx + d] % 12 === target) { idx += d; break; }
-        }
-      }
-      out.push(note(o.t, o.d, pitches[idx], (strong ? 0.92 : 0.74) * (0.93 + r() * 0.07)));
-    });
-    return { notes: out, endIdx: idx };
-  }
-
-  function genMelody(part, ctx, r) {
-    const style = part.style || 'motif';
-    const octave = part.octave === undefined ? 5 : part.octave;
-    const range = part.range || [12 * (octave + 1) - 3, 12 * (octave + 1) + 16];
-    const pitches = M.scalePitches(ctx.keyPc, ctx.melodyScale, range[0], range[1]);
-    const stepBeats = ctx.stepBeats;
-    const out = [];
-    if (style === 'bells') {
-      for (let b = 0; b < ctx.totalBeats; b += 1) {
-        if (r() > (part.chance || 0.3)) continue;
-        const seg = M.chordAt(ctx.progression, b);
-        const tones = seg.chord.root === null ? pitches : M.chordTonesBetween(seg.chord, range[0], range[1]);
-        const off = r() < 0.3 ? 0.5 : 0;
-        out.push(note(b + off, 1.5 + r() * 2, r.pick(tones.length ? tones : pitches), 0.5 + r() * 0.4));
-      }
-      return out;
-    }
-    if (style === 'counter') {
-      let prev = pitches[Math.floor(pitches.length / 2)];
-      const len = part.every || 2;
-      for (let b = 0; b < ctx.totalBeats; b += len) {
-        const seg = M.chordAt(ctx.progression, b);
-        if (seg.chord.root === null) continue;
-        const tones = M.chordTonesBetween(seg.chord, range[0], range[1]).filter((p) => p % 12 !== seg.chord.root);
-        const cands = tones.length ? tones : pitches;
-        cands.sort((a, b2) => Math.abs(a - prev) - Math.abs(b2 - prev));
-        prev = cands[r() < 0.75 ? 0 : Math.min(1, cands.length - 1)];
-        out.push(note(b, len * 0.98, prev, 0.75));
-      }
-      return out;
-    }
-
-    const phraseBars = Math.min(part.phrase || (style === 'hook' ? 1 : 2), ctx.bars);
-    const phrases = Math.max(1, Math.floor(ctx.bars / phraseBars));
-    const form = part.form || (phrases >= 4 ? ['A', 'A2', 'B', 'A3'] : phrases === 2 ? ['A', 'A3'] : ['A3']);
-    const density = style === 'hook' ? 'hook' : style === 'fanfare' ? 'fanfare' : (part.density || 'medium');
-    const rhythms = {};
-    const makeRhythm = (label) => {
-      const rr = M.rng(M.hashSeed(ctx.seed, 'melody-rhythm', label, part.inst));
-      const bars = [];
-      for (let b = 0; b < phraseBars; b++) {
-        const isEnd = b === phraseBars - 1 && style !== 'hook' && phraseBars > 1;
-        if (style === 'hook' && b > 0) { bars.push(bars[0]); continue; }
-        bars.push(barRhythm(label === 'B' && density === 'sparse' ? 'medium' : density, ctx, rr, isEnd));
-      }
-      return bars;
-    };
-    rhythms.A = makeRhythm('A');
-    rhythms.B = makeRhythm('B');
-    const tonicPc = ctx.keyPc;
-    const openPc = (ctx.keyPc + ctx.scale[part.ending === 'tonic' ? 0 : 4]) % 12; // land on the fifth: leads back into the loop
-    let idx = Math.floor(pitches.length * 0.35);
-    for (let ph = 0; ph < phrases; ph++) {
-      const label = form[ph % form.length];
-      const base = label === 'B' ? rhythms.B : rhythms.A;
-      const onsets = [];
-      base.forEach((bar, b) => bar.forEach((o) => {
-        onsets.push({ t: (ph * phraseBars + b) * ctx.beatsPerBar + o.at * stepBeats, d: o.len * stepBeats * (part.legato || 0.92), rest: o.rest });
-      }));
-      const notes = onsets.filter((o) => !o.rest);
-      if (notes.length && (label === 'A3' || label === 'A2')) notes[notes.length - 1].cadence = label === 'A3' ? (ph === phrases - 1 ? openPc : tonicPc) : true;
-      // Same random stream for A, A2 and A3: the contour repeats, the chords re-fit it (a sequence).
-      const contour = M.rng(M.hashSeed(ctx.seed, 'melody-contour', label === 'B' ? 'B' : 'A', part.inst));
-      const seg = M.chordAt(ctx.progression, ph * phraseBars * ctx.beatsPerBar);
-      if (label !== 'A' && seg.chord.root !== null) {
-        // start on the chord tone nearest the previous phrase's end
-        let best = idx, bestD = Infinity;
-        pitches.forEach((p, i) => { if (seg.chord.pcs.includes(p % 12) && Math.abs(i - idx) < bestD) { bestD = Math.abs(i - idx); best = i; } });
-        idx = best + (label === 'B' ? 2 : 0);
-      }
-      const res = pitchLine(onsets, ctx, contour, { pitches, startIdx: Math.min(idx, pitches.length - 1) });
-      out.push(...res.notes);
-      idx = res.endIdx;
-    }
-    return out;
-  }
-
   // ---------------------------------------------------------------- fx
   function genFx(part, ctx) {
     const style = part.style;
@@ -517,8 +419,8 @@
   const GENERATORS = {
     drums: genDrums, bass: genBass, pad: genPad, stabs: genStabs, arp: genArp, ostinato: genOstinato,
     broken: genBroken, strum: genStrum, pulse: genPulse, drone: genDrone, cluster: genCluster,
-    melody: genMelody, counter: (p, c, r) => genMelody(Object.assign({}, p, { style: 'counter' }), c, r),
-    bells: (p, c, r) => genMelody(Object.assign({}, p, { style: 'bells' }), c, r), fx: genFx,
+    melody: (p, c, r) => (p.style === 'bells' ? M.genBells(p, c, r) : p.style === 'counter' ? M.genCounter(p, c, r) : M.genMelody(p, c, r)),
+    counter: (p, c, r) => M.genCounter(p, c, r), bells: (p, c, r) => M.genBells(p, c, r), fx: genFx,
   };
 
   function roleTarget(part) {
@@ -537,12 +439,22 @@
   // preset + {seed, key, mode, bpm, bars, progression} -> cue
   function compose(preset, opts) {
     const ctx = ctxFor(preset, opts);
-    const stems = preset.stems.map((stem) => {
+    // The lead melody is written first: counterlines answer it and stingers quote its motif.
+    let leadKey = null;
+    preset.stems.forEach((stem, si) => stem.parts.forEach((part, pi) => {
+      if (leadKey === null && part.role === 'melody' && !['bells', 'counter'].includes(part.style)) {
+        leadKey = si + ':' + pi;
+        ctx.lead = M.genMelody(part, ctx, M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role)));
+        ctx.motif = ctx.lead.motif;
+      }
+    }));
+    if (!ctx.motif) ctx.motif = M.fallbackMotif(ctx);
+    const stems = preset.stems.map((stem, si) => {
       const parts = stem.parts.map((part, pi) => {
         const gen = GENERATORS[part.role];
         if (!gen) throw new Error(`unknown part role '${part.role}' in stem '${stem.name}'`);
         const r = M.rng(M.hashSeed(ctx.seed, stem.name, pi, part.role));
-        const notes = gen(part, ctx, r);
+        const notes = leadKey === si + ':' + pi ? ctx.lead.map((x) => Object.assign({}, x)) : gen(part, ctx, r);
         if (part.detune) notes.forEach((n) => { n.detune = part.detune; });
         return { role: part.role, inst: defaultInst(part), notes, target: roleTarget(part) + (part.level || 0), pan: part.pan || 0, def: part };
       });
@@ -572,6 +484,27 @@
     const palette = Object.assign({ brass: 'brass', strings: 'strings', keys: 'piano', bell: 'bell', lead: 'lead', low: 'braam' }, preset.oneShotInst || {});
     const p = (inst, notes, target, pan) => ({ inst, notes, target, pan: pan || 0 });
     const n = (t, d, pitch, v, extra) => note(t, d, pitch, v, extra);
+    const motif = ctx.motif;
+    const ladder = (scaleName, center) => M.scalePitches(ctx.keyPc, M.scaleOf(scaleName), center - 24, center + 36);
+    const nearestIdx = (arr, pitch) => arr.reduce((b, m, i) => (Math.abs(m - pitch) < Math.abs(arr[b] - pitch) ? i : b), 0);
+    const up = (scaleName, pitch, steps) => { const a = ladder(scaleName, pitch); return a[Math.max(0, Math.min(a.length - 1, nearestIdx(a, pitch) + steps))]; };
+    const below = (scaleName, pitch, steps) => up(scaleName, pitch, -steps);
+    // The first `count` notes of the motif in another scale, from `start`, fitted into `beats`
+    // (stretched too when `stretch`); `invert` turns the contour upside down.
+    const quote = (scaleName, start, count, beats, invert, stretch) => {
+      const on = motif.rhythm.filter((x) => !x.rest).slice(0, count);
+      if (!on.length) return [];
+      const a = ladder(scaleName, start), i0 = nearestIdx(a, start);
+      const t0 = on[0].at, last = on[on.length - 1];
+      const span = (last.at + last.len - t0) * ctx.stepBeats;
+      const k = stretch ? beats / span : Math.min(1, beats / span);
+      return on.map((x, j) => ({
+        t: (x.at - t0) * ctx.stepBeats * k,
+        d: Math.max(0.08, x.len * ctx.stepBeats * k * 0.95),
+        p: a[Math.max(0, Math.min(a.length - 1, i0 + (invert ? -1 : 1) * (motif.offsets[j] || 0)))],
+      }));
+    };
+    const arrival = (line) => (line.length ? Math.round((line[line.length - 1].t + line[line.length - 1].d / 0.95) * 8) / 8 : 0);
     const kinds = {
       hit: () => ({ beats: 2, parts: [
         p('impact', [n(0, 2, tonic(1), 1)], -18),
@@ -583,23 +516,30 @@
         p('braam', [n(1, 2.5, tonic(1) + 12, 1), n(1, 2.5, tonic(1) + 19, 0.7)], -18),
         p('taiko', [n(1, 1, 'taiko', 1), n(1.5, 1, 'taiko', 0.7)], -20),
       ] }),
+      // Victory, fail, discover and level-up quote the cue's own motif (a leitmotif), so each
+      // cue's stingers belong to it instead of being the same arpeggio everywhere.
       victory: () => {
         const r0 = tonic(4); // parallel major, always
-        const arp = [r0, r0 + 4, r0 + 7, r0 + 12];
-        return { beats: 6, parts: [
-          p(palette.brass, arp.map((m, i) => n(i * 0.33, i === 3 ? 3 : 0.3, m, 0.9)), -18),
-          p(palette.strings, triad(r0 - 12, false).concat([r0]).map((m) => n(1, 4, m, 0.8)), -22),
-          p('crash', [n(1, 3, 60, 0.9)], -24),
-          p('taiko', [n(1, 1, 'taiko', 1)], -21),
+        const line = quote('ionian', r0 + 7, 4, 1.5);
+        const at = arrival(line);
+        const goal = [r0 + 16, r0 + 12, r0 + 19].sort((a, b) => Math.abs(a - line[line.length - 1].p - 2) - Math.abs(b - line[line.length - 1].p - 2))[0];
+        const lineNotes = line.map((x) => n(x.t, x.d, x.p, 0.9)).concat([n(at, 3, goal, 1)]);
+        const thirds = line.map((x) => n(x.t, x.d, below('ionian', x.p, 2), 0.7)).concat([n(at, 3, below('ionian', goal, 2), 0.8)]);
+        return { beats: at + 4, parts: [
+          p(palette.brass, lineNotes.concat(thirds), -18),
+          p(palette.strings, triad(r0 - 12, false).concat([r0]).map((m) => n(at, 4, m, 0.8)), -22),
+          p('crash', [n(at, 3, 60, 0.9)], -24),
+          p('taiko', [n(at, 1, 'taiko', 1)], -21),
         ] };
       },
       fail: () => {
         const r0 = tonic(4);
-        const line = [r0 + 7, r0 + 3, r0 + 2, r0];
-        return { beats: 6, parts: [
-          p(palette.keys, line.map((m, i) => n(i * 0.75, i === 3 ? 3 : 0.7, m, 0.75)), -20),
-          p('strings', triad(r0 - 12, true).map((m) => n(2.25, 3.5, m, 0.6)), -25),
-          p('drone', [n(0, 5, tonic(2), 0.7)], -27),
+        const line = quote('aeolian', r0 + 7, 4, 2.25, true, true);
+        const at = arrival(line);
+        return { beats: at + 4, parts: [
+          p(palette.keys, line.map((x) => n(x.t, x.d, x.p, 0.75)).concat([n(at, 3, r0, 0.7)]), -20),
+          p('strings', triad(r0 - 12, true).map((m) => n(at, 3.5, m, 0.6)), -25),
+          p('drone', [n(0, at + 3, tonic(2), 0.7)], -27),
         ] };
       },
       jumpscare: () => ({ beats: 3, parts: [
@@ -609,16 +549,23 @@
       ] }),
       discover: () => {
         const r0 = tonic(5);
-        const up = [r0, r0 + 7, r0 + 12, r0 + (minor ? 15 : 16), r0 + 19];
-        return { beats: 4, parts: [
-          p(palette.bell, up.map((m, i) => n(i * 0.25, 2.5, m, 0.75)), -21),
-          p('pad', triad(r0 - 12, minor).map((m) => n(0, 3, m, 0.6)), -27),
+        const line = quote(ctx.mode, r0, 4, 1);
+        const at = arrival(line);
+        const ninth = r0 + 12 + ctx.scale[1];
+        return { beats: at + 3, parts: [
+          p(palette.bell, line.map((x) => n(x.t, 2.5, x.p, 0.75)).concat([n(at, 2.5, ninth, 0.8)]), -21),
+          p('pad', triad(r0 - 12, minor).concat([r0 - 12 + 14]).map((m) => n(0, at + 2.5, m, 0.6)), -27),
         ] };
       },
       levelup: () => {
         const r0 = tonic(5);
-        const up = [r0, r0 + 4, r0 + 7, r0 + 12, r0 + 16, r0 + 19, r0 + 24];
-        return { beats: 2, parts: [p('sqlead', up.map((m, i) => n(i * 0.125, i === 6 ? 0.8 : 0.12, m, 0.8)), -20)] };
+        const cell = quote('ionian', r0, 3, 0.375);
+        const step = cell.length ? arrival(cell) : 0.375;
+        const notes = [];
+        for (let k = 0; k < 3; k++) for (const x of cell) notes.push(n(x.t + k * step, Math.min(x.d, 0.12), up('ionian', x.p, 2 * k), 0.8));
+        const last = notes.length ? notes[notes.length - 1].p : r0 + 12;
+        notes.push(n(3 * step, 0.8, up('ionian', last, 2), 0.9));
+        return { beats: 3 * step + 1, parts: [p('sqlead', notes, -20)] };
       },
       tension: () => ({ beats: 8, parts: [
         p('shepard', [n(0, 8, tonic(4), 0.8)], -24),
