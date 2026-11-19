@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutscene Previs</title>
+<style>
+:root {
+  --bg: #0e0f12;
+  --panel: #16181d;
+  --panel-2: #1d2027;
+  --line: #2a2e37;
+  --text: #e7e9ee;
+  --muted: #9aa1ad;
+  --accent: #ffd65c;
+  --good: #78e68c;
+  --bad: #ff6a5a;
+  --shot-a: #3b6fd8;
+  --shot-b: #7a4fd0;
+  --anim: #49b7a8;
+  --sound: #d88a3b;
+  --event: #e8e8e8;
+  --server: #ff6a5a;
+  --qte: #ffd65c;
+  --slow: #5aa0ff;
+  --sub: #c9c9c9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 14px 20px 10px; display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+header .meta { color: var(--muted); font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+header .meta b { color: var(--text); font-weight: 600; }
+main { padding: 14px 20px 30px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px; max-width: 1500px; margin: 0 auto; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.panel h2 { margin: 0; padding: 9px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+#viewWrap { position: relative; aspect-ratio: 16 / 9; background: #000; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.bar { position: absolute; left: 0; right: 0; background: #000; height: 0; pointer-events: none; }
+#barTop { top: 0; } #barBottom { bottom: 0; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+#subtitle { position: absolute; left: 50%; transform: translateX(-50%); bottom: 6%; max-width: 80%; background: rgba(0,0,0,.55); padding: 4px 12px; border-radius: 6px; font-size: clamp(11px, 1.6vw, 18px); text-align: center; display: none; }
+#subtitle b { color: var(--accent); margin-right: 8px; }
+#hud { position: absolute; left: 10px; top: 8px; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+#hud .big { font-size: 13px; font-weight: 700; }
+#speedTag { position: absolute; right: 10px; top: 8px; font: 700 12px ui-monospace, monospace; color: var(--slow); text-shadow: 0 1px 2px #000; }
+#qte { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); text-align: center; display: none; pointer-events: none; }
+#qte .key { display: inline-block; min-width: 48px; padding: 8px 12px; border: 2px solid var(--qte); border-radius: 10px; background: rgba(20,20,24,.85); font-weight: 800; font-size: 18px; }
+#qte .label { font-weight: 900; font-size: 18px; margin-top: 6px; text-shadow: 0 1px 3px #000; }
+#qte .timer { height: 3px; background: #fff; margin: 6px auto 0; width: 160px; }
+#qte .branch { font-size: 11px; color: var(--muted); margin-top: 4px; text-shadow: 0 1px 2px #000; }
+#map { width: 100%; aspect-ratio: 1 / 1; display: block; background: #121318; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.transport { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; }
+.transport button, .transport select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; font: inherit; cursor: pointer; }
+.transport button:hover { border-color: var(--accent); }
+.transport .time { font: 12px ui-monospace, monospace; color: var(--muted); margin-left: auto; }
+#timelineWrap { grid-column: 1 / -1; }
+#timeline { width: 100%; display: block; cursor: pointer; touch-action: none; }
+#sheet { grid-column: 1 / -1; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 12px; }
+.thumb { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; }
+.thumb:hover, .thumb.on { border-color: var(--accent); }
+.thumb img { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; background: #000; }
+.thumb div { padding: 6px 8px; font-size: 12px; }
+.thumb div b { display: block; font-size: 12.5px; }
+.thumb div span { color: var(--muted); }
+#notes { grid-column: 1 / -1; }
+#notes ul { margin: 0; padding: 10px 14px 12px 30px; }
+#notes li { margin: 4px 0; }
+#notes .ok { color: var(--good); padding: 10px 14px; }
+#notes .kind { font: 700 11px ui-monospace, monospace; color: var(--bad); margin-right: 6px; }
+#errors { grid-column: 1 / -1; color: var(--bad); padding: 12px 14px; display: none; white-space: pre-wrap; font: 13px ui-monospace, monospace; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 20px 24px; }
+@media (max-width: 900px) {
+  header, main { padding-left: 16px; padding-right: 16px; }
+  main { grid-template-columns: 1fr; }
+  .thumbs { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Previs</h1>
+  <div class="meta" id="meta"></div>
+</header>
+<main>
+  <div class="panel" id="errors"></div>
+  <section class="panel">
+    <h2><span>Lens</span><span id="shotTitle"></span></h2>
+    <div id="viewWrap">
+      <canvas id="view"></canvas>
+      <div class="bar" id="barTop"></div><div class="bar" id="barBottom"></div>
+      <div id="fade"></div>
+      <div id="hud"></div>
+      <div id="speedTag"></div>
+      <div id="subtitle"></div>
+      <div id="qte"><div class="key" id="qteKey"></div><div class="label" id="qteLabel"></div><div class="timer" id="qteTimer"></div><div class="branch" id="qteBranch"></div></div>
+    </div>
+  </section>
+  <section class="panel">
+    <h2><span>Blocking (top down)</span><span id="mapNote"></span></h2>
+    <canvas id="map"></canvas>
+    <div class="legend" id="mapLegend"></div>
+  </section>
+  <section class="panel transport">
+    <button id="play">Play</button>
+    <button id="restart">Restart</button>
+    <button id="prevShot">◀ Shot</button>
+    <button id="nextShot">Shot ▶</button>
+    <select id="rate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
+    <label style="color:var(--muted);font-size:13px"><input type="checkbox" id="loop" checked> loop</label>
+    <span class="time" id="time"></span>
+  </section>
+  <section class="panel" id="timelineWrap">
+    <h2><span>Timeline (wall time: slow motion is wide, freezes show)</span><span id="tlNote"></span></h2>
+    <canvas id="timeline"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--shot-a)"></i>shots</span>
+      <span><i style="background:var(--anim)"></i>animations</span>
+      <span><i style="background:var(--sound)"></i>sounds</span>
+      <span><i style="background:var(--sub)"></i>subtitles</span>
+      <span><i style="background:var(--event)"></i>events</span>
+      <span><i style="background:var(--server)"></i>server events</span>
+      <span><i style="background:var(--qte)"></i>QTE windows</span>
+      <span><i style="background:var(--slow)"></i>slow motion / freeze</span>
+    </div>
+  </section>
+  <section class="panel" id="sheet">
+    <h2><span>Contact sheet</span><span>click a shot to jump</span></h2>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+  <section class="panel" id="notes">
+    <h2><span>Coverage check</span><span id="pacing"></span></h2>
+    <div id="noteBody"></div>
+  </section>
+</main>
+<footer>Previs from the kit's own Luau Timeline (the luau CLI). Grey mannequins stand in for the actors and their marks; animation clips aren't shown, root motion (Moves) is.</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = {"actors":[{"height":5.2,"name":"Attacker","player":false},{"height":5.2,"name":"Victim","player":false}],"aspect":1.7778,"errors":[],"flow":[],"fps":30,"frames":[{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1464,5.0331,4.1416,0.9047,-0.0283,-0.4251,-0.04,0.9877,-0.151,0.4242,0.1536,0.8925],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1465,5.0337,4.1416,0.9047,-0.0284,-0.4252,-0.04,0.9877,-0.1511,0.4243,0.1537,0.8924],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.0333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1471,5.0346,4.1435,0.9046,-0.0286,-0.4253,-0.0399,0.9877,-0.1512,0.4244,0.1538,0.8923],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.0667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1488,5.0361,4.149,0.9045,-0.0289,-0.4255,-0.0397,0.9877,-0.1513,0.4247,0.1537,0.8922],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.1,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.152,5.0386,4.16,0.9044,-0.0292,-0.4257,-0.0394,0.9877,-0.1514,0.4249,0.1537,0.8921],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.1333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1572,5.0422,4.1784,0.9043,-0.0295,-0.426,-0.0392,0.9877,-0.1515,0.4252,0.1536,0.892],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.1667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1649,5.0473,4.206,0.9042,-0.0297,-0.4261,-0.039,0.9877,-0.1516,0.4254,0.1537,0.8919],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.2,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.1757,5.0543,4.2446,0.9041,-0.0299,-0.4262,-0.0389,0.9877,-0.1517,0.4255,0.1537,0.8918],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.2333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.19,5.0633,4.2961,0.9041,-0.03,-0.4262,-0.0389,0.9876,-0.1519,0.4255,0.1539,0.8918],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.2667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.2084,5.0748,4.3623,0.9041,-0.03,-0.4262,-0.0388,0.9876,-0.152,0.4255,0.1539,0.8918],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.3,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.2314,5.089,4.4452,0.9042,-0.03,-0.4261,-0.0388,0.9876,-0.1519,0.4254,0.1539,0.8918],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.3333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.2594,5.1061,4.5464,0.9043,-0.0299,-0.4258,-0.0388,0.9876,-0.1519,0.4251,0.1538,0.892],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.3667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.2931,5.1266,4.6679,0.9044,-0.0298,-0.4255,-0.0388,0.9877,-0.1517,0.4248,0.1537,0.8921],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.4,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.3328,5.1506,4.8115,0.9046,-0.0298,-0.4253,-0.0388,0.9877,-0.1516,0.4246,0.1536,0.8923],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.4333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.3791,5.1785,4.9791,0.9046,-0.0297,-0.4251,-0.0388,0.9877,-0.1515,0.4244,0.1536,0.8923],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.4667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.4325,5.2107,5.1724,0.9047,-0.0297,-0.4251,-0.0388,0.9877,-0.1515,0.4243,0.1536,0.8924],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.5,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.4859,5.2428,5.3658,0.9047,-0.0296,-0.425,-0.0388,0.9877,-0.1515,0.4242,0.1536,0.8924],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.5333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.5321,5.2707,5.5335,0.9047,-0.0296,-0.425,-0.0389,0.9877,-0.1516,0.4242,0.1537,0.8924],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.5667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.5718,5.2946,5.6773,0.9047,-0.0295,-0.425,-0.0391,0.9876,-0.1517,0.4242,0.1539,0.8924],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.6,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.6053,5.3149,5.799,0.9047,-0.0293,-0.425,-0.0393,0.9876,-0.1519,0.4242,0.1541,0.8923],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.6333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.6332,5.3319,5.9005,0.9047,-0.0292,-0.4251,-0.0396,0.9876,-0.152,0.4242,0.1544,0.8923],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.6667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.656,5.3459,5.9837,0.9047,-0.0291,-0.425,-0.0397,0.9876,-0.1521,0.4242,0.1545,0.8923],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.7,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.6742,5.3571,6.0503,0.9048,-0.029,-0.4249,-0.0398,0.9876,-0.152,0.424,0.1545,0.8924],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.7333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.6883,5.366,6.1023,0.9049,-0.0289,-0.4247,-0.0398,0.9876,-0.1519,0.4239,0.1544,0.8925],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.7667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.6989,5.3727,6.1414,0.9049,-0.0288,-0.4246,-0.0398,0.9876,-0.1518,0.4237,0.1542,0.8926],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.8,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.7064,5.3776,6.1694,0.905,-0.0288,-0.4244,-0.0397,0.9877,-0.1515,0.4236,0.154,0.8927],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.8333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.7114,5.3809,6.1883,0.905,-0.0288,-0.4243,-0.0395,0.9877,-0.1513,0.4235,0.1537,0.8928],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.8667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.7143,5.3831,6.1998,0.9051,-0.0288,-0.4242,-0.0393,0.9877,-0.151,0.4234,0.1534,0.8929],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.9,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.7157,5.3843,6.2058,0.9052,-0.0288,-0.424,-0.0392,0.9878,-0.1507,0.4232,0.1531,0.893],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.9333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[1.7161,5.3849,6.2082,0.9053,-0.0287,-0.4238,-0.0391,0.9878,-0.1505,0.423,0.1528,0.8932],"fade":0,"focus":[0,4.732,0],"fov":32.2688,"lb":0,"lens":35,"shot":0,"speed":1,"sub":-1,"t":0.9667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0565,4.3745,2.6907,0.1015,-0.0045,-0.9948,0.0016,1,-0.0044,0.9948,-0.0012,0.1015],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0568,4.3747,2.6912,0.1023,-0.0042,-0.9947,0.002,1,-0.0041,0.9948,-0.0016,0.1023],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.0333,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0571,4.3748,2.6917,0.1034,-0.0039,-0.9946,0.0025,1,-0.0037,0.9946,-0.0021,0.1034],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.0667,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0574,4.3749,2.6922,0.1022,-0.0063,-0.9947,0.0052,1,-0.0058,0.9947,-0.0046,0.1023],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":0,"sub":-1,"t":1.1,"trauma":0.4},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0574,4.3749,2.6922,0.1022,-0.0063,-0.9947,0.0052,1,-0.0058,0.9947,-0.0046,0.1023],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":0,"sub":-1,"t":1.1,"trauma":0.4},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0574,4.3748,2.6923,0.1041,-0.0049,-0.9946,0.006,1,-0.0043,0.9946,-0.0055,0.1041],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.1067,"trauma":0.3893},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0578,4.3747,2.6928,0.1089,-0.0014,-0.9941,0.0076,1,-0.0006,0.994,-0.0075,0.1089],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.14,"trauma":0.336},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0582,4.3745,2.6933,0.1086,-0.0001,-0.9941,0.0054,1,0.0005,0.9941,-0.0055,0.1086],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.1733,"trauma":0.2827},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0586,4.3742,2.6937,0.1084,0.0009,-0.9941,0.0037,1,0.0013,0.9941,-0.0039,0.1084],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.2067,"trauma":0.2293},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.059,4.3738,2.6941,0.1092,-0.0006,-0.994,0.005,1,-0.0001,0.994,-0.005,0.1092],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.24,"trauma":0.176},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0594,4.3733,2.6945,0.1098,-0.0018,-0.9939,0.006,1,-0.0012,0.9939,-0.0058,0.1099],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.2733,"trauma":0.1227},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0598,4.3728,2.6949,0.1109,-0.0014,-0.9938,0.006,1,-0.0007,0.9938,-0.0059,0.1109],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.3067,"trauma":0.0693},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[5.0603,4.3721,2.6953,0.1114,-0.001,-0.9938,0.0057,1,-0.0004,0.9938,-0.0056,0.1114],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.34,"trauma":0.016},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0,0,1,0,0,0,1,-0.0001,0,0.0001,1]],"cam":[5.0607,4.3714,2.6956,0.1116,-0.0006,-0.9938,0.0053,1,-0.0001,0.9937,-0.0053,0.1116],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.3733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0003,-0.0004,1,0,0,0,1,-0.0017,0,0.0017,1]],"cam":[5.0612,4.3707,2.6959,0.1117,-0.0003,-0.9937,0.0049,1,0.0002,0.9937,-0.0048,0.1117],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.4067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0013,-0.0018,1,0,0,0,1,-0.0067,0,0.0067,1]],"cam":[5.0617,4.3699,2.6963,0.1118,0,-0.9937,0.0046,1,0.0005,0.9937,-0.0046,0.1118],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.44,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0034,-0.0045,1,0,0,0,0.9999,-0.0173,0,0.0173,0.9999]],"cam":[5.0621,4.3691,2.6966,0.1121,0.0002,-0.9937,0.0045,1,0.0007,0.9937,-0.0045,0.1121],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.4733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0069,-0.0092,1,0,0,0,0.9994,-0.0355,0,0.0355,0.9994]],"cam":[5.0625,4.3683,2.6969,0.1124,0.0003,-0.9937,0.0046,1,0.0008,0.9937,-0.0046,0.1124],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.5067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0124,-0.0165,1,0,0,0,0.998,-0.0633,0,0.0633,0.998]],"cam":[5.063,4.3674,2.6972,0.1126,0.0003,-0.9936,0.0047,1,0.0009,0.9936,-0.0048,0.1126],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.54,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0201,-0.0268,1,0,0,0,0.9947,-0.1027,0,0.1027,0.9947]],"cam":[5.0634,4.3666,2.6975,0.1126,0.0002,-0.9936,0.005,1,0.0008,0.9936,-0.0051,0.1126],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.5733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0305,-0.0407,1,0,0,0,0.9878,-0.1555,0,0.1555,0.9878]],"cam":[5.0638,4.3657,2.6978,0.1125,0,-0.9937,0.0055,1,0.0006,0.9936,-0.0055,0.1125],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.6067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.044,-0.0586,1,0,0,0,0.9748,-0.2232,0,0.2232,0.9748]],"cam":[5.0641,4.3649,2.6982,0.1122,-0.0002,-0.9937,0.006,1,0.0004,0.9937,-0.006,0.1122],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.64,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.061,-0.0813,1,0,0,0,0.9517,-0.307,0,0.307,0.9517]],"cam":[5.0645,4.3641,2.6985,0.112,-0.0005,-0.9937,0.0064,1,0.0002,0.9937,-0.0064,0.112],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.6733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.0818,-0.1091,1,0,0,0,0.9136,-0.4067,0,0.4067,0.9136]],"cam":[5.0648,4.3633,2.6988,0.1119,-0.0006,-0.9937,0.0066,1,0.0001,0.9937,-0.0066,0.1119],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.7067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.107,-0.1426,1,0,0,0,0.8538,-0.5206,0,0.5206,0.8538]],"cam":[5.0651,4.3626,2.6991,0.1119,-0.0006,-0.9937,0.0066,1,0.0002,0.9937,-0.0066,0.1119],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.74,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.1368,-0.1824,1,0,0,0,0.7646,-0.6445,0,0.6445,0.7646]],"cam":[5.0653,4.3619,2.6995,0.1119,-0.0005,-0.9937,0.0066,1,0.0002,0.9937,-0.0065,0.1119],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.7733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.1717,-0.229,1,0,0,0,0.6378,-0.7702,0,0.7702,0.6378]],"cam":[5.0655,4.3612,2.6998,0.1121,-0.0004,-0.9937,0.0062,1,0.0003,0.9937,-0.0062,0.1121],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.8067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.2121,-0.2829,1,0,0,0,0.466,-0.8848,0,0.8848,0.466]],"cam":[5.0657,4.3606,2.7002,0.1124,-0.0002,-0.9937,0.0056,1,0.0005,0.9936,-0.0056,0.1124],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.84,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.2584,-0.3446,1,0,0,0,0.2451,-0.9695,0,0.9695,0.2451]],"cam":[5.0659,4.36,2.7005,0.1129,0.0001,-0.9936,0.0048,1,0.0007,0.9936,-0.0048,0.1129],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.8733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.066,4.3594,2.7008,0.1134,0.0004,-0.9935,0.0039,1,0.0009,0.9935,-0.004,0.1134],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.9067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0661,4.3589,2.7012,0.1137,0.0007,-0.9935,0.0032,1,0.001,0.9935,-0.0033,0.1137],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.94,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0662,4.3583,2.7015,0.1137,0.0008,-0.9935,0.0027,1,0.0011,0.9935,-0.0028,0.1137],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":1.9733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0663,4.3577,2.7018,0.1135,0.001,-0.9935,0.0023,1,0.0012,0.9935,-0.0025,0.1135],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.0067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0664,4.3572,2.702,0.1132,0.0011,-0.9936,0.0021,1,0.0013,0.9936,-0.0022,0.1132],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.04,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0664,4.3566,2.7023,0.1128,0.001,-0.9936,0.002,1,0.0013,0.9936,-0.0021,0.1128],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.0733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0664,4.356,2.7025,0.1123,0.0009,-0.9937,0.002,1,0.0011,0.9937,-0.0021,0.1123],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.1067,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0664,4.3554,2.7028,0.1116,0.0007,-0.9937,0.0021,1,0.0009,0.9937,-0.0022,0.1116],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.14,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0663,4.3549,2.7031,0.1111,0.0005,-0.9938,0.0021,1,0.0008,0.9938,-0.0022,0.1111],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.1733,"trauma":0},{"actors":[[0,0,1.8,1,0,0,0,1,0,0,0,1],[0,0.3,-0.4,1,0,0,0,0.0349,-0.9994,0,0.9994,0.0349]],"cam":[5.0663,4.3545,2.7033,0.1107,0.0005,-0.9939,0.0021,1,0.0007,0.9939,-0.0021,0.1107],"fade":0,"focus":[0,4.732,1.8],"fov":22.8952,"lb":0,"lens":50,"shot":1,"speed":1,"sub":-1,"t":2.2,"trauma":0}],"items":[{"actor":"Attacker","at":0,"id":"","kind":"Animation","name":"","wall":0},{"actor":"Victim","at":0,"id":"","kind":"Animation","name":"","wall":0},{"actor":"Victim","at":0.2,"id":"","kind":"Sound","name":"","wall":0.2},{"actor":"Victim","at":1.1,"id":"","kind":"Sound","name":"","wall":1.1},{"at":1.1,"kind":"Event","name":"Kill","target":"Victim","wall":1.1},{"at":1.4,"kind":"Event","name":"Ragdoll","target":"Victim","wall":1.46}],"kind":"Finisher","labels":[],"length":2.2,"line":["Attacker","Victim"],"marks":[{"name":"Victim","position":[0,0,0],"yaw":0},{"name":"Attacker","position":[0,0,1.8],"yaw":0},{"name":"Slumped","position":[0,0,-0.4],"yaw":0}],"name":"BackStab","pacing":{"AverageShot":1.1,"Length":2.2,"Shots":2},"qtes":[],"regions":[{"end":1.1,"hold":0.06,"scale":0,"start":1.1,"wallEnd":1.16,"wallStart":1.1}],"shots":[{"at":0,"blend":0,"end":1,"index":1,"lens":35,"moves":["PullOut"],"name":"Shoulder view pulls out","size":"MCU","style":"Handheld","subject":"Victim","type":"OverShoulder","wallAt":0,"wallEnd":1},{"aperture":2.8,"at":1,"blend":0,"end":2.2,"index":2,"lens":50,"moves":[],"name":"Profile: the stab","size":"MCU","style":"Handheld","subject":"Attacker","type":"Frame","wallAt":1,"wallEnd":2.26}],"subtitles":[],"wallLength":2.26,"warnings":[]};
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!DATA) { document.body.innerHTML = '<p style="padding:20px">No previs data.</p>'; return; }
+  document.title = `${DATA.name} Previs`;
+  $('title').textContent = DATA.name;
+  if (DATA.errors && DATA.errors.length) {
+    $('errors').style.display = 'block';
+    $('errors').textContent = 'The scene does not compile:\n  ' + DATA.errors.join('\n  ');
+    return;
+  }
+  const fps = DATA.fps, frames = DATA.frames, shots = DATA.shots, actors = DATA.actors;
+  const ACTOR_COLORS = ['#e9b44c', '#5aa0ff', '#e0607e', '#78e68c', '#b48cff', '#5fd3d3'];
+  const meta = [
+    ['kind', DATA.kind], ['length', DATA.length.toFixed(2) + ' s'], ['plays in', DATA.wallLength.toFixed(2) + ' s'],
+    ['shots', shots.length], ['avg shot', DATA.pacing.AverageShot.toFixed(2) + ' s'],
+    ['letterbox', DATA.letterbox ? DATA.letterbox + ':1' : 'none'], ['coverage', DATA.warnings.length ? DATA.warnings.length + ' warning(s)' : 'clean'],
+  ];
+  $('meta').innerHTML = meta.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('');
+
+  // ---------------------------------------------------------------- 3D set
+  const canvas = $('view');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#9fb3c8');
+  scene.fog = new THREE.Fog('#9fb3c8', 60, 260);
+  scene.add(new THREE.HemisphereLight('#dfe9f5', '#4a4136', 0.85));
+  const sun = new THREE.DirectionalLight('#fff3df', 0.75);
+  sun.position.set(-40, 80, 30);
+  scene.add(sun);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshLambertMaterial({ color: '#6b6f63' }));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+  const grid = new THREE.GridHelper(200, 50, '#555a52', '#5e6259');
+  grid.position.y = 0.01;
+  scene.add(grid);
+  // Set dressing (seeded, kept clear of the marks) so camera moves show parallax.
+  let seed = 1;
+  for (const ch of DATA.name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483647;
+  const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  const marks = DATA.marks.map((m) => m.position);
+  const propMat = [new THREE.MeshLambertMaterial({ color: '#8a8070' }), new THREE.MeshLambertMaterial({ color: '#7d8a90' }), new THREE.MeshLambertMaterial({ color: '#94866a' })];
+  for (let i = 0; i < 70; i++) {
+    const a = rand() * Math.PI * 2, r = 12 + rand() * 70;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (marks.some((p) => Math.hypot(p[0] - x, p[2] - z) < 9)) continue;
+    const tall = rand() < 0.35;
+    const w = tall ? 1.5 + rand() * 2 : 2 + rand() * 4, h = tall ? 8 + rand() * 18 : 1 + rand() * 3.5, d = tall ? 1.5 + rand() * 2 : 2 + rand() * 4;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), propMat[i % 3]);
+    box.position.set(x, h / 2, z);
+    box.rotation.y = rand() * Math.PI;
+    scene.add(box);
+  }
+  // Mannequins: R15-like proportions, nose pointing the way they face (-Z, as in Roblox).
+  function mannequin(height, color) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshLambertMaterial({ color });
+    const dark = new THREE.MeshLambertMaterial({ color: '#2b2b2b' });
+    const H = height;
+    const part = (w, h, d, x, y, z, m = mat) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w * H, h * H, d * H), m); b.position.set(x * H, y * H, z * H); g.add(b); };
+    part(0.16, 0.42, 0.17, -0.1, 0.21, 0); part(0.16, 0.42, 0.17, 0.1, 0.21, 0);
+    part(0.38, 0.36, 0.2, 0, 0.6, 0);
+    part(0.13, 0.33, 0.14, -0.27, 0.6, 0); part(0.13, 0.33, 0.14, 0.27, 0.6, 0);
+    part(0.22, 0.21, 0.22, 0, 0.895, 0);
+    part(0.06, 0.05, 0.06, 0, 0.9, -0.13, dark);
+    return g;
+  }
+  const actorObjs = actors.map((a, i) => { const m = mannequin(a.height, ACTOR_COLORS[i % ACTOR_COLORS.length]); m.matrixAutoUpdate = false; scene.add(m); return m; });
+  const camera = new THREE.PerspectiveCamera(70, DATA.aspect, 0.1, 3000);
+  camera.matrixAutoUpdate = false;
+  const v3 = (a, i) => new THREE.Vector3(a[i], a[i + 1], a[i + 2]);
+  function setMatrix(obj, f) {
+    obj.matrix.makeBasis(v3(f, 3), v3(f, 6), v3(f, 9)).setPosition(v3(f, 0));
+    obj.matrixWorldNeedsUpdate = true;
+  }
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * renderer.getPixelRatio()) || canvas.height !== Math.round(h * renderer.getPixelRatio())) renderer.setSize(w, h, false);
+  }
+
+  // ---------------------------------------------------------------- frame state
+  let wall = 0, playing = false, rate = 1, lastTs = null;
+  const frameAt = (w) => frames[Math.max(0, Math.min(frames.length - 1, Math.round(w * fps)))];
+
+  function applyFrame(f) {
+    f.actors.forEach((af, i) => setMatrix(actorObjs[i], af));
+    setMatrix(camera, f.cam);
+    camera.matrixWorldInverse.copy(camera.matrix).invert();
+    if (camera.fov !== f.fov) { camera.fov = f.fov; camera.updateProjectionMatrix(); }
+  }
+
+  function overlay(f) {
+    const lbAspect = DATA.letterbox || 0;
+    let bar = 0;
+    if (lbAspect > DATA.aspect) bar = (1 - DATA.aspect / lbAspect) / 2 * f.lb;
+    $('barTop').style.height = $('barBottom').style.height = (bar * 100) + '%';
+    $('fade').style.opacity = f.fade;
+    const sub = f.sub >= 0 ? DATA.subtitles[f.sub] : null;
+    const el = $('subtitle');
+    if (sub) { el.style.display = 'block'; el.innerHTML = (sub.speaker ? `<b>${esc(sub.speaker)}</b>` : '') + esc(sub.text); el.style.bottom = (bar * 100 + 3) + '%'; } else el.style.display = 'none';
+    const s = shots[f.shot];
+    $('shotTitle').textContent = `#${s.index} ${s.name || s.type}`;
+    $('hud').innerHTML = `<div class="big">#${s.index} ${s.type}${s.size ? ' · ' + s.size : ''}${s.subject ? ' · ' + esc(s.subject) : ''}</div>` +
+      `<div>${f.lens.toFixed(0)} mm · FOV ${f.fov.toFixed(1)}° · ${s.style}${s.moves.length ? ' · ' + s.moves.join('+') : ''}${s.aperture ? ' · f/' + s.aperture : ''}</div>` +
+      (f.trauma > 0.02 ? `<div>shake ${(f.trauma * 100).toFixed(0)}%</div>` : '');
+    $('speedTag').textContent = f.speed === 0 ? 'FREEZE' : f.speed < 1 ? f.speed.toFixed(2) + '×' : '';
+    const q = DATA.qtes.find((q) => wall >= q.wallAt - 0.25 && wall <= q.wallEnd + 0.15);
+    if (q) {
+      $('qte').style.display = 'block';
+      $('qteKey').textContent = q.type === 'Mash' ? `Mash ${q.action}` : q.type === 'Hold' ? `Hold ${q.action}` : q.type === 'Timing' ? `${q.action} on the ring` : q.action;
+      $('qteLabel').textContent = q.label || q.id;
+      const k = Math.max(0, Math.min(1, (wall - q.wallAt) / Math.max(0.001, q.wallEnd - q.wallAt)));
+      $('qteTimer').style.width = (160 * (1 - k)) + 'px';
+      $('qteBranch').textContent = `success: ${q.onSuccess} · fail: ${q.onFail}`;
+    } else $('qte').style.display = 'none';
+    $('time').textContent = `scene ${f.t.toFixed(2)} s · wall ${wall.toFixed(2)} / ${DATA.wallLength.toFixed(2)} s`;
+    document.querySelectorAll('.thumb').forEach((t, i) => t.classList.toggle('on', i === f.shot));
+  }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---------------------------------------------------------------- map
+  const map = $('map'), mctx = map.getContext('2d');
+  const bounds = (() => {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    const add = (x, z) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
+    frames.forEach((f, i) => { if (i % 3 === 0) { add(f.cam[0], f.cam[2]); f.actors.forEach((a) => add(a[0], a[2])); } });
+    const pad = 4, cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    const span = Math.min(160, Math.max(maxX - minX, maxZ - minZ) + pad * 2);
+    return { cx, cz, span: Math.max(span, 16) };
+  })();
+  function drawMap(f) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = map.clientWidth, Hh = map.clientHeight;
+    if (map.width !== Math.round(W * dpr)) { map.width = Math.round(W * dpr); map.height = Math.round(Hh * dpr); }
+    mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mctx.clearRect(0, 0, W, Hh);
+    const s = Math.min(W, Hh) / bounds.span;
+    const P = (x, z) => [W / 2 + (x - bounds.cx) * s, Hh / 2 + (z - bounds.cz) * s];
+    // grid
+    mctx.strokeStyle = '#1f222a'; mctx.lineWidth = 1;
+    const step = bounds.span > 60 ? 10 : 4;
+    for (let g = Math.floor((bounds.cx - bounds.span) / step) * step; g < bounds.cx + bounds.span; g += step) { const [a] = P(g, 0); mctx.beginPath(); mctx.moveTo(a, 0); mctx.lineTo(a, Hh); mctx.stroke(); }
+    for (let g = Math.floor((bounds.cz - bounds.span) / step) * step; g < bounds.cz + bounds.span; g += step) { const [, b] = P(0, g); mctx.beginPath(); mctx.moveTo(0, b); mctx.lineTo(W, b); mctx.stroke(); }
+    // 180° line between the line actors (body centres), extended
+    if (DATA.line) {
+      const ia = actors.findIndex((a) => a.name === DATA.line[0]), ib = actors.findIndex((a) => a.name === DATA.line[1]);
+      if (ia >= 0 && ib >= 0) {
+        const A = f.actors[ia], B = f.actors[ib];
+        const ca = [A[0] + A[6] * actors[ia].height / 2, A[2] + A[8] * actors[ia].height / 2];
+        const cb = [B[0] + B[6] * actors[ib].height / 2, B[2] + B[8] * actors[ib].height / 2];
+        let dx = cb[0] - ca[0], dz = cb[1] - ca[1]; const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
+        // shade the left side (looking from first to second actor), where the camera should stay
+        const L = 400, nx = dz, nz = -dx; // left = up x forward
+        const p1 = P(ca[0] - dx * L, ca[1] - dz * L), p2 = P(ca[0] + dx * L, ca[1] + dz * L);
+        const side = Math.sign(((f.cam[0] - ca[0]) * nx + (f.cam[2] - ca[1]) * nz)) || 1;
+        mctx.fillStyle = 'rgba(255,214,92,0.05)';
+        const p3 = P(ca[0] + dx * L + nx * L * side, ca[1] + dz * L + nz * L * side), p4 = P(ca[0] - dx * L + nx * L * side, ca[1] - dz * L + nz * L * side);
+        mctx.beginPath(); mctx.moveTo(...p1); mctx.lineTo(...p2); mctx.lineTo(...p3); mctx.lineTo(...p4); mctx.closePath(); mctx.fill();
+        mctx.setLineDash([6, 5]); mctx.strokeStyle = 'rgba(255,214,92,.65)'; mctx.lineWidth = 1.5;
+        mctx.beginPath(); mctx.moveTo(...p1); mctx.lineTo(...p2); mctx.stroke(); mctx.setLineDash([]);
+        $('mapNote').textContent = `180° line: ${DATA.line[0]} ↔ ${DATA.line[1]}`;
+      }
+    }
+    // marks
+    mctx.fillStyle = '#4b505c'; mctx.font = '10px ui-monospace, monospace';
+    for (const m of DATA.marks) { const [x, y] = P(m.position[0], m.position[2]); mctx.fillRect(x - 2, y - 2, 4, 4); mctx.fillText(m.name, x + 4, y - 4); }
+    // camera trail for this shot
+    const shot = shots[f.shot];
+    mctx.strokeStyle = 'rgba(255,255,255,.35)'; mctx.lineWidth = 1; mctx.beginPath();
+    for (let w = shot.wallAt; w <= Math.min(shot.wallEnd, DATA.wallLength); w += 1 / fps) { const g = frameAt(w); const [x, y] = P(g.cam[0], g.cam[2]); if (w === shot.wallAt) mctx.moveTo(x, y); else mctx.lineTo(x, y); }
+    mctx.stroke();
+    // actors
+    f.actors.forEach((a, i) => {
+      const [x, y] = P(a[0], a[2]);
+      const col = ACTOR_COLORS[i % ACTOR_COLORS.length];
+      mctx.fillStyle = col; mctx.beginPath(); mctx.arc(x, y, 6, 0, Math.PI * 2); mctx.fill();
+      const fx = -a[9], fz = -a[11]; const fl = Math.hypot(fx, fz);
+      if (fl > 0.05) { mctx.strokeStyle = col; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(x, y); mctx.lineTo(x + fx / fl * 14, y + fz / fl * 14); mctx.stroke(); }
+      if (fl < 0.6) { mctx.strokeStyle = col; mctx.lineWidth = 1; const [ux, uy] = P(a[0] + a[6] * actors[i].height, a[2] + a[8] * actors[i].height); mctx.setLineDash([2, 2]); mctx.beginPath(); mctx.moveTo(x, y); mctx.lineTo(ux, uy); mctx.stroke(); mctx.setLineDash([]); }
+      mctx.fillStyle = '#e7e9ee'; mctx.font = '11px ui-sans-serif, system-ui'; mctx.fillText(actors[i].name, x + 9, y + 4);
+    });
+    // camera frustum
+    const [cx, cy] = P(f.cam[0], f.cam[2]);
+    const lx = -f.cam[9], lz = -f.cam[11];
+    const hf = Math.atan(Math.tan(f.fov * Math.PI / 360) * DATA.aspect);
+    const ang = Math.atan2(lz, lx), reach = 40;
+    mctx.fillStyle = 'rgba(255,255,255,.10)'; mctx.strokeStyle = 'rgba(255,255,255,.7)'; mctx.lineWidth = 1;
+    mctx.beginPath(); mctx.moveTo(cx, cy);
+    mctx.lineTo(cx + Math.cos(ang - hf) * reach, cy + Math.sin(ang - hf) * reach);
+    mctx.lineTo(cx + Math.cos(ang + hf) * reach, cy + Math.sin(ang + hf) * reach);
+    mctx.closePath(); mctx.fill(); mctx.stroke();
+    mctx.fillStyle = '#ffffff'; mctx.beginPath(); mctx.arc(cx, cy, 4, 0, Math.PI * 2); mctx.fill();
+    mctx.fillStyle = 'rgba(255,255,255,.85)'; mctx.font = '10px ui-monospace, monospace'; mctx.fillText(`cam  y ${f.cam[1].toFixed(1)}`, cx + 6, cy + 12);
+  }
+  $('mapLegend').innerHTML = actors.map((a, i) => `<span><i style="background:${ACTOR_COLORS[i % ACTOR_COLORS.length]}"></i>${esc(a.name)} (${a.height} studs${a.template ? ', template ' + esc(a.template) : ''}${a.player ? ', player' : ''})</span>`).join('') + '<span>white wedge: camera view · shaded: the side the camera keeps to</span>';
+
+  // ---------------------------------------------------------------- timeline
+  const tl = $('timeline'), tctx = tl.getContext('2d');
+  const ROWS = [
+    { key: 'shots', label: 'Shots', h: 30 }, { key: 'anim', label: 'Animation', h: 16 }, { key: 'sound', label: 'Sound', h: 14 },
+    { key: 'sub', label: 'Subtitles', h: 14 }, { key: 'event', label: 'Events', h: 16 }, { key: 'qte', label: 'QTE', h: 16 },
+    { key: 'speed', label: 'Speed', h: 12 }, { key: 'flow', label: 'Flow', h: 16 },
+  ];
+  const LABEL_W = 78;
+  function drawTimeline() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = tl.clientWidth, total = ROWS.reduce((s, r) => s + r.h + 4, 8);
+    tl.style.height = total + 'px';
+    if (tl.width !== Math.round(W * dpr) || tl.height !== Math.round(total * dpr)) { tl.width = Math.round(W * dpr); tl.height = Math.round(total * dpr); }
+    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tctx.clearRect(0, 0, W, total);
+    const X = (w) => LABEL_W + (w / DATA.wallLength) * (W - LABEL_W - 10);
+    let y = 6;
+    const rowY = {};
+    for (const r of ROWS) {
+      rowY[r.key] = [y, r.h];
+      tctx.fillStyle = '#9aa1ad'; tctx.font = '11px ui-sans-serif, system-ui'; tctx.fillText(r.label, 8, y + r.h / 2 + 4);
+      tctx.fillStyle = '#1a1c22'; tctx.fillRect(LABEL_W, y, W - LABEL_W - 10, r.h);
+      y += r.h + 4;
+    }
+    const [sy, sh] = rowY.shots;
+    shots.forEach((s, i) => {
+      const x0 = X(s.wallAt), x1 = X(s.wallEnd);
+      tctx.fillStyle = i % 2 ? css('--shot-b') : css('--shot-a'); tctx.fillRect(x0, sy, Math.max(1, x1 - x0 - 1), sh);
+      if (s.blend > 0) { tctx.fillStyle = 'rgba(255,255,255,.25)'; tctx.fillRect(x0, sy, X(s.wallAt + s.blend) - x0, sh); }
+      tctx.save(); tctx.beginPath(); tctx.rect(x0, sy, x1 - x0 - 2, sh); tctx.clip();
+      tctx.fillStyle = '#fff'; tctx.font = '600 11px ui-sans-serif, system-ui'; tctx.fillText(`${s.index} ${s.size || s.type} ${s.lens}mm`, x0 + 4, sy + 13);
+      tctx.font = '10px ui-sans-serif, system-ui'; tctx.fillStyle = 'rgba(255,255,255,.75)'; tctx.fillText(s.name, x0 + 4, sy + 25);
+      tctx.restore();
+    });
+    const tick = (row, w, color, shape) => { const [ry, rh] = rowY[row]; const x = X(w); tctx.fillStyle = color; if (shape === 'diamond') { tctx.beginPath(); tctx.moveTo(x, ry + 2); tctx.lineTo(x + 5, ry + rh / 2); tctx.lineTo(x, ry + rh - 2); tctx.lineTo(x - 5, ry + rh / 2); tctx.fill(); } else tctx.fillRect(x - 1.5, ry + 2, 3, rh - 4); };
+    for (const it of DATA.items) {
+      if (it.kind === 'Animation') tick('anim', it.wall, css('--anim'));
+      else if (it.kind === 'Sound') tick('sound', it.wall, css('--sound'));
+      else if (it.kind === 'Event' && it.name !== 'End' && it.name !== 'Goto') tick('event', it.wall, it.server || it.target ? css('--server') : css('--event'), 'diamond');
+    }
+    const [suby, subh] = rowY.sub;
+    for (const s of DATA.subtitles) { tctx.fillStyle = css('--sub'); tctx.fillRect(X(s.wall), suby + 3, X(s.wallEnd) - X(s.wall), subh - 6); }
+    const [qy, qh] = rowY.qte;
+    for (const q of DATA.qtes) { tctx.fillStyle = css('--qte'); tctx.fillRect(X(q.wallAt), qy + 2, Math.max(3, X(q.wallEnd) - X(q.wallAt)), qh - 4); tctx.fillStyle = '#000'; tctx.font = '700 10px ui-sans-serif'; tctx.fillText(q.id, X(q.wallAt) + 3, qy + qh - 5); }
+    const [spy, sph] = rowY.speed;
+    for (const r of DATA.regions) { tctx.fillStyle = css('--slow'); tctx.globalAlpha = r.hold > 0 ? 1 : 0.6; tctx.fillRect(X(r.wallStart), spy + 2, Math.max(2, X(r.wallEnd) - X(r.wallStart)), sph - 4); tctx.globalAlpha = 1; }
+    const [fy, fh] = rowY.flow;
+    for (const [name, at] of Object.entries(DATA.labels || {})) { const x = X(frames.find((f) => f.t >= at - 1e-6) ? (frames.findIndex((f) => f.t >= at - 1e-6)) / fps : at); tctx.fillStyle = '#9aa1ad'; tctx.fillRect(x, fy, 1, fh); tctx.font = '10px ui-sans-serif'; tctx.fillText(name, x + 3, fy + 11); }
+    for (const e of DATA.flow) { const x = X(e.wall); tctx.fillStyle = e.name === 'End' ? css('--bad') : css('--accent'); tctx.fillRect(x - 1, fy, 3, fh); tctx.font = '700 10px ui-sans-serif'; tctx.fillText(e.name === 'End' ? 'END' : '↩ ' + e.label, x + 4, fy + fh - 3); }
+    // playhead
+    const px = X(wall); tctx.fillStyle = css('--accent'); tctx.fillRect(px - 1, 0, 2, total);
+  }
+  function scrubTo(ev) {
+    const r = tl.getBoundingClientRect();
+    const x = (ev.clientX - r.left - LABEL_W) / (r.width - LABEL_W - 10);
+    wall = Math.max(0, Math.min(DATA.wallLength, x * DATA.wallLength));
+    render();
+  }
+  let dragging = false;
+  tl.addEventListener('pointerdown', (e) => { dragging = true; tl.setPointerCapture(e.pointerId); scrubTo(e); });
+  tl.addEventListener('pointermove', (e) => { if (dragging) scrubTo(e); });
+  tl.addEventListener('pointerup', () => { dragging = false; });
+
+  // ---------------------------------------------------------------- render loop
+  function render() {
+    resize();
+    const f = frameAt(wall);
+    applyFrame(f);
+    renderer.render(scene, camera);
+    overlay(f);
+    drawMap(f);
+    drawTimeline();
+  }
+  function tick(ts) {
+    if (playing) {
+      if (lastTs !== null) wall += (ts - lastTs) / 1000 * rate;
+      if (wall >= DATA.wallLength) { if ($('loop').checked) wall = 0; else { wall = DATA.wallLength; playing = false; $('play').textContent = 'Play'; } }
+    }
+    lastTs = ts;
+    render();
+    requestAnimationFrame(tick);
+  }
+  $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (wall >= DATA.wallLength) wall = 0; };
+  $('restart').onclick = () => { wall = 0; };
+  $('rate').onchange = (e) => { rate = parseFloat(e.target.value); };
+  const shotIndexAt = () => frameAt(wall).shot;
+  $('prevShot').onclick = () => { const i = shotIndexAt(); const s = shots[Math.max(0, wall - shots[i].wallAt > 0.3 ? i : i - 1)]; wall = s.wallAt + 0.001; };
+  $('nextShot').onclick = () => { const i = shotIndexAt(); if (i + 1 < shots.length) wall = shots[i + 1].wallAt + 0.001; };
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); $('play').click(); } });
+
+  // ---------------------------------------------------------------- contact sheet
+  const thumbs = $('thumbs');
+  resize();
+  shots.forEach((s) => {
+    const midWall = (s.wallAt + Math.min(s.wallEnd, DATA.wallLength)) / 2;
+    const f = frameAt(midWall);
+    applyFrame(f);
+    renderer.render(scene, camera);
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img alt="Shot ${s.index}" src="${canvas.toDataURL('image/jpeg', 0.8)}"><div><b>${s.index}. ${esc(s.name || s.type)}</b><span>${s.type}${s.size ? ' · ' + s.size : ''} · ${s.lens}mm · ${s.style}${s.moves.length ? ' · ' + s.moves.join('+') : ''} · ${(s.end - s.at).toFixed(2)}s</span></div>`;
+    div.onclick = () => { wall = s.wallAt + 0.001; };
+    thumbs.appendChild(div);
+  });
+
+  // ---------------------------------------------------------------- notes
+  $('pacing').textContent = `${shots.length} shots · average ${DATA.pacing.AverageShot.toFixed(2)} s`;
+  $('noteBody').innerHTML = DATA.warnings.length
+    ? '<ul>' + DATA.warnings.map((w) => `<li><span class="kind">${w.kind}</span>${w.time.toFixed(2)} s: ${esc(w.message)}</li>`).join('') + '</ul>'
+    : '<div class="ok">✓ No coverage problems: the 180° line holds, no jump cuts, readable shot lengths and pans, subtitles and QTE windows.</div>';
+
+  window.addEventListener('resize', render);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

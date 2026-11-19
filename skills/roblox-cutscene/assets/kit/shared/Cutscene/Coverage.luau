@@ -22,7 +22,6 @@ local Coverage = {}
 
 export type Warning = { Time: number, Kind: string, Message: string }
 
-local NEUTRAL_DEGREES = 12
 local MIN_ANGLE_CHANGE = 30
 local MAX_PAN_SPEED = 150
 local SAMPLE_RATE = 30
@@ -35,19 +34,20 @@ local function fmt(t: number): string
 	return string.format("%.2fs", t)
 end
 
--- 1 = left of the line looking from a to b, -1 = right, 0 = on the line (within ±12° of it).
+-- 1 = left of the line looking from a to b, -1 = right, 0 = on the line. The line runs
+-- through both actors and on past them (a camera behind one actor's shoulder is still on one
+-- side of it); within ON_LINE studs of it counts as neutral.
+local ON_LINE = 0.3
 function Coverage.SideOfLine(a: Vector3, b: Vector3, point: Vector3): number
 	local axis = flat(b - a)
-	local mid = (a + b) / 2
-	local toPoint = flat(point - mid)
-	if axis.Magnitude < 1e-3 or toPoint.Magnitude < 1e-3 then
+	if axis.Magnitude < 1e-3 then
 		return 0
 	end
-	local cross = axis.Unit:Cross(toPoint.Unit).Y
-	if math.abs(cross) < math.sin(math.rad(NEUTRAL_DEGREES)) then
+	local offset = axis.Unit:Cross(flat(point - a)).Y
+	if math.abs(offset) < ON_LINE then
 		return 0
 	end
-	return if cross > 0 then 1 else -1
+	return if offset > 0 then 1 else -1
 end
 
 local function angleBetween(a: Vector3, b: Vector3): number
@@ -80,7 +80,11 @@ local function checkCuts(c: Timeline.Compiled, out: { Warning })
 
 		local line = shot.Line or c.Line
 		if line and not shot.CrossLine and poses[line[1]] and poses[line[2]] then
-			local a, b = poses[line[1]].CFrame.Position, poses[line[2]].CFrame.Position
+			-- The line runs between the bodies (not the feet: a lying actor's head is far from them).
+			local function centre(pose: any): Vector3
+				return pose.CFrame * Vector3.new(0, pose.Height * 0.5, 0)
+			end
+			local a, b = centre(poses[line[1]]), centre(poses[line[2]])
 			local s0 = Coverage.SideOfLine(a, b, before.CFrame.Position)
 			local s1 = Coverage.SideOfLine(a, b, after.CFrame.Position)
 			if s0 ~= 0 and s1 ~= 0 and s0 ~= s1 then
@@ -143,7 +147,10 @@ local function checkShots(c: Timeline.Compiled, out: { Warning })
 				local t = shot.At + length * s / steps - 1e-4
 				local look = cameraAt(c, t).CFrame.LookVector
 				local degrees = math.deg(math.acos(math.clamp(last:Dot(look), -1, 1)))
-				local speed = degrees / (length / steps)
+				-- Per wall second: slow motion makes a fast move watchable.
+				local t0 = shot.At + length * (s - 1) / steps
+				local wall = math.max(1e-6, Timeline.WallTime(c, t) - Timeline.WallTime(c, t0))
+				local speed = degrees / wall
 				if speed > MAX_PAN_SPEED then
 					table.insert(out, {
 						Time = t,
@@ -217,7 +224,13 @@ local function checkQtes(c: Timeline.Compiled, out: { Warning })
 			-- fine: failing just plays on
 		elseif type(item.OnFail) == "table" and item.OnFail.Goto ~= nil then
 			local at = Timeline.Label(c, item.OnFail.Goto)
-			if at and at > item.At and Timeline.EndFrom(c, at) >= c.Length and not item.OnFail.Final then
+			local returns = false
+			for _, event in c.Events do
+				if at and event.At >= at and (event.Name == "End" or event.Name == "Goto") then
+					returns = true
+				end
+			end
+			if at and at > item.At and not returns and not item.OnFail.Final then
 				table.insert(out, {
 					Time = item.At,
 					Kind = "Qte",

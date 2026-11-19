@@ -1,0 +1,457 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cutscene Previs</title>
+<style>
+:root {
+  --bg: #0e0f12;
+  --panel: #16181d;
+  --panel-2: #1d2027;
+  --line: #2a2e37;
+  --text: #e7e9ee;
+  --muted: #9aa1ad;
+  --accent: #ffd65c;
+  --good: #78e68c;
+  --bad: #ff6a5a;
+  --shot-a: #3b6fd8;
+  --shot-b: #7a4fd0;
+  --anim: #49b7a8;
+  --sound: #d88a3b;
+  --event: #e8e8e8;
+  --server: #ff6a5a;
+  --qte: #ffd65c;
+  --slow: #5aa0ff;
+  --sub: #c9c9c9;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 14px 20px 10px; display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: baseline; border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+header .meta { color: var(--muted); font-size: 13px; display: flex; gap: 16px; flex-wrap: wrap; }
+header .meta b { color: var(--text); font-weight: 600; }
+main { padding: 14px 20px 30px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px; max-width: 1500px; margin: 0 auto; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.panel h2 { margin: 0; padding: 9px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+#viewWrap { position: relative; aspect-ratio: 16 / 9; background: #000; }
+#view { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.bar { position: absolute; left: 0; right: 0; background: #000; height: 0; pointer-events: none; }
+#barTop { top: 0; } #barBottom { bottom: 0; }
+#fade { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+#subtitle { position: absolute; left: 50%; transform: translateX(-50%); bottom: 6%; max-width: 80%; background: rgba(0,0,0,.55); padding: 4px 12px; border-radius: 6px; font-size: clamp(11px, 1.6vw, 18px); text-align: center; display: none; }
+#subtitle b { color: var(--accent); margin-right: 8px; }
+#hud { position: absolute; left: 10px; top: 8px; font: 12px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+#hud .big { font-size: 13px; font-weight: 700; }
+#speedTag { position: absolute; right: 10px; top: 8px; font: 700 12px ui-monospace, monospace; color: var(--slow); text-shadow: 0 1px 2px #000; }
+#qte { position: absolute; left: 50%; top: 58%; transform: translate(-50%, -50%); text-align: center; display: none; pointer-events: none; }
+#qte .key { display: inline-block; min-width: 48px; padding: 8px 12px; border: 2px solid var(--qte); border-radius: 10px; background: rgba(20,20,24,.85); font-weight: 800; font-size: 18px; }
+#qte .label { font-weight: 900; font-size: 18px; margin-top: 6px; text-shadow: 0 1px 3px #000; }
+#qte .timer { height: 3px; background: #fff; margin: 6px auto 0; width: 160px; }
+#qte .branch { font-size: 11px; color: var(--muted); margin-top: 4px; text-shadow: 0 1px 2px #000; }
+#map { width: 100%; aspect-ratio: 1 / 1; display: block; background: #121318; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 12px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.transport { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 12px; }
+.transport button, .transport select { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; font: inherit; cursor: pointer; }
+.transport button:hover { border-color: var(--accent); }
+.transport .time { font: 12px ui-monospace, monospace; color: var(--muted); margin-left: auto; }
+#timelineWrap { grid-column: 1 / -1; }
+#timeline { width: 100%; display: block; cursor: pointer; touch-action: none; }
+#sheet { grid-column: 1 / -1; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; padding: 12px; }
+.thumb { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; }
+.thumb:hover, .thumb.on { border-color: var(--accent); }
+.thumb img { width: 100%; display: block; aspect-ratio: 16 / 9; object-fit: cover; background: #000; }
+.thumb div { padding: 6px 8px; font-size: 12px; }
+.thumb div b { display: block; font-size: 12.5px; }
+.thumb div span { color: var(--muted); }
+#notes { grid-column: 1 / -1; }
+#notes ul { margin: 0; padding: 10px 14px 12px 30px; }
+#notes li { margin: 4px 0; }
+#notes .ok { color: var(--good); padding: 10px 14px; }
+#notes .kind { font: 700 11px ui-monospace, monospace; color: var(--bad); margin-right: 6px; }
+#errors { grid-column: 1 / -1; color: var(--bad); padding: 12px 14px; display: none; white-space: pre-wrap; font: 13px ui-monospace, monospace; }
+footer { color: var(--muted); font-size: 12px; text-align: center; padding: 0 20px 24px; }
+@media (max-width: 900px) {
+  header, main { padding-left: 16px; padding-right: 16px; }
+  main { grid-template-columns: 1fr; }
+  .thumbs { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Previs</h1>
+  <div class="meta" id="meta"></div>
+</header>
+<main>
+  <div class="panel" id="errors"></div>
+  <section class="panel">
+    <h2><span>Lens</span><span id="shotTitle"></span></h2>
+    <div id="viewWrap">
+      <canvas id="view"></canvas>
+      <div class="bar" id="barTop"></div><div class="bar" id="barBottom"></div>
+      <div id="fade"></div>
+      <div id="hud"></div>
+      <div id="speedTag"></div>
+      <div id="subtitle"></div>
+      <div id="qte"><div class="key" id="qteKey"></div><div class="label" id="qteLabel"></div><div class="timer" id="qteTimer"></div><div class="branch" id="qteBranch"></div></div>
+    </div>
+  </section>
+  <section class="panel">
+    <h2><span>Blocking (top down)</span><span id="mapNote"></span></h2>
+    <canvas id="map"></canvas>
+    <div class="legend" id="mapLegend"></div>
+  </section>
+  <section class="panel transport">
+    <button id="play">Play</button>
+    <button id="restart">Restart</button>
+    <button id="prevShot">◀ Shot</button>
+    <button id="nextShot">Shot ▶</button>
+    <select id="rate"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option></select>
+    <label style="color:var(--muted);font-size:13px"><input type="checkbox" id="loop" checked> loop</label>
+    <span class="time" id="time"></span>
+  </section>
+  <section class="panel" id="timelineWrap">
+    <h2><span>Timeline (wall time: slow motion is wide, freezes show)</span><span id="tlNote"></span></h2>
+    <canvas id="timeline"></canvas>
+    <div class="legend">
+      <span><i style="background:var(--shot-a)"></i>shots</span>
+      <span><i style="background:var(--anim)"></i>animations</span>
+      <span><i style="background:var(--sound)"></i>sounds</span>
+      <span><i style="background:var(--sub)"></i>subtitles</span>
+      <span><i style="background:var(--event)"></i>events</span>
+      <span><i style="background:var(--server)"></i>server events</span>
+      <span><i style="background:var(--qte)"></i>QTE windows</span>
+      <span><i style="background:var(--slow)"></i>slow motion / freeze</span>
+    </div>
+  </section>
+  <section class="panel" id="sheet">
+    <h2><span>Contact sheet</span><span>click a shot to jump</span></h2>
+    <div class="thumbs" id="thumbs"></div>
+  </section>
+  <section class="panel" id="notes">
+    <h2><span>Coverage check</span><span id="pacing"></span></h2>
+    <div id="noteBody"></div>
+  </section>
+</main>
+<footer>Previs from the kit's own Luau Timeline (the luau CLI). Grey mannequins stand in for the actors and their marks; animation clips aren't shown, root motion (Moves) is.</footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = {"actors":[{"height":5.2,"name":"Attacker","player":false},{"height":5.2,"name":"Victim","player":false}],"aspect":1.7778,"errors":[],"flow":[],"fps":30,"frames":[{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0083,4.7322,-2.1016,-1,0.0007,0.0007,0.0008,0.9866,0.1631,-0.0005,0.1631,-0.9866],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0088,4.7333,-2.1012,-1,0.0009,0.0003,0.0009,0.9866,0.163,-0.0002,0.163,-0.9866],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.0333,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0092,4.7339,-2.0979,-1,0.0012,-0.0002,0.0011,0.9867,0.1627,0.0004,0.1627,-0.9867],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.0667,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0098,4.7336,-2.089,-1,0.0016,-0.001,0.0014,0.9868,0.1622,0.0013,0.1622,-0.9868],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.1,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0103,4.7319,-2.0718,-1,0.0021,-0.002,0.0017,0.9868,0.1617,0.0023,0.1617,-0.9868],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.1333,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0109,4.7282,-2.0435,-1,0.0025,-0.0029,0.002,0.9869,0.1612,0.0033,0.1612,-0.9869],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.1667,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0114,4.7221,-2.0012,-1,0.0029,-0.0036,0.0022,0.987,0.1608,0.004,0.1608,-0.987],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.2,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.012,4.7131,-1.9421,-1,0.0031,-0.0041,0.0024,0.987,0.1606,0.0045,0.1606,-0.987],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.2333,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0125,4.7007,-1.8635,-1,0.0032,-0.0044,0.0025,0.987,0.1605,0.0048,0.1605,-0.987],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.2667,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0131,4.6866,-1.7755,-1,0.0032,-0.0046,0.0025,0.987,0.1606,0.0051,0.1605,-0.987],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.3,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0136,4.6759,-1.707,-1,0.0031,-0.0047,0.0023,0.987,0.1609,0.0051,0.1609,-0.987],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.3333,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.014,4.6684,-1.6566,-1,0.0028,-0.0046,0.002,0.9869,0.1615,0.005,0.1614,-0.9869],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.3667,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0145,4.6635,-1.6215,-1,0.0024,-0.0044,0.0017,0.9868,0.1621,0.0047,0.1621,-0.9868],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.4,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0148,4.6607,-1.5989,-1,0.0021,-0.0043,0.0014,0.9867,0.1626,0.0046,0.1626,-0.9867],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.4333,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0151,4.6597,-1.5861,-1,0.0019,-0.0042,0.0012,0.9866,0.163,0.0045,0.163,-0.9866],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.4667,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0154,4.6597,-1.5802,-1,0.0018,-0.0042,0.0011,0.9866,0.1631,0.0044,0.1631,-0.9866],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.5,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[0.0156,4.6605,-1.5785,-1,0.0017,-0.0042,0.001,0.9866,0.1633,0.0044,0.1633,-0.9866],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":0,"speed":1,"sub":-1,"t":0.5333,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[-5.7777,0.2716,-4.8758,-0.6321,-0.0159,0.7747,-0.2517,0.9498,-0.1858,-0.7329,-0.3124,-0.6044],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":0,"sub":-1,"t":0.55,"trauma":0.8},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[-5.7777,0.2716,-4.8758,-0.6321,-0.0159,0.7747,-0.2517,0.9498,-0.1858,-0.7329,-0.3124,-0.6044],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":0,"sub":-1,"t":0.55,"trauma":0.8},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[-5.7777,0.2718,-4.8757,-0.6306,-0.018,0.7759,-0.2539,0.9495,-0.1843,-0.7335,-0.3132,-0.6033],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.5533,"trauma":0.7947},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0,1,0,0,0,1,0,0,0,1]],"cam":[-5.7777,0.2745,-4.8738,-0.6298,-0.0186,0.7765,-0.2541,0.9496,-0.1833,-0.734,-0.3128,-0.6028],"fade":0,"focus":[0,4.732,0],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.5867,"trauma":0.7413},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0,0.0001,1,0,0,0,1,0.0002,0,-0.0002,1]],"cam":[-5.7777,0.2773,-4.8716,-0.6476,-0.0072,0.762,-0.2481,0.9475,-0.2019,-0.7205,-0.3198,-0.6153],"fade":0,"focus":[0,4.732,0.001],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.62,"trauma":0.688},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0007,0.0014,1,0,0,0,1,0.0035,0,-0.0035,1]],"cam":[-5.7776,0.2804,-4.8691,-0.6488,-0.0046,0.7609,-0.2444,0.9483,-0.2027,-0.7206,-0.3175,-0.6164],"fade":0,"focus":[0,4.7327,0.0181],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.6533,"trauma":0.6347},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0031,0.0061,1,0,0,0,0.9999,0.0151,0,-0.0151,0.9999]],"cam":[-5.7775,0.2836,-4.8665,-0.6431,0.007,0.7657,-0.227,0.9533,-0.1994,-0.7313,-0.3021,-0.6115],"fade":0,"focus":[0,4.7345,0.0775],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.6867,"trauma":0.5813},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0081,0.0162,1,0,0,0,0.9992,0.04,0,-0.04,0.9992]],"cam":[-5.7774,0.2869,-4.8636,-0.6394,0.0082,0.7688,-0.2237,0.9547,-0.1962,-0.7356,-0.2974,-0.6086],"fade":0,"focus":[0,4.7363,0.2057],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.72,"trauma":0.528},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0169,0.0338,1,0,0,0,0.9965,0.0835,0,-0.0835,0.9965]],"cam":[-5.7773,0.2903,-4.8606,-0.6312,-0.0041,0.7756,-0.2372,0.9531,-0.188,-0.7385,-0.3027,-0.6026],"fade":0,"focus":[0,4.7324,0.4288],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.7533,"trauma":0.4747},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0305,0.061,1,0,0,0,0.9887,0.1502,0,-0.1502,0.9887]],"cam":[-5.7771,0.2937,-4.8576,-0.6268,-0.0105,0.7791,-0.2442,0.9522,-0.1836,-0.74,-0.3053,-0.5994],"fade":0,"focus":[0,4.7088,0.7717],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.7867,"trauma":0.4213},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0499,0.0998,1,0,0,0,0.9697,0.2443,0,-0.2443,0.9697]],"cam":[-5.777,0.297,-4.8547,-0.6302,-0.009,0.7764,-0.2435,0.9518,-0.1866,-0.7373,-0.3066,-0.602],"fade":0,"focus":[0,4.6385,1.256],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.82,"trauma":0.368},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.0762,0.1524,1,0,0,0,0.9298,0.368,0,-0.368,0.9298]],"cam":[-5.7768,0.3001,-4.8518,-0.6329,-0.0079,0.7742,-0.2424,0.9517,-0.1884,-0.7353,-0.3069,-0.6042],"fade":0,"focus":[0,4.4761,1.8939],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.8533,"trauma":0.3147},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.1104,0.2209,1,0,0,0,0.8546,0.5193,0,-0.5193,0.8546]],"cam":[-5.7767,0.303,-4.8492,-0.6319,-0.0101,0.775,-0.2423,0.9524,-0.1851,-0.7362,-0.3047,-0.6043],"fade":0,"focus":[0,4.1543,2.6783],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.8867,"trauma":0.2613},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.1536,0.3072,1,0,0,0,0.7251,0.6886,0,-0.6886,0.7251]],"cam":[-5.7766,0.3055,-4.8467,-0.6323,-0.0119,0.7747,-0.2425,0.9527,-0.1833,-0.7358,-0.3037,-0.6052],"fade":0,"focus":[0,3.5849,3.5657],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.92,"trauma":0.208},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.2068,0.4135,1,0,0,0,0.5212,0.8534,0,-0.8534,0.5212]],"cam":[-5.7764,0.3077,-4.8446,-0.6346,-0.0111,0.7727,-0.2425,0.9522,-0.1856,-0.7338,-0.3052,-0.607],"fade":0,"focus":[0,2.6732,4.4519],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.9533,"trauma":0.1547},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.271,0.542,1,0,0,0,0.2287,0.9735,0,-0.9735,0.2287]],"cam":[-5.7763,0.3096,-4.8428,-0.636,-0.0104,0.7716,-0.2424,0.952,-0.187,-0.7326,-0.306,-0.608],"fade":0,"focus":[0,1.3531,5.1486],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":0.9867,"trauma":0.1013},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.3,0.6,1,0,0,0,0.0872,0.9962,0,-0.9962,0.0872]],"cam":[-5.7762,0.311,-4.8413,-0.6362,-0.0102,0.7714,-0.2422,0.952,-0.1871,-0.7325,-0.3059,-0.6082],"fade":0,"focus":[0,0.7124,5.314],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":1.02,"trauma":0.048},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.3,0.6,1,0,0,0,0.0872,0.9962,0,-0.9962,0.0872]],"cam":[-5.7761,0.3121,-4.8401,-0.6364,-0.0097,0.7713,-0.2412,0.9523,-0.187,-0.7327,-0.3051,-0.6084],"fade":0,"focus":[0,0.7124,5.314],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":1.0533,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.3,0.6,1,0,0,0,0.0872,0.9962,0,-0.9962,0.0872]],"cam":[-5.776,0.3129,-4.8392,-0.6364,-0.0087,0.7713,-0.2392,0.9529,-0.1867,-0.7333,-0.3033,-0.6085],"fade":0,"focus":[0,0.7124,5.314],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":1.0867,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.3,0.6,1,0,0,0,0.0872,0.9962,0,-0.9962,0.0872]],"cam":[-5.7759,0.3134,-4.8385,-0.6366,-0.0077,0.7712,-0.2374,0.9533,-0.1864,-0.7338,-0.3018,-0.6087],"fade":0,"focus":[0,0.7124,5.314],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":1.12,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.3,0.6,1,0,0,0,0.0872,0.9962,0,-0.9962,0.0872]],"cam":[-5.7758,0.3137,-4.8378,-0.6373,-0.0073,0.7706,-0.2368,0.9534,-0.1867,-0.7334,-0.3015,-0.6093],"fade":0,"focus":[0,0.7124,5.314],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":1.1533,"trauma":0},{"actors":[[0,0,-2.4,-1,0,0,0,1,0,0,0,-1],[0,0.3,0.6,1,0,0,0,0.0872,0.9962,0,-0.9962,0.0872]],"cam":[-5.7758,0.3137,-4.8372,-0.6382,-0.0074,0.7698,-0.237,0.9533,-0.1874,-0.7324,-0.3021,-0.6102],"fade":0,"focus":[0,0.7124,5.314],"fov":45.7473,"lb":0,"lens":24,"shot":1,"speed":1,"sub":-1,"t":1.1867,"trauma":0}],"items":[{"actor":"Attacker","at":0,"id":"","kind":"Animation","name":"","wall":0},{"actor":"Victim","at":0,"id":"","kind":"Animation","name":"","wall":0},{"actor":"Victim","at":0.55,"id":"","kind":"Sound","name":"","wall":0.55},{"at":0.55,"kind":"Event","name":"Kill","target":"Victim","wall":0.55},{"at":0.6,"kind":"Event","name":"Ragdoll","target":"Victim","wall":0.68},{"at":0.6,"kind":"Event","name":"Heal","target":"Attacker","wall":0.68}],"kind":"Finisher","labels":[],"length":1.2,"line":["Attacker","Victim"],"marks":[{"name":"Victim","position":[0,0,0],"yaw":0},{"name":"Fallen","position":[0,0,0.6],"yaw":0},{"name":"Attacker","position":[0,0,-2.4],"yaw":180}],"name":"GloryKill","pacing":{"AverageShot":0.6,"Length":1.2,"Shots":2},"qtes":[],"regions":[{"end":0.55,"hold":0.08,"scale":0,"start":0.55,"wallEnd":0.63,"wallStart":0.55}],"shots":[{"at":0,"blend":0,"end":0.55,"index":1,"lens":24,"moves":["PushIn"],"name":"First person: the punch","size":"MCU","style":"Handheld","subject":"Victim","type":"POV","wallAt":0,"wallEnd":0.55},{"at":0.55,"blend":0,"end":1.2,"index":2,"lens":24,"moves":[],"name":"Low angle: down they go","pitch":"Low","size":"FS","style":"Documentary","subject":"Victim","type":"Frame","wallAt":0.55,"wallEnd":1.28}],"subtitles":[],"wallLength":1.28,"warnings":[]};
+(function () {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  if (!DATA) { document.body.innerHTML = '<p style="padding:20px">No previs data.</p>'; return; }
+  document.title = `${DATA.name} Previs`;
+  $('title').textContent = DATA.name;
+  if (DATA.errors && DATA.errors.length) {
+    $('errors').style.display = 'block';
+    $('errors').textContent = 'The scene does not compile:\n  ' + DATA.errors.join('\n  ');
+    return;
+  }
+  const fps = DATA.fps, frames = DATA.frames, shots = DATA.shots, actors = DATA.actors;
+  const ACTOR_COLORS = ['#e9b44c', '#5aa0ff', '#e0607e', '#78e68c', '#b48cff', '#5fd3d3'];
+  const meta = [
+    ['kind', DATA.kind], ['length', DATA.length.toFixed(2) + ' s'], ['plays in', DATA.wallLength.toFixed(2) + ' s'],
+    ['shots', shots.length], ['avg shot', DATA.pacing.AverageShot.toFixed(2) + ' s'],
+    ['letterbox', DATA.letterbox ? DATA.letterbox + ':1' : 'none'], ['coverage', DATA.warnings.length ? DATA.warnings.length + ' warning(s)' : 'clean'],
+  ];
+  $('meta').innerHTML = meta.map(([k, v]) => `<span>${k} <b>${v}</b></span>`).join('');
+
+  // ---------------------------------------------------------------- 3D set
+  const canvas = $('view');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#9fb3c8');
+  scene.fog = new THREE.Fog('#9fb3c8', 60, 260);
+  scene.add(new THREE.HemisphereLight('#dfe9f5', '#4a4136', 0.85));
+  const sun = new THREE.DirectionalLight('#fff3df', 0.75);
+  sun.position.set(-40, 80, 30);
+  scene.add(sun);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshLambertMaterial({ color: '#6b6f63' }));
+  ground.rotation.x = -Math.PI / 2;
+  scene.add(ground);
+  const grid = new THREE.GridHelper(200, 50, '#555a52', '#5e6259');
+  grid.position.y = 0.01;
+  scene.add(grid);
+  // Set dressing (seeded, kept clear of the marks) so camera moves show parallax.
+  let seed = 1;
+  for (const ch of DATA.name) seed = (seed * 31 + ch.charCodeAt(0)) % 2147483647;
+  const rand = () => (seed = (seed * 48271) % 2147483647) / 2147483647;
+  const marks = DATA.marks.map((m) => m.position);
+  const propMat = [new THREE.MeshLambertMaterial({ color: '#8a8070' }), new THREE.MeshLambertMaterial({ color: '#7d8a90' }), new THREE.MeshLambertMaterial({ color: '#94866a' })];
+  for (let i = 0; i < 70; i++) {
+    const a = rand() * Math.PI * 2, r = 12 + rand() * 70;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r;
+    if (marks.some((p) => Math.hypot(p[0] - x, p[2] - z) < 9)) continue;
+    const tall = rand() < 0.35;
+    const w = tall ? 1.5 + rand() * 2 : 2 + rand() * 4, h = tall ? 8 + rand() * 18 : 1 + rand() * 3.5, d = tall ? 1.5 + rand() * 2 : 2 + rand() * 4;
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), propMat[i % 3]);
+    box.position.set(x, h / 2, z);
+    box.rotation.y = rand() * Math.PI;
+    scene.add(box);
+  }
+  // Mannequins: R15-like proportions, nose pointing the way they face (-Z, as in Roblox).
+  function mannequin(height, color) {
+    const g = new THREE.Group();
+    const mat = new THREE.MeshLambertMaterial({ color });
+    const dark = new THREE.MeshLambertMaterial({ color: '#2b2b2b' });
+    const H = height;
+    const part = (w, h, d, x, y, z, m = mat) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w * H, h * H, d * H), m); b.position.set(x * H, y * H, z * H); g.add(b); };
+    part(0.16, 0.42, 0.17, -0.1, 0.21, 0); part(0.16, 0.42, 0.17, 0.1, 0.21, 0);
+    part(0.38, 0.36, 0.2, 0, 0.6, 0);
+    part(0.13, 0.33, 0.14, -0.27, 0.6, 0); part(0.13, 0.33, 0.14, 0.27, 0.6, 0);
+    part(0.22, 0.21, 0.22, 0, 0.895, 0);
+    part(0.06, 0.05, 0.06, 0, 0.9, -0.13, dark);
+    return g;
+  }
+  const actorObjs = actors.map((a, i) => { const m = mannequin(a.height, ACTOR_COLORS[i % ACTOR_COLORS.length]); m.matrixAutoUpdate = false; scene.add(m); return m; });
+  const camera = new THREE.PerspectiveCamera(70, DATA.aspect, 0.1, 3000);
+  camera.matrixAutoUpdate = false;
+  const v3 = (a, i) => new THREE.Vector3(a[i], a[i + 1], a[i + 2]);
+  function setMatrix(obj, f) {
+    obj.matrix.makeBasis(v3(f, 3), v3(f, 6), v3(f, 9)).setPosition(v3(f, 0));
+    obj.matrixWorldNeedsUpdate = true;
+  }
+  function resize() {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (canvas.width !== Math.round(w * renderer.getPixelRatio()) || canvas.height !== Math.round(h * renderer.getPixelRatio())) renderer.setSize(w, h, false);
+  }
+
+  // ---------------------------------------------------------------- frame state
+  let wall = 0, playing = false, rate = 1, lastTs = null;
+  const frameAt = (w) => frames[Math.max(0, Math.min(frames.length - 1, Math.round(w * fps)))];
+
+  function applyFrame(f) {
+    f.actors.forEach((af, i) => setMatrix(actorObjs[i], af));
+    setMatrix(camera, f.cam);
+    camera.matrixWorldInverse.copy(camera.matrix).invert();
+    if (camera.fov !== f.fov) { camera.fov = f.fov; camera.updateProjectionMatrix(); }
+  }
+
+  function overlay(f) {
+    const lbAspect = DATA.letterbox || 0;
+    let bar = 0;
+    if (lbAspect > DATA.aspect) bar = (1 - DATA.aspect / lbAspect) / 2 * f.lb;
+    $('barTop').style.height = $('barBottom').style.height = (bar * 100) + '%';
+    $('fade').style.opacity = f.fade;
+    const sub = f.sub >= 0 ? DATA.subtitles[f.sub] : null;
+    const el = $('subtitle');
+    if (sub) { el.style.display = 'block'; el.innerHTML = (sub.speaker ? `<b>${esc(sub.speaker)}</b>` : '') + esc(sub.text); el.style.bottom = (bar * 100 + 3) + '%'; } else el.style.display = 'none';
+    const s = shots[f.shot];
+    $('shotTitle').textContent = `#${s.index} ${s.name || s.type}`;
+    $('hud').innerHTML = `<div class="big">#${s.index} ${s.type}${s.size ? ' · ' + s.size : ''}${s.subject ? ' · ' + esc(s.subject) : ''}</div>` +
+      `<div>${f.lens.toFixed(0)} mm · FOV ${f.fov.toFixed(1)}° · ${s.style}${s.moves.length ? ' · ' + s.moves.join('+') : ''}${s.aperture ? ' · f/' + s.aperture : ''}</div>` +
+      (f.trauma > 0.02 ? `<div>shake ${(f.trauma * 100).toFixed(0)}%</div>` : '');
+    $('speedTag').textContent = f.speed === 0 ? 'FREEZE' : f.speed < 1 ? f.speed.toFixed(2) + '×' : '';
+    const q = DATA.qtes.find((q) => wall >= q.wallAt - 0.25 && wall <= q.wallEnd + 0.15);
+    if (q) {
+      $('qte').style.display = 'block';
+      $('qteKey').textContent = q.type === 'Mash' ? `Mash ${q.action}` : q.type === 'Hold' ? `Hold ${q.action}` : q.type === 'Timing' ? `${q.action} on the ring` : q.action;
+      $('qteLabel').textContent = q.label || q.id;
+      const k = Math.max(0, Math.min(1, (wall - q.wallAt) / Math.max(0.001, q.wallEnd - q.wallAt)));
+      $('qteTimer').style.width = (160 * (1 - k)) + 'px';
+      $('qteBranch').textContent = `success: ${q.onSuccess} · fail: ${q.onFail}`;
+    } else $('qte').style.display = 'none';
+    $('time').textContent = `scene ${f.t.toFixed(2)} s · wall ${wall.toFixed(2)} / ${DATA.wallLength.toFixed(2)} s`;
+    document.querySelectorAll('.thumb').forEach((t, i) => t.classList.toggle('on', i === f.shot));
+  }
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  // ---------------------------------------------------------------- map
+  const map = $('map'), mctx = map.getContext('2d');
+  const bounds = (() => {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+    const add = (x, z) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z); };
+    frames.forEach((f, i) => { if (i % 3 === 0) { add(f.cam[0], f.cam[2]); f.actors.forEach((a) => add(a[0], a[2])); } });
+    const pad = 4, cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    const span = Math.min(160, Math.max(maxX - minX, maxZ - minZ) + pad * 2);
+    return { cx, cz, span: Math.max(span, 16) };
+  })();
+  function drawMap(f) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = map.clientWidth, Hh = map.clientHeight;
+    if (map.width !== Math.round(W * dpr)) { map.width = Math.round(W * dpr); map.height = Math.round(Hh * dpr); }
+    mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    mctx.clearRect(0, 0, W, Hh);
+    const s = Math.min(W, Hh) / bounds.span;
+    const P = (x, z) => [W / 2 + (x - bounds.cx) * s, Hh / 2 + (z - bounds.cz) * s];
+    // grid
+    mctx.strokeStyle = '#1f222a'; mctx.lineWidth = 1;
+    const step = bounds.span > 60 ? 10 : 4;
+    for (let g = Math.floor((bounds.cx - bounds.span) / step) * step; g < bounds.cx + bounds.span; g += step) { const [a] = P(g, 0); mctx.beginPath(); mctx.moveTo(a, 0); mctx.lineTo(a, Hh); mctx.stroke(); }
+    for (let g = Math.floor((bounds.cz - bounds.span) / step) * step; g < bounds.cz + bounds.span; g += step) { const [, b] = P(0, g); mctx.beginPath(); mctx.moveTo(0, b); mctx.lineTo(W, b); mctx.stroke(); }
+    // 180° line between the line actors (body centres), extended
+    if (DATA.line) {
+      const ia = actors.findIndex((a) => a.name === DATA.line[0]), ib = actors.findIndex((a) => a.name === DATA.line[1]);
+      if (ia >= 0 && ib >= 0) {
+        const A = f.actors[ia], B = f.actors[ib];
+        const ca = [A[0] + A[6] * actors[ia].height / 2, A[2] + A[8] * actors[ia].height / 2];
+        const cb = [B[0] + B[6] * actors[ib].height / 2, B[2] + B[8] * actors[ib].height / 2];
+        let dx = cb[0] - ca[0], dz = cb[1] - ca[1]; const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
+        // shade the left side (looking from first to second actor), where the camera should stay
+        const L = 400, nx = dz, nz = -dx; // left = up x forward
+        const p1 = P(ca[0] - dx * L, ca[1] - dz * L), p2 = P(ca[0] + dx * L, ca[1] + dz * L);
+        const side = Math.sign(((f.cam[0] - ca[0]) * nx + (f.cam[2] - ca[1]) * nz)) || 1;
+        mctx.fillStyle = 'rgba(255,214,92,0.05)';
+        const p3 = P(ca[0] + dx * L + nx * L * side, ca[1] + dz * L + nz * L * side), p4 = P(ca[0] - dx * L + nx * L * side, ca[1] - dz * L + nz * L * side);
+        mctx.beginPath(); mctx.moveTo(...p1); mctx.lineTo(...p2); mctx.lineTo(...p3); mctx.lineTo(...p4); mctx.closePath(); mctx.fill();
+        mctx.setLineDash([6, 5]); mctx.strokeStyle = 'rgba(255,214,92,.65)'; mctx.lineWidth = 1.5;
+        mctx.beginPath(); mctx.moveTo(...p1); mctx.lineTo(...p2); mctx.stroke(); mctx.setLineDash([]);
+        $('mapNote').textContent = `180° line: ${DATA.line[0]} ↔ ${DATA.line[1]}`;
+      }
+    }
+    // marks
+    mctx.fillStyle = '#4b505c'; mctx.font = '10px ui-monospace, monospace';
+    for (const m of DATA.marks) { const [x, y] = P(m.position[0], m.position[2]); mctx.fillRect(x - 2, y - 2, 4, 4); mctx.fillText(m.name, x + 4, y - 4); }
+    // camera trail for this shot
+    const shot = shots[f.shot];
+    mctx.strokeStyle = 'rgba(255,255,255,.35)'; mctx.lineWidth = 1; mctx.beginPath();
+    for (let w = shot.wallAt; w <= Math.min(shot.wallEnd, DATA.wallLength); w += 1 / fps) { const g = frameAt(w); const [x, y] = P(g.cam[0], g.cam[2]); if (w === shot.wallAt) mctx.moveTo(x, y); else mctx.lineTo(x, y); }
+    mctx.stroke();
+    // actors
+    f.actors.forEach((a, i) => {
+      const [x, y] = P(a[0], a[2]);
+      const col = ACTOR_COLORS[i % ACTOR_COLORS.length];
+      mctx.fillStyle = col; mctx.beginPath(); mctx.arc(x, y, 6, 0, Math.PI * 2); mctx.fill();
+      const fx = -a[9], fz = -a[11]; const fl = Math.hypot(fx, fz);
+      if (fl > 0.05) { mctx.strokeStyle = col; mctx.lineWidth = 2; mctx.beginPath(); mctx.moveTo(x, y); mctx.lineTo(x + fx / fl * 14, y + fz / fl * 14); mctx.stroke(); }
+      if (fl < 0.6) { mctx.strokeStyle = col; mctx.lineWidth = 1; const [ux, uy] = P(a[0] + a[6] * actors[i].height, a[2] + a[8] * actors[i].height); mctx.setLineDash([2, 2]); mctx.beginPath(); mctx.moveTo(x, y); mctx.lineTo(ux, uy); mctx.stroke(); mctx.setLineDash([]); }
+      mctx.fillStyle = '#e7e9ee'; mctx.font = '11px ui-sans-serif, system-ui'; mctx.fillText(actors[i].name, x + 9, y + 4);
+    });
+    // camera frustum
+    const [cx, cy] = P(f.cam[0], f.cam[2]);
+    const lx = -f.cam[9], lz = -f.cam[11];
+    const hf = Math.atan(Math.tan(f.fov * Math.PI / 360) * DATA.aspect);
+    const ang = Math.atan2(lz, lx), reach = 40;
+    mctx.fillStyle = 'rgba(255,255,255,.10)'; mctx.strokeStyle = 'rgba(255,255,255,.7)'; mctx.lineWidth = 1;
+    mctx.beginPath(); mctx.moveTo(cx, cy);
+    mctx.lineTo(cx + Math.cos(ang - hf) * reach, cy + Math.sin(ang - hf) * reach);
+    mctx.lineTo(cx + Math.cos(ang + hf) * reach, cy + Math.sin(ang + hf) * reach);
+    mctx.closePath(); mctx.fill(); mctx.stroke();
+    mctx.fillStyle = '#ffffff'; mctx.beginPath(); mctx.arc(cx, cy, 4, 0, Math.PI * 2); mctx.fill();
+    mctx.fillStyle = 'rgba(255,255,255,.85)'; mctx.font = '10px ui-monospace, monospace'; mctx.fillText(`cam  y ${f.cam[1].toFixed(1)}`, cx + 6, cy + 12);
+  }
+  $('mapLegend').innerHTML = actors.map((a, i) => `<span><i style="background:${ACTOR_COLORS[i % ACTOR_COLORS.length]}"></i>${esc(a.name)} (${a.height} studs${a.template ? ', template ' + esc(a.template) : ''}${a.player ? ', player' : ''})</span>`).join('') + '<span>white wedge: camera view · shaded: the side the camera keeps to</span>';
+
+  // ---------------------------------------------------------------- timeline
+  const tl = $('timeline'), tctx = tl.getContext('2d');
+  const ROWS = [
+    { key: 'shots', label: 'Shots', h: 30 }, { key: 'anim', label: 'Animation', h: 16 }, { key: 'sound', label: 'Sound', h: 14 },
+    { key: 'sub', label: 'Subtitles', h: 14 }, { key: 'event', label: 'Events', h: 16 }, { key: 'qte', label: 'QTE', h: 16 },
+    { key: 'speed', label: 'Speed', h: 12 }, { key: 'flow', label: 'Flow', h: 16 },
+  ];
+  const LABEL_W = 78;
+  function drawTimeline() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const W = tl.clientWidth, total = ROWS.reduce((s, r) => s + r.h + 4, 8);
+    tl.style.height = total + 'px';
+    if (tl.width !== Math.round(W * dpr) || tl.height !== Math.round(total * dpr)) { tl.width = Math.round(W * dpr); tl.height = Math.round(total * dpr); }
+    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tctx.clearRect(0, 0, W, total);
+    const X = (w) => LABEL_W + (w / DATA.wallLength) * (W - LABEL_W - 10);
+    let y = 6;
+    const rowY = {};
+    for (const r of ROWS) {
+      rowY[r.key] = [y, r.h];
+      tctx.fillStyle = '#9aa1ad'; tctx.font = '11px ui-sans-serif, system-ui'; tctx.fillText(r.label, 8, y + r.h / 2 + 4);
+      tctx.fillStyle = '#1a1c22'; tctx.fillRect(LABEL_W, y, W - LABEL_W - 10, r.h);
+      y += r.h + 4;
+    }
+    const [sy, sh] = rowY.shots;
+    shots.forEach((s, i) => {
+      const x0 = X(s.wallAt), x1 = X(s.wallEnd);
+      tctx.fillStyle = i % 2 ? css('--shot-b') : css('--shot-a'); tctx.fillRect(x0, sy, Math.max(1, x1 - x0 - 1), sh);
+      if (s.blend > 0) { tctx.fillStyle = 'rgba(255,255,255,.25)'; tctx.fillRect(x0, sy, X(s.wallAt + s.blend) - x0, sh); }
+      tctx.save(); tctx.beginPath(); tctx.rect(x0, sy, x1 - x0 - 2, sh); tctx.clip();
+      tctx.fillStyle = '#fff'; tctx.font = '600 11px ui-sans-serif, system-ui'; tctx.fillText(`${s.index} ${s.size || s.type} ${s.lens}mm`, x0 + 4, sy + 13);
+      tctx.font = '10px ui-sans-serif, system-ui'; tctx.fillStyle = 'rgba(255,255,255,.75)'; tctx.fillText(s.name, x0 + 4, sy + 25);
+      tctx.restore();
+    });
+    const tick = (row, w, color, shape) => { const [ry, rh] = rowY[row]; const x = X(w); tctx.fillStyle = color; if (shape === 'diamond') { tctx.beginPath(); tctx.moveTo(x, ry + 2); tctx.lineTo(x + 5, ry + rh / 2); tctx.lineTo(x, ry + rh - 2); tctx.lineTo(x - 5, ry + rh / 2); tctx.fill(); } else tctx.fillRect(x - 1.5, ry + 2, 3, rh - 4); };
+    for (const it of DATA.items) {
+      if (it.kind === 'Animation') tick('anim', it.wall, css('--anim'));
+      else if (it.kind === 'Sound') tick('sound', it.wall, css('--sound'));
+      else if (it.kind === 'Event' && it.name !== 'End' && it.name !== 'Goto') tick('event', it.wall, it.server || it.target ? css('--server') : css('--event'), 'diamond');
+    }
+    const [suby, subh] = rowY.sub;
+    for (const s of DATA.subtitles) { tctx.fillStyle = css('--sub'); tctx.fillRect(X(s.wall), suby + 3, X(s.wallEnd) - X(s.wall), subh - 6); }
+    const [qy, qh] = rowY.qte;
+    for (const q of DATA.qtes) { tctx.fillStyle = css('--qte'); tctx.fillRect(X(q.wallAt), qy + 2, Math.max(3, X(q.wallEnd) - X(q.wallAt)), qh - 4); tctx.fillStyle = '#000'; tctx.font = '700 10px ui-sans-serif'; tctx.fillText(q.id, X(q.wallAt) + 3, qy + qh - 5); }
+    const [spy, sph] = rowY.speed;
+    for (const r of DATA.regions) { tctx.fillStyle = css('--slow'); tctx.globalAlpha = r.hold > 0 ? 1 : 0.6; tctx.fillRect(X(r.wallStart), spy + 2, Math.max(2, X(r.wallEnd) - X(r.wallStart)), sph - 4); tctx.globalAlpha = 1; }
+    const [fy, fh] = rowY.flow;
+    for (const [name, at] of Object.entries(DATA.labels || {})) { const x = X(frames.find((f) => f.t >= at - 1e-6) ? (frames.findIndex((f) => f.t >= at - 1e-6)) / fps : at); tctx.fillStyle = '#9aa1ad'; tctx.fillRect(x, fy, 1, fh); tctx.font = '10px ui-sans-serif'; tctx.fillText(name, x + 3, fy + 11); }
+    for (const e of DATA.flow) { const x = X(e.wall); tctx.fillStyle = e.name === 'End' ? css('--bad') : css('--accent'); tctx.fillRect(x - 1, fy, 3, fh); tctx.font = '700 10px ui-sans-serif'; tctx.fillText(e.name === 'End' ? 'END' : '↩ ' + e.label, x + 4, fy + fh - 3); }
+    // playhead
+    const px = X(wall); tctx.fillStyle = css('--accent'); tctx.fillRect(px - 1, 0, 2, total);
+  }
+  function scrubTo(ev) {
+    const r = tl.getBoundingClientRect();
+    const x = (ev.clientX - r.left - LABEL_W) / (r.width - LABEL_W - 10);
+    wall = Math.max(0, Math.min(DATA.wallLength, x * DATA.wallLength));
+    render();
+  }
+  let dragging = false;
+  tl.addEventListener('pointerdown', (e) => { dragging = true; tl.setPointerCapture(e.pointerId); scrubTo(e); });
+  tl.addEventListener('pointermove', (e) => { if (dragging) scrubTo(e); });
+  tl.addEventListener('pointerup', () => { dragging = false; });
+
+  // ---------------------------------------------------------------- render loop
+  function render() {
+    resize();
+    const f = frameAt(wall);
+    applyFrame(f);
+    renderer.render(scene, camera);
+    overlay(f);
+    drawMap(f);
+    drawTimeline();
+  }
+  function tick(ts) {
+    if (playing) {
+      if (lastTs !== null) wall += (ts - lastTs) / 1000 * rate;
+      if (wall >= DATA.wallLength) { if ($('loop').checked) wall = 0; else { wall = DATA.wallLength; playing = false; $('play').textContent = 'Play'; } }
+    }
+    lastTs = ts;
+    render();
+    requestAnimationFrame(tick);
+  }
+  $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? 'Pause' : 'Play'; if (wall >= DATA.wallLength) wall = 0; };
+  $('restart').onclick = () => { wall = 0; };
+  $('rate').onchange = (e) => { rate = parseFloat(e.target.value); };
+  const shotIndexAt = () => frameAt(wall).shot;
+  $('prevShot').onclick = () => { const i = shotIndexAt(); const s = shots[Math.max(0, wall - shots[i].wallAt > 0.3 ? i : i - 1)]; wall = s.wallAt + 0.001; };
+  $('nextShot').onclick = () => { const i = shotIndexAt(); if (i + 1 < shots.length) wall = shots[i + 1].wallAt + 0.001; };
+  window.addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); $('play').click(); } });
+
+  // ---------------------------------------------------------------- contact sheet
+  const thumbs = $('thumbs');
+  resize();
+  shots.forEach((s) => {
+    const midWall = (s.wallAt + Math.min(s.wallEnd, DATA.wallLength)) / 2;
+    const f = frameAt(midWall);
+    applyFrame(f);
+    renderer.render(scene, camera);
+    const div = document.createElement('div');
+    div.className = 'thumb';
+    div.innerHTML = `<img alt="Shot ${s.index}" src="${canvas.toDataURL('image/jpeg', 0.8)}"><div><b>${s.index}. ${esc(s.name || s.type)}</b><span>${s.type}${s.size ? ' · ' + s.size : ''} · ${s.lens}mm · ${s.style}${s.moves.length ? ' · ' + s.moves.join('+') : ''} · ${(s.end - s.at).toFixed(2)}s</span></div>`;
+    div.onclick = () => { wall = s.wallAt + 0.001; };
+    thumbs.appendChild(div);
+  });
+
+  // ---------------------------------------------------------------- notes
+  $('pacing').textContent = `${shots.length} shots · average ${DATA.pacing.AverageShot.toFixed(2)} s`;
+  $('noteBody').innerHTML = DATA.warnings.length
+    ? '<ul>' + DATA.warnings.map((w) => `<li><span class="kind">${w.kind}</span>${w.time.toFixed(2)} s: ${esc(w.message)}</li>`).join('') + '</ul>'
+    : '<div class="ok">✓ No coverage problems: the 180° line holds, no jump cuts, readable shot lengths and pans, subtitles and QTE windows.</div>';
+
+  window.addEventListener('resize', render);
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

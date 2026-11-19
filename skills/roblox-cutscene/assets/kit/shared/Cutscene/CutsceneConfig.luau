@@ -8,7 +8,7 @@
 --   CutsceneSkip = "Event",    -- client -> server  (id: string) vote to skip
 --   CutsceneVotes = "Event",   -- server -> client  (id: string, votes: number, needed: number)
 --   FinisherRequest = "Event", -- client -> server  (victim: Model) ask to perform a finisher on it
---   QteStart = "Event",        -- server -> client  (id: string, spec: table, startAt: number, anchor: Instance?) show a prompt
+--   QteStart = "Event",        -- server -> client  (id: string, spec: table, startAt: number, assist: string, anchor: Instance?) show a prompt
 --   QteInput = "Event",        -- client -> server  (id: string, action: string, down: boolean, time: number)
 --   QteResult = "Event",       -- server -> client  (id: string, status: string, grade: string?)
 --   QteAssist = "Event",       -- client -> server  (mode: string) the player's QTE accessibility setting

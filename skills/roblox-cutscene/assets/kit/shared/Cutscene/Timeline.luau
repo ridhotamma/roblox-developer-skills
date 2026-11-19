@@ -60,18 +60,26 @@ local function yawToward(from: Vector3, to: Vector3): number
 	return math.deg(math.atan2(-d.X, -d.Z))
 end
 
-local function resolveMark(spec: any, marks: { [string]: any }, depth: number?): Pose
+local function markPosition(spec: any, marks: { [string]: any }): Vector3
+	if typeof(spec) == "Vector3" then
+		return spec
+	end
+	local named = marks[spec]
+	assert(named, `no mark "{tostring(spec)}"`)
+	return named.Position or Vector3.zero
+end
+
+local function resolveMark(spec: any, marks: { [string]: any }): Pose
 	if type(spec) == "string" then
 		local named = marks[spec]
 		assert(named, `no mark "{spec}"`)
-		return resolveMark(named, marks, (depth or 0) + 1)
+		spec = named
 	end
-	assert((depth or 0) < 8, "mark Face chain too deep")
 	local position = spec.Position or Vector3.zero
 	local yaw = spec.Yaw or 0
 	if spec.Face ~= nil then
-		local target = if typeof(spec.Face) == "Vector3" then spec.Face else resolveMark(spec.Face, marks, (depth or 0) + 1).Position
-		yaw = yawToward(position, target)
+		-- Facing only needs where the other mark is, so two marks may face each other.
+		yaw = yawToward(position, markPosition(spec.Face, marks))
 	end
 	return { Position = position, Yaw = yaw, Pitch = spec.Pitch or 0, Roll = spec.Roll or 0, Lift = spec.Lift or 0 }
 end
@@ -100,7 +108,7 @@ function Timeline.ActorPose(c: Compiled, name: string, t: number): Pose
 		if move.At > t then
 			break
 		end
-		local k = Ease.Apply(move.Ease, (t - move.At) / move.Duration)
+		local k = if move.Duration > 0 then Ease.Apply(move.Ease, (t - move.At) / move.Duration) else 1
 		local goal = resolveMark(move.To, c.Marks)
 		-- A mark is a place; it only turns the actor if it says which way to face.
 		local raw = if type(move.To) == "string" then (c.Def.Marks or {})[move.To] or {} else move.To
@@ -538,8 +546,8 @@ function Timeline.Compile(def: any): (Compiled, { string })
 	end
 	local moves: { [string]: { any } } = {}
 	for _, move in moveList do
-		if type(move.Duration) ~= "number" or move.Duration <= 0 then
-			err(`move at {move.At}: needs Duration > 0`)
+		if type(move.Duration) ~= "number" or move.Duration < 0 then
+			err(`move at {move.At}: needs Duration >= 0 (0 = snap onto the mark)`)
 			move.Duration = 1
 		end
 		if type(move.To) == "string" and rawMarks[move.To] == nil then
