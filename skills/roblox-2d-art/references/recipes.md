@@ -96,7 +96,9 @@ Nothing important in the bottom 12%. Show real gameplay elements. Each variant s
 
 A text column on one side (about 40% of the width) and the hero on the other, three depth planes behind, one dominant
 colour family. If it is displayed with `ScaleType.Crop`, keep everything important inside the central 75% x 75%
-(phones and tablets cut different sides). Loading screens: leave a calm band for the progress bar.
+(phones and tablets cut different sides). Loading screens: leave a calm band for the progress bar. Example:
+`examples/banner.art.mjs` (kicker + two-line title in a type-scale step, hero on the right thirds line with a
+glowing prop clearly behind its shoulder, hazed far layers, dark foreground rocks cropped by the corners).
 
 ## Badges, passes, products (512, circle crop)
 

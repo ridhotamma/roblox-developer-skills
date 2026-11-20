@@ -51,7 +51,8 @@ look at every render before calling it done.**
 
 6. **Write the spec** `<name>.art.mjs` from the closest example (`examples/`): `items.art.mjs` (consistent icon set,
    clipping, cast shadows, metal, glass), `burger.art.mjs` (reference-traced proportions), `store.art.mjs` (game icon,
-   thumbnail with title text, badge, pass, each with its design brief), `pixel.art.mjs` (converted, hand-placed and
+   thumbnail with title text, badge, pass, each with its design brief), `banner.art.mjs` (menu / loading banner: text
+   column inside the crop-safe area, three depth planes, analogous dark scheme), `pixel.art.mjs` (converted, hand-placed and
    animated pixel art), `ui.art.mjs` (9-slice panel and button, tintable glyph, seamless texture, particle flipbook).
    Full field list: `references/spec-reference.md`.
 
@@ -126,7 +127,7 @@ For a composed image, layers also take `role: 'hero'` (what the eye must land on
 has design helpers: `k.c.scheme(hero, type, { mood })` (60-30-10 colour roles), `k.at('tl')` / `k.safe()` /
 `k.margin()` (thirds and golden-section anchors, margins), `k.typeScale(base, 1.5)`, `k.c.atmos(c, depth)` and
 `k.bg.haze` (depth), `k.bg.glowAt` (light behind the focal point). `examples/store.art.mjs` uses them on a
-thumbnail, game icon, badge and pass.
+thumbnail, game icon, badge and pass; `examples/banner.art.mjs` on a menu banner.
 Coordinates are pixels of the design canvas (512 here), y down. Stages: `back` (backgrounds, never fitted or
 outlined), `main` (the subject: fitted, outlined and shadowed as one), `front` (sparkles, text, frames). Shade
 styles: `toon`, `soft`, `gloss`, `metal`, `flat`; forms `round`, `cyl-x`, `cyl-y`, `flat` + `face`. Layer functions
@@ -174,7 +175,7 @@ one method: mixing generated and vector icons in the same inventory looks incons
   palette), `sheet`, `post`, `fonts`, `chrome` (renderer), `presets` (kinds), `png`.
 - `scripts/selftest.mjs`: maths, effects, tracing, packing and an end-to-end build. Run it after editing the engine.
 - `examples/`: `items`, `burger` (+ `refs/burger-cc0.jpg`, CC0, Evan-Amos, Wikimedia Commons), `store`,
-  `pixel`, `ui`.
+  `banner`, `pixel`, `ui`.
 - `references/`: `art-theory.md`, `graphic-design.md`, `recipes.md`, `roblox-specs.md`, `spec-reference.md`, `pixel-art.md`,
   `references-and-licences.md`.
 - `fonts/`: download cache for open-licence fonts.

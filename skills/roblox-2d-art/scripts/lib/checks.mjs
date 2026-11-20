@@ -21,7 +21,7 @@ export function runChecks({ a, img8, design, mainA, silA, frontA, backA, bytes, 
   let transparent = 0; for (let i = 0; i < n; i++) if (A[i] < 0.999) transparent++;
   if (K.opaque && transparent) add(transparent / n > 0.002 ? 'FAIL' : 'WARN', 'opaque', `${pct(transparent / n)} of pixels are transparent; this kind is shown on a coloured tile: add a background layer (stage: "back")`);
   else if (K.transparent && !transparent) add('WARN', 'transparent', 'no transparent pixels: in-game icons usually need a transparent background');
-  else add('PASS', 'background', K.opaque ? 'fully opaque' : 'transparent background, alpha bleed applied (no dark fringes when Roblox scales it)');
+  else add('PASS', 'background', K.opaque || !transparent ? 'fully opaque' : 'transparent background, alpha bleed applied (no dark fringes when Roblox scales it)');
 
   // ---- composition ----
   if ((K.transparent || isPixel) && !a.pixels) {   // hand-placed pixel grids are exactly what the author drew

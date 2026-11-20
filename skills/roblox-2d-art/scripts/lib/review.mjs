@@ -26,15 +26,17 @@ export async function reviewAsset(res, b, specDir) {
   const fitBox = (mw, mh) => { const s = Math.min(mw / w, mh / h); return [Math.round(w * s), Math.round(h * s)]; };
   let html = `<div class="sheet"><h1>${res.name}<span>${res.kind} · ${w}x${h}${res.pixel ? ` · pixel art ${res.pixel.grid.join('x')}` : ''} · ${K.desc}</span></h1>`;
   const wide = w / h > 1.4;
+  // opaque art (any kind, e.g. a banner) gets the value test; art with transparency gets the silhouette test
+  let solid = !!K.opaque; if (!solid && !isPx) { solid = true; for (let i = 3; i < img8.rgba.length; i += 4) if (img8.rgba[i] < 255) { solid = false; break; } }
   // row 1: the asset large, on both themes, and the three readability tests
   const [bw, bh] = fitBox(wide ? 760 : 360, wide ? 430 : 360), [sw, sh] = fitBox(wide ? 300 : 170, wide ? 170 : 170);
   let big = im(src, bw, bh, pxc);
   if (K.safe) { const yb = Math.round(bh * (1 - K.safe.bottom)), m = Math.round(Math.min(bw, bh) * K.safe.edge); big = `<div style="position:relative;width:${bw}px;height:${bh}px">${big}<div style="position:absolute;left:0;right:0;top:${yb}px;bottom:0;background:repeating-linear-gradient(45deg,rgba(255,80,80,.35) 0 8px,transparent 8px 16px);border-top:2px dashed #ff6b6b"></div><div style="position:absolute;left:${m}px;top:${m}px;right:${m}px;bottom:${bh - yb}px;border:1px dashed rgba(255,255,255,.5)"></div><div style="position:absolute;left:6px;bottom:4px;color:#fff;font-size:11px;text-shadow:0 1px 2px #000">bottom band: player count bar can cover this</div></div>`; }
   if (K.circle) big = `<div style="position:relative;width:${bw}px;height:${bh}px">${big}<div style="position:absolute;inset:0;border-radius:50%;box-shadow:0 0 0 999px rgba(0,0,0,.55);outline:2px dashed #ffcb6b;outline-offset:-2px"></div></div>`;
-  html += `<div class="row">${cell(big, K.circle ? 'the circle Roblox keeps (outside is cropped)' : K.safe ? 'safe zones' : 'full size, transparent shown as checks', K.transparent || isPx ? 'chk' : '')}`;
+  html += `<div class="row">${cell(big, K.circle ? 'the circle Roblox keeps (outside is cropped)' : K.safe ? 'safe zones' : solid ? 'full size' : 'full size, transparent shown as checks', !solid || isPx ? 'chk' : '')}`;
   html += `<div style="display:grid;grid-template-columns:repeat(2,auto);gap:10px">${cell(im(src, sw, sh, pxc), 'dark theme', 'dark pad')}${cell(im(src, sw, sh, pxc), 'light theme', 'light pad')}`;
-  html += `${cell(im(src, sw, sh, (isPx ? 'class="px" ' : '') + `style="filter:${K.opaque ? 'grayscale(1) contrast(1.1)' : 'brightness(0)'}"`), K.opaque ? 'values only (greyscale)' : 'silhouette test', 'light pad')}`;
-  html += `${cell(im(src, sw, sh, `style="filter:blur(${Math.max(2, Math.round(sw / 45))}px)"`), 'squint test (blurred)', (K.opaque ? '' : 'dark ') + 'pad')}</div></div>`;
+  html += `${cell(im(src, sw, sh, (isPx ? 'class="px" ' : '') + `style="filter:${solid ? 'grayscale(1) contrast(1.1)' : 'brightness(0)'}"`), solid ? 'values only (greyscale)' : 'silhouette test', 'light pad')}`;
+  html += `${cell(im(src, sw, sh, `style="filter:blur(${Math.max(2, Math.round(sw / 45))}px)"`), 'squint test (blurred)', (solid ? '' : 'dark ') + 'pad')}</div></div>`;
   // row 2: real display sizes
   const sizes = isPx ? [1, 2, 4].map(k => [w * k, h * k]) : (K.preview || []).map(p => Array.isArray(p) ? p : [p, Math.round(p * h / w)]);
   if (sizes.length) {
