@@ -53,6 +53,7 @@ function toPngBuffer(file) {
     ['ffmpeg', ['-y', '-loglevel', 'error', '-i', file, '-frames:v', '1', out]],
     ['magick', [file, out]], ['convert', [file + '[0]', out]],
     ['python3', ['-I', '-c', 'import sys;from PIL import Image;Image.open(sys.argv[1]).convert("RGBA").save(sys.argv[2])', file, out]],
+    ['python', ['-I', '-c', 'import sys;from PIL import Image;Image.open(sys.argv[1]).convert("RGBA").save(sys.argv[2])', file, out]],
   ];
   for (const [cmd, args] of tries) { try { cp.execFileSync(cmd, args, opt); if (fs.existsSync(out)) return fs.readFileSync(out); } catch (e) { /* next */ } }
   throw new Error(`cannot convert ${path.basename(file)} to PNG: install ffmpeg or ImageMagick, or save it as PNG`);

@@ -599,7 +599,9 @@ if (typeof document !== 'undefined') {
   G.RAnim = Object.assign(API, { mount });
   const go = () => { if (G.RANIM_CLIPS) mount(G.RANIM_CLIPS); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
-} else if (typeof module !== 'undefined') {
+}
+// PREVIEW-STRIP-START: Node CLI only. preview.html embeds the code above this line without the loader.
+else if (typeof module !== 'undefined') {
   module.exports = API;
   if (require.main === module) {
     const fs = require('fs'), path = require('path'), args = process.argv.slice(2), oi = args.indexOf('--out');
@@ -618,17 +620,20 @@ if (typeof document !== 'undefined') {
       console.log(`wrote ${c.name}.rbxmx, ${c.name}.lua, ${path.basename(ok ? png : svg)}${ok ? '' : ' (no SVG->PNG converter found; open the SVG or screenshot preview.html)'}\n`);
     }
     const title = specs.length === 1 ? (specs[0].title || specs[0].name || 'Animation') + ' preview' : 'Roblox animation previews';
+    // Embed only the browser runtime: the Node CLI branch (fs, process.exit, require) is stripped so the
+    // preview is a plain page with no Node globals in it.
+    const runtime = fs.readFileSync(__filename, 'utf8').replace(/\n?\/\/ PREVIEW-STRIP-START[\s\S]*?\/\/ PREVIEW-STRIP-END\r?\n?/, '\n');
     fs.writeFileSync(path.join(out, 'preview.html'), `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${xml(title)}</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap">
 <style>html,body{margin:0;background:var(--ra-bg,#eceef2)}</style></head>
 <body><div id="ranim"></div>
 <script>window.RANIM_CLIPS = ${JSON.stringify(specs).replace(/</g, '\\u003c')};</` + `script>
-<script>${fs.readFileSync(__filename, 'utf8')}</` + `script>
+<script>${runtime}</` + `script>
 </body></html>
 `);
     console.log(`wrote preview.html (${specs.length} clip${specs.length > 1 ? 's' : ''})`);
     process.exit(bad ? 1 : 0);
   }
 }
+// PREVIEW-STRIP-END
 })(typeof globalThis !== 'undefined' ? globalThis : this);

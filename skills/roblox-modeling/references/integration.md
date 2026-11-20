@@ -8,7 +8,7 @@
 | `<Name>.obj` + `.mtl` | Static rest pose, one object per part, for tools that do not read glTF. |
 | `<Name>.blender.py` | Imports the .glb into Blender, keeps flat shading, sets the frame rate and frame range, puts each clip on an NLA track, and optionally saves a .blend. |
 | `<Name>.three.js` | ES module: `load<Name>(scene)` returns `{ root, mixer, actions, play(name, fade), update(dt) }`, with LoopOnce / clamp set for one-shot clips. |
-| `preview.html` | three.js viewer that loads the same .glb with `GLTFLoader` (proof that it works in three.js), with clip buttons, scrubber, speed, 3D / front / side / top views, wireframe, dimensions, test results, reference image overlay and a download button. |
+| `preview.html` | self-contained three.js viewer that loads the same .glb with `GLTFLoader` (proof that it works in three.js), with clip buttons, scrubber, speed, 3D / front / side / top views, wireframe, dimensions, test results, reference image overlay and a download button. three.js is bundled inline, so the page works offline with no CDN or install. |
 | `sheet-*.png`, `anim-*.png`, `compare-*.png`, `report-*.json` | Review renders, silhouette overlays and the full test report. |
 
 ## Blender (3.6 / 4.x)

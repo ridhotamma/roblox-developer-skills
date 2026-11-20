@@ -43,7 +43,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
 
 9. **Fix and rebuild** until the tests pass and the renders match the references. Two to four rounds is normal. Tighten your own checks as you learn (for example add an `apart` check for a lid you saw clipping).
 
-10. **Deliver**: `out/<Name>.glb` (the main asset), `out/preview.html` (interactive three.js viewer: clips, orthographic views, wireframe, dimensions, test results, drag-in reference overlay; publish it as an artifact or send the file), `<Name>.blender.py`, `<Name>.three.js`, `<Name>.obj/.mtl`, the review sheets, and the reference list with licences. Tell the user, briefly: size and triangle count, the clips and their lengths, which references it was measured from, anything you approximated, and how to use it (read `references/integration.md` for Blender, three.js / React Three Fiber, Roblox, Godot and Unity steps).
+10. **Deliver**: `out/<Name>.glb` (the main asset), `out/preview.html` (interactive three.js viewer: clips, orthographic views, wireframe, dimensions, test results, drag-in reference overlay; three.js is bundled inline so the single file works offline; publish it as an artifact or send the file), `<Name>.blender.py`, `<Name>.three.js`, `<Name>.obj/.mtl`, the review sheets, and the reference list with licences. Tell the user, briefly: size and triangle count, the clips and their lengths, which references it was measured from, anything you approximated, and how to use it (read `references/integration.md` for Blender, three.js / React Three Fiber, Roblox, Godot and Unity steps).
 
 ## Model spec
 

@@ -1,12 +1,29 @@
 'use strict';
 // preview.html: loads the exported .glb files with three.js's own GLTFLoader (so the preview doubles as the
 // three.js integration test), plays every clip, shows blueprint views, dimensions, test results and a reference overlay.
+const fs = require('fs'), path = require('path');
 const THREE_VER = '0.160.0';
+// A single-file preview must open offline, so three.js + OrbitControls + GLTFLoader are bundled inline (MIT, see
+// three.LICENSE.txt). If the bundle is missing, fall back to the CDN import map. Read it lazily: test / trace /
+// render commands should not pay for a file only `build` needs.
+const THREE_BUNDLE_FILE = path.join(__dirname, 'three.preview.js');
+let THREE_BUNDLE_CACHE;
+const threeBundle = () => {
+  if (THREE_BUNDLE_CACHE === undefined) { try { THREE_BUNDLE_CACHE = fs.readFileSync(THREE_BUNDLE_FILE, 'utf8'); } catch { THREE_BUNDLE_CACHE = null; } }
+  return THREE_BUNDLE_CACHE;
+};
 const esc = s => String(s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' })[c]);
 
 function previewHtml(entries) {   // entries: [{ name, title, description, glb: Buffer, clips: [{name, loop, duration, description}], checks: [...], dims: [x,y,z], tris, parts }]
   const data = entries.map(e => ({ name: e.name, title: e.title, description: e.description, glb: e.glb.toString('base64'), clips: e.clips, checks: e.checks, dims: e.dims, tris: e.tris, parts: e.parts, ground: e.ground, refs: e.refs || [] }));
   const title = entries.length === 1 ? entries[0].title : 'Low-poly models';
+  const bundle = threeBundle();
+  const threeHead = bundle
+    ? `<script>${bundle.replace(/<\/script/gi, '<\\/script')}</script>`
+    : `<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@${THREE_VER}/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@${THREE_VER}/examples/jsm/"}}</script>`;
+  const threeImports = bundle
+    ? `const THREE = window.THREE, OrbitControls = window.OrbitControls, GLTFLoader = window.GLTFLoader;`
+    : `import * as THREE from 'three';\nimport { OrbitControls } from 'three/addons/controls/OrbitControls.js';\nimport { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';`;
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(title)}</title>
@@ -31,7 +48,7 @@ button:hover{border-color:var(--dim)}button.on{background:var(--acc);border-colo
 .ref{margin-top:10px;padding:10px;border:1px dashed var(--line);border-radius:8px;color:var(--dim);font-size:13px}
 a{color:var(--acc)}label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@${THREE_VER}/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@${THREE_VER}/examples/jsm/"}}</script>
+${threeHead}
 </head><body><main>
 <h1 id="title"></h1><p class="sub" id="desc"></p>
 <div class="tabs" id="tabs"></div>
@@ -52,9 +69,7 @@ a{color:var(--acc)}label{display:inline-flex;gap:6px;align-items:center;cursor:p
 </div></main>
 <script>window.RMODEL = ${JSON.stringify(data).replace(/</g, '\\u003c')};</script>
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+${threeImports}
 const D = window.RMODEL, $ = id => document.getElementById(id);
 const status = window.__rmodel = { loaded: 0, errors: [], models: {} };
 const stage = $('stage'), renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });

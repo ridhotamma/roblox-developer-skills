@@ -3,7 +3,7 @@
 'use strict';
 const path = require('path'), fs = require('fs'), os = require('os');
 const M = require('./lib/math.cjs'), G = require('./lib/geometry.cjs'), MD = require('./lib/model.cjs'), CK = require('./lib/checks.cjs');
-const RN = require('./lib/render.cjs'), EX = require('./lib/export.cjs'), RF = require('./lib/reference.cjs');
+const RN = require('./lib/render.cjs'), EX = require('./lib/export.cjs'), RF = require('./lib/reference.cjs'), PV = require('./lib/preview.cjs');
 let fails = 0;
 const ok = (c, msg) => { console.log((c ? 'ok   ' : 'FAIL ') + msg); if (!c) fails++; };
 const near = (a, b, e) => Math.abs(a - b) <= (e || 1e-6);
@@ -113,6 +113,9 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   ok(json.accessors.every(a => a.byteOffset == null) && json.bufferViews.every(v => v.byteOffset % 4 === 0), 'buffer views are 4-byte aligned');
   const { obj } = EX.toObj(m); ok(/^o Body$/m.test(obj) && /^f /m.test(obj), 'obj has named objects and faces');
   ok(/import_scene\.gltf/.test(EX.blenderScript(m)) && /GLTFLoader/.test(EX.threeModule(m)), 'Blender script and three.js loader are generated');
+  const html = PV.previewHtml([{ name: 'T', title: 'T', description: '', glb: Buffer.alloc(16), clips: [], checks: [], dims: [1, 1, 1], tris: 0, parts: 0, ground: true, refs: [] }]);
+  ok(html.includes('window.THREE') && html.includes('const THREE = window.THREE') && !/cdn\.jsdelivr\.net/.test(html), 'preview.html embeds three.js and needs no CDN');
+  ok(html.includes('window.RMODEL') && html.includes('type="module"'), 'preview.html carries the models and the viewer module');
 }
 // 6. rendering and reference tracing round-trip
 {

@@ -25,6 +25,11 @@
    "msg": "no coplanar overlapping faces between parts"
   },
   {
+   "id": "rig",
+   "status": "pass",
+   "msg": "Body: 3 bending joints with enough edge loops, bones inside the body on its centre line"
+  },
+  {
    "id": "assembly",
    "status": "pass",
    "msg": "every part touches the assembly"
@@ -65,6 +70,11 @@
    "msg": "no parts pass through each other"
   },
   {
+   "id": "deform:Swim",
+   "status": "pass",
+   "msg": "Body deforms cleanly (no folds, faces ×0.94-1.08, volume -0.2%)"
+  },
+  {
    "id": "anim:Idle",
    "status": "pass",
    "msg": "moves (largest displacement 0.019 m)"
@@ -85,6 +95,11 @@
    "msg": "no parts pass through each other"
   },
   {
+   "id": "deform:Idle",
+   "status": "pass",
+   "msg": "Body deforms cleanly (no folds, faces ×0.98-1.03, volume -0.0%)"
+  },
+  {
    "id": "anim:Die",
    "status": "pass",
    "msg": "moves (largest displacement 0.185 m)"
@@ -98,6 +113,11 @@
    "id": "anim:Die",
    "status": "pass",
    "msg": "no parts pass through each other"
+  },
+  {
+   "id": "deform:Die",
+   "status": "pass",
+   "msg": "Body deforms cleanly (no folds, faces ×0.85-1.15, volume +0.5%)"
   },
   {
    "id": "check:side profile matches the reference (low-poly fins drop the spines, so ~80% is the ceiling)",
