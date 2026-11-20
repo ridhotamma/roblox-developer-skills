@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-20T07:49:15.850Z",
+ "generated": "2026-11-20T09:18:17.339Z",
  "spec": "../../../skills/roblox-2d-art/examples/store.art.mjs",
  "assets": [
   {
@@ -16,9 +16,18 @@
    "checks": [
     "PASS size: 512x512",
     "PASS background: fully opaque",
-    "PASS value range: subject lightness spans 0.64 (OKLab L, 5-95%)",
-    "PASS separation: subject edge vs background: dE 0.43, dL 0.40",
-    "PASS small size: 15.1% of pixels are high-contrast edges at 64x64"
+    "PASS value range: subject lightness spans 0.72 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.29, dL 0.27",
+    "PASS small size: 8.9% of pixels are high-contrast edges at 64x64",
+    "PASS focal point: the eye lands first on \"face\" at 41%, 58%, then \"face\" at 61%, 59%",
+    "PASS hierarchy: one dominant image area (\"face\"), others clearly secondary",
+    "PASS figure / ground: background holds 47% of the attention on 68% of the area",
+    "PASS balance: visual weight centres at 50%, 55% (balanced)",
+    "PASS value plan: dark 53% / mid 30% / light 18% (dark dominates)",
+    "PASS colour proportion: violet 68% / green 30% / near-white 2% / orange 1% (aim for roughly 60 / 30 / 10)",
+    "PASS harmony: complementary: violet, green; warm 1% / cool 97%",
+    "PASS figure hue: 0% of the background around the green subject has the same hue and value",
+    "PASS saturation: subject chroma 0.174 vs background 0.081"
    ]
   },
   {
@@ -36,9 +45,20 @@
     "PASS size: 1920x1080, 16:9",
     "PASS background: fully opaque",
     "PASS safe zone: front layers clear of the bottom band",
-    "PASS value range: subject lightness spans 0.50 (OKLab L, 5-95%)",
-    "PASS separation: subject edge vs background: dE 0.27, dL 0.25",
-    "PASS small size: 13.2% of pixels are high-contrast edges at 256x144"
+    "PASS value range: subject lightness spans 0.76 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.20, dL 0.14",
+    "PASS small size: 12.9% of pixels are high-contrast edges at 256x144",
+    "PASS focal point: the eye lands first on \"slime\" at 26%, 46%, then \"slime\" at 21%, 73%",
+    "PASS hierarchy: one dominant image area (\"slime\"), others clearly secondary",
+    "PASS figure / ground: background holds 49% of the attention on 66% of the area",
+    "PASS balance: visual weight centres at 47%, 52% (balanced)",
+    "PASS value plan: dark 28% / mid 54% / light 19% (mid dominates)",
+    "PASS colour proportion: violet 74% / green 15% / yellow 5% / near-white 3% (aim for roughly 60 / 30 / 10)",
+    "PASS harmony: split-complementary: violet, green, yellow; warm 5% / cool 90%",
+    "PASS figure hue: 0% of the background around the green subject has the same hue and value",
+    "PASS saturation: subject chroma 0.173 vs background 0.079",
+    "PASS text size: smallest text is 8.3 px tall at 144 px",
+    "PASS type scale: sizes 200 / 89 (steps 2.25x)"
    ]
   },
   {
@@ -57,8 +77,17 @@
     "PASS background: fully opaque",
     "PASS circle crop: 0.0% of the detail is outside the 481 px circle Roblox keeps",
     "PASS value range: subject lightness spans 0.43 (OKLab L, 5-95%)",
-    "PASS separation: subject edge vs background: dE 0.60, dL 0.60",
-    "PASS small size: 12.7% of pixels are high-contrast edges at 64x64"
+    "PASS separation: subject edge vs background: dE 0.43, dL 0.40",
+    "PASS small size: 23.6% of pixels are high-contrast edges at 64x64",
+    "PASS focal point: the eye lands first on \"trophy\" at 41%, 34%, then \"handles\" at 72%, 39%",
+    "PASS hierarchy: one dominant image area (\"trophy\"), others clearly secondary",
+    "PASS figure / ground: background holds 49% of the attention on 72% of the area",
+    "PASS balance: visual weight centres at 50%, 49% (balanced)",
+    "PASS value plan: dark 13% / mid 68% / light 19% (mid dominates)",
+    "PASS colour proportion: blue 71% / yellow 19% / near-white 9% (aim for roughly 60 / 30 / 10)",
+    "PASS harmony: complementary: blue, yellow; warm 19% / cool 71%",
+    "PASS figure hue: 0% of the background around the yellow subject has the same hue and value",
+    "PASS saturation: subject chroma 0.140 vs background 0.114"
    ]
   },
   {
@@ -76,9 +105,19 @@
     "PASS size: 512x512",
     "PASS background: fully opaque",
     "PASS circle crop: 0.0% of the detail is outside the 481 px circle Roblox keeps",
-    "PASS value range: subject lightness spans 0.41 (OKLab L, 5-95%)",
-    "PASS separation: subject edge vs background: dE 0.47, dL 0.42",
-    "PASS small size: 13.7% of pixels are high-contrast edges at 64x64"
+    "PASS value range: subject lightness spans 0.39 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.40, dL 0.36",
+    "PASS small size: 11.1% of pixels are high-contrast edges at 64x64",
+    "PASS focal point: the eye lands first on \"crown\" at 31%, 50%, then \"crown\" at 49%, 41%",
+    "PASS hierarchy: one dominant image area (\"crown\"), others clearly secondary",
+    "PASS figure / ground: background holds 45% of the attention on 78% of the area",
+    "PASS balance: visual weight centres at 50%, 54% (balanced)",
+    "PASS value plan: dark 22% / mid 67% / light 11% (mid dominates)",
+    "PASS colour proportion: violet 77% / yellow 15% / pink 8% / blue 0% (aim for roughly 60 / 30 / 10)",
+    "PASS harmony: three contrasting hues: violet, yellow, pink; warm 23% / cool 77%",
+    "PASS figure hue: 0% of the background around the yellow subject has the same hue and value",
+    "PASS saturation: subject chroma 0.143 vs background 0.163",
+    "PASS text size: smallest text is 9.6 px tall at 64 px"
    ]
   }
  ]

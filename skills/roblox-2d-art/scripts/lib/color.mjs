@@ -72,6 +72,50 @@ export const deltaE = (a, b) => { const A = oklab(a), B = oklab(b); return Math.
 export const complement = c => rotate(c, 180);
 export const harmony = (c, kind = 'complement') => ({ complement: [c, rotate(c, 180)], analogous: [rotate(c, -30), c, rotate(c, 30)], triad: [c, rotate(c, 120), rotate(c, 240)], split: [c, rotate(c, 150), rotate(c, 210)] })[kind];
 
+// Colour scheme with roles for composed images (thumbnails, banners, game icons, badges): the 60-30-10 split.
+// base = the hero's colour (the thing the image is about). The scheme picks the background (dominant, ~60%: calm,
+// value-separated from the hero), a secondary (~30%: ground, panels, big props) and an accent (~10%: title fill, coins,
+// sparkles, the second read), plus ink (outlines) and light (highlights, white text). Moods follow Roblox's own guidance:
+// bright = cheerful / fantasy / simulator, muted = cozy / somber, dark = night / sci-fi / neon, horror = heavy contrast.
+export const MOODS = {
+  bright: { bgL: 0.66, bgC: 0.11, secL: 0.5, secC: 0.1, accL: 0.86, accC: 0.17, heroC: 0.15 },
+  muted: { bgL: 0.58, bgC: 0.045, secL: 0.44, secC: 0.05, accL: 0.8, accC: 0.11, heroC: 0.08 },
+  dark: { bgL: 0.28, bgC: 0.075, secL: 0.2, secC: 0.06, accL: 0.84, accC: 0.17, heroC: 0.14 },
+  horror: { bgL: 0.17, bgC: 0.025, secL: 0.11, secC: 0.02, accL: 0.58, accC: 0.2, heroC: 0.05 },
+};
+// the hue nearest blue (cool colours recede, so they make the better background)
+const fromBlue = h => Math.abs(((h - 255) % 360 + 540) % 360 - 180);
+const coolest = (...hs) => hs.map(h => (h + 720) % 360).sort((p, q) => fromBlue(p) - fromBlue(q))[0];
+export function scheme(base, type = 'complementary', { mood = 'bright', accent: accentHue } = {}) {
+  const M = MOODS[mood] || MOODS.bright, [hL, hC, h] = oklch(base), warmNb = hueToward(h, 95, 40);   // the hero's warmer, lighter neighbour
+  const H = {
+    complementary: { bg: h + 180, sec: h + 195, acc: warmNb },
+    split: { bg: h + 150, sec: h + 210, acc: warmNb },
+    analogous: { bg: coolest(h - 35, h + 35), sec: 0, acc: h + 180 },
+    triad: { bg: coolest(h + 120, h + 240), sec: 0, acc: 0 },
+    mono: { bg: h, sec: h, acc: warmNb },
+  }[type];
+  if (!H) throw new Error(`unknown scheme "${type}": complementary, split, analogous, triad, mono`);
+  if (type === 'analogous') H.sec = Math.abs(((H.bg - (h - 35)) % 360 + 540) % 360 - 180) < 1 ? h + 35 : h - 35;
+  if (type === 'triad') { H.acc = Math.abs(((H.bg - (h + 120)) % 360 + 540) % 360 - 180) < 1 ? h + 240 : h + 120; H.sec = H.bg + 12; }
+  if (accentHue != null) H.acc = accentHue;
+  let bgL = M.bgL; if (Math.abs(bgL - hL) < 0.2) bgL = hL > 0.55 ? Math.max(0.12, hL - 0.26) : Math.min(0.92, hL + 0.24);   // value step behind the hero
+  const mk = (L, Cc, hh) => hex(fromOklch([L, Cc, (hh + 720) % 360]));
+  const out = {
+    type, mood,
+    hero: mk(hL, Math.max(hC, M.heroC), h),
+    bg: mk(bgL, M.bgC, H.bg), bgLight: mk(Math.min(0.96, bgL + 0.16), M.bgC * 0.75, hueToward(H.bg, 95, 12)), bgDeep: mk(bgL * 0.55, M.bgC * 0.9, hueToward(H.bg, 285, 15)),
+    secondary: mk(M.secL, M.secC, H.sec), accent: mk(M.accL, M.accC, H.acc),
+    ink: mk(mood === 'horror' ? 0.08 : 0.22, 0.05, hueToward(H.bg, 290, 20)), light: mk(0.97, 0.025, 95),
+  };
+  out.roles = '~60% bg / bgLight / bgDeep, ~30% secondary, ~10% hero + accent (the hero is the focus; the accent marks the second read: title fill, coins, sparkles)';
+  return out;
+}
+// Atmospheric perspective: push a colour back in space. depth 0 = foreground .. 1 = far horizon: it moves toward the
+// haze (the sky near the horizon), its value compresses toward the haze value and it loses chroma.
+export function atmos(c, depth = 0.5, haze = '#bcdcff') { const t = Math.max(0, Math.min(1, depth)), A = oklab(c), Hz = oklab(haze), m = A.map((v, i) => v + (Hz[i] - v) * t * 0.7), k = 1 - 0.35 * t; return hex(fromOklab([m[0], m[1] * k, m[2] * k])); }
+export const temperature = c => { const [, Cc, h] = oklch(c); return Cc < 0.03 ? 'neutral' : (h < 115 || h >= 345) ? 'warm' : 'cool'; };
+
 // Per-pixel fast paths (r, g, b in 0..1) used by the shading effect.
 export function rgbToLch(r, g, b) {
   r = toLin(r); g = toLin(g); b = toLin(b);

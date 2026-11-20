@@ -63,6 +63,7 @@ offsets, blur, depth) are in design pixels too and scale with supersampling auto
 | `opacity` | 0..1 |
 | `hidden` | skip the layer |
 | `fit` | `false` on a front layer keeps its own coordinates |
+| `role` | composed images: `'hero'` (where the eye must land first; the design checks verify it), `'text'` / `'title'` (copy to read, also detected automatically on front layers), `'bg'`, `'support'` |
 
 Each layer is rendered on its own, so effects see exactly that layer's shape. Several shapes in ONE layer act as one
 form for shading (good for a body; bad for separate parts: give parts their own layers).
@@ -150,12 +151,26 @@ Hand shading (when you want exact control): `cel(d, base, {shadow, dx, dy, light
 Ready-made: `gem(cx,cy,w,h,color)` (faceted), `coin(cx,cy,r,color,{symbol,font})`, `rays(cx,cy,r,n,color,op,rot)`.
 Backgrounds (canvas-sized; call inside a layer function): `k.bg.solid(c)`, `linear(top,bottom,angle)`,
 `radial(inner,outer,{cx,cy,r})`, `rays({color,n,op,cx,cy})`, `vignette(op)`, `dots(color,op,step,r)`,
-`stripes(color,op,step,angle)`, `rarity('common'|'uncommon'|'rare'|'epic'|'legendary'|'mythic'|hex)`.
+`stripes(color,op,step,angle)`, `rarity('common'|'uncommon'|'rare'|'epic'|'legendary'|'mythic'|hex)`,
+`glowAt(x, y, r, color, op)` (light pool behind the focal point), `haze(y0, y1, color, op)` (sky-coloured haze over
+far layers, full at y0, gone at y1).
 Frames: `k.frame.card({r, border, color, inner})`, `k.frame.circle({color, width, inner, inset})`.
 
+Layout (graphic-design.md sections 3 and 13; design pixels; inside a layer function they use the asset's canvas, at
+the top of a spec pass the size as the last two arguments):
+`k.at(name, w, h)` → `[x, y]`: `'center'`, thirds intersections `'tl' 'tr' 'bl' 'br'`, thirds lines through the middle
+`'top' 'bottom' 'left' 'right'`, golden section with a `'phi-'` prefix (`'phi-tr'`). `k.margin(f = 0.05, w, h)` → the
+margin in px. `k.safe(f = 0.05, w, h, bottom)` → `{ x, y, w, h, x1, y1, cx, cy }`: inside the margins and above a
+thumbnail's covered bottom band (inside a layer the kit knows the kind; at the top of a spec pass the size and
+`bottom = 0.12` for a thumbnail). `k.typeScale(base, ratio = 1.5)` → `step => size` (`ts(0)` body, `ts(1)`, `ts(2)` title...).
+
 Colour (`k.c`): `shade(c, t)`, `ramp(c, n)`, `ink(c)`, `mix(a, b, t)`, `lighten`, `darken`, `saturate`, `rotate(c,
-deg)`, `complement`, `harmony(c, 'complement'|'analogous'|'triad'|'split')`, `contrast(a, b)`, `oklch(c)`,
-`RARITY`, `PALETTES`. Random: `k.rng(seed)` (deterministic).
+deg)`, `complement`, `harmony(c, 'complement'|'analogous'|'triad'|'split')`, `contrast(a, b)` (WCAG ratio),
+`oklch(c)`, `temperature(c)` (`'warm' | 'cool' | 'neutral'`), `RARITY`, `PALETTES`, `MOODS`.
+`scheme(heroColour, 'complementary' | 'split' | 'analogous' | 'triad' | 'mono', { mood: 'bright' | 'muted' | 'dark' |
+'horror', accent: hue })` → `{ hero, bg, bgLight, bgDeep, secondary, accent, ink, light, roles }`: a 60-30-10 role
+palette whose background is calmer than the hero and a value step away from it. `atmos(c, depth 0..1, haze)`: the
+colour pushed back in space (toward the haze, lower contrast and chroma). Random: `k.rng(seed)` (deterministic).
 
 ## CLI and outputs
 
@@ -171,6 +186,12 @@ rart.mjs fonts [list | get "<family>"]
 rart.mjs serve <dir> [--port 8765]
 rart.mjs selftest
 ```
+
+Composed kinds (`thumbnail`, `banner`, `game-icon`, `badge`, `pass`, `product`, and `logo` for text) also get the
+design checks (focal point, hierarchy, figure / ground, balance, value plan, colour proportion, accent, harmony, figure
+hue, saturation, text size, word count, typefaces, type scale, text contrast, margins, tangent, kissing shapes) and a
+composition row on the review sheet. `rart check <png> --kind thumbnail` runs the same analysis on any image (without
+layers it judges the pixels alone, so the layer-specific checks are skipped).
 
 Build outputs in `--out` (default `out/` next to the spec): `<name>.png` (alpha-bled), `<name>_<size>.png`,
 `<name>_white.png`, `<name>@Nx.png` (pixel art), `<name>_sheet.png/.luau`, `review-<name>.png`, `review-set.png`

@@ -18,7 +18,7 @@ What Roblox expects for each kind of image, how to get the PNGs into the game, a
 | `logo`, `banner` | free | transparent / any | menus, loading screens | |
 | `texture` | 256-1024 | opaque | `Decal` stretches over a face; `Texture` repeats every `StudsPerTileU/V` | `tile: true` + `k.tile()` for seamless |
 | `sprite` | design 512, output = pixel grid | transparent | display with `ResampleMode = Enum.ResamplerMode.Pixelated` | pixel art rules |
-| `particle` | 256-1024 | transparent, usually white | `ParticleEmitter.Texture`; flipbooks `Grid2x2` / `Grid4x4` / `Grid8x8`, `FlipbookFramerate` max 30 (docs) | soft edges, white so `Color` tints it |
+| `particle` | 256-1024 | transparent, usually white | `ParticleEmitter.Texture`; flipbooks `Grid2x2` / `Grid4x4` / `Grid8x8` (or `Custom` with `FlipbookSizeX/Y`) on a 1024 x 1024 sheet, `FlipbookFramerate` max 30 (docs) | soft edges, white so `Color` tints it |
 
 General:
 - **Keep in-game images at or under 1024 px a side.** Larger uploads are downscaled (community reports; the docs
@@ -79,6 +79,8 @@ emitter.Texture = "rbxassetid://123"
 emitter.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
 emitter.FlipbookMode = Enum.ParticleFlipbookMode.OneShot   -- Loop | OneShot | PingPong | Random
 emitter.FlipbookFramerate = NumberRange.new(24)            -- max 30; OneShot timing follows the particle lifetime
+emitter.FlipbookStartRandom = true                         -- loops: particles start on different frames
+-- emitter.FlipbookBlendFrames = true                     -- crossfade between frames (hides low frame counts)
 ```
 Leave spacing between flipbook frames (the docs recommend it because mip filtering bleeds neighbours); the packer
 insets every frame by `margin` (default 4% of a cell).

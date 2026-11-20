@@ -9,6 +9,7 @@ import * as FX from './fx.mjs';
 import { browser } from './chrome.mjs';
 import { buildObjects, normalize } from './build.mjs';
 import { runChecks } from './checks.mjs';
+import * as DS from './design.mjs';
 import { reviewAsset } from './review.mjs';
 import { pack } from './sheet.mjs';
 import { kind as kindOf } from './presets.mjs';
@@ -35,8 +36,10 @@ export async function checkFile(file, o = {}) {
   if (!file) throw new Error('usage: check <image.png> --kind item|ui-icon|game-icon|thumbnail|badge|pass|product|...');
   const b = await browser(), img8 = await b.decodeFile(path.resolve(file)), a = normalize({ name: path.basename(file).replace(/\.[^.]+$/, ''), kind: o.kind || 'item', size: [img8.w, img8.h], fit: o.kind === 'thumbnail' ? null : undefined }, {});
   const checks = runChecks({ a, img8, design: R.fromRGBA8(img8), bytes: fs.statSync(file).size });
+  // composition analysis for finished art (thumbnails, icons, badges): no layers, so it judges the pixels alone
+  const analysis = DS.TEXTUAL.has(a.K.name) ? DS.analyze(R.fromRGBA8(img8), { a }) : null; if (analysis) checks.push(...DS.designChecks(analysis, a));
   console.log(`${path.basename(file)} as ${a.K.name} (${img8.w}x${img8.h})`); for (const c of checks) console.log(`  ${c.level.padEnd(4)} ${c.name}: ${c.msg}`);
-  if (o.review !== false) { const out = path.resolve(o.out || path.dirname(path.resolve(file)), `review-${a.name}.png`); fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, await reviewAsset({ name: a.name, kind: a.K.name, w: img8.w, h: img8.h, img8, checks, notes: [], files: [], refs: [], a }, b, path.dirname(path.resolve(file)))); console.log(`wrote ${out}`); }
+  if (o.review !== false) { const out = path.resolve(o.out || path.dirname(path.resolve(file)), `review-${a.name}.png`); fs.mkdirSync(path.dirname(out), { recursive: true }); fs.writeFileSync(out, await reviewAsset({ name: a.name, kind: a.K.name, w: img8.w, h: img8.h, img8, checks, notes: [], files: [], refs: [], analysis, a }, b, path.dirname(path.resolve(file)))); console.log(`wrote ${out}`); }
   return checks;
 }
 

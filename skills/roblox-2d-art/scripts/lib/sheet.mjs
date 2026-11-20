@@ -24,7 +24,8 @@ export function pack(frames, o = {}) {
 function flipbook(frames, o) {
   const n = +o.flipbook, need = n * n; if (![2, 4, 8].includes(n)) throw new Error('flipbook must be 2, 4 or 8 (Grid2x2 / Grid4x4 / Grid8x8)');
   if (frames.length > need) throw new Error(`${frames.length} frames do not fit a ${n}x${n} flipbook (max ${need})`);
-  const S = o.size || Math.min(1024, n * Math.max(...frames.map(f => Math.max(f.img.w, f.img.h)))), cell = Math.floor(S / n), inner = Math.floor(cell * (1 - 2 * (o.margin ?? 0.04)));
+  // Roblox: flipbook playback requires a 1024 x 1024 texture (ParticleFlipbookTextureCompatible); other sizes play nothing.
+  const S = o.size || 1024, cell = Math.floor(S / n), inner = Math.floor(cell * (1 - 2 * (o.margin ?? 0.04)));
   const rgba = new Uint8Array(S * S * 4), rects = [];
   frames.forEach((f, i) => {
     const s = inner / Math.max(f.img.w, f.img.h), w = Math.max(1, Math.round(f.img.w * s)), h = Math.max(1, Math.round(f.img.h * s)), img = R.toRGBA8(R.resize(R.fromRGBA8(f.img), w, h));
@@ -37,6 +38,8 @@ function flipbook(frames, o) {
     `-- Upload the PNG, then set these on the ParticleEmitter (FlipbookFramerate max is 30).\n` +
     `emitter.Texture = "rbxassetid://0" -- replace with the uploaded image id\nemitter.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid${n}x${n}\n` +
     `emitter.FlipbookMode = Enum.ParticleFlipbookMode.${o.mode || 'Loop'} -- Loop | OneShot | PingPong | Random\nemitter.FlipbookFramerate = NumberRange.new(${fps})\n` +
+    `emitter.FlipbookStartRandom = ${(o.mode || 'Loop') !== 'OneShot'} -- ${(o.mode || 'Loop') === 'OneShot' ? 'OneShot: every particle starts on frame 1' : 'looping: random start so particles do not move in sync'}\n` +
+    (S !== 1024 ? `-- warning: ${S}x${S}; Roblox documents 1024x1024 as required for flipbook playback\n` : '') +
     (frames.length < need ? `-- note: only ${frames.length} of ${need} cells are filled; empty cells show as blank frames (use OneShot timing or fill them)\n` : '');
   return { img: R.bleed({ w: S, h: S, rgba }), rects, cols: n, rows: n, luau };
 }

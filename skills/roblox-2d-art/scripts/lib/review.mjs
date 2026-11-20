@@ -6,6 +6,8 @@ import path from 'node:path';
 import * as PNG from './png.mjs';
 import * as R from './raster.mjs';
 import { SURFACES } from './presets.mjs';
+import * as C from './color.mjs';
+import * as DS from './design.mjs';
 
 const uri = img8 => 'data:image/png;base64,' + PNG.encode(img8).toString('base64');
 const fileUri = f => { const ext = path.extname(f).slice(1).toLowerCase(); return `data:image/${{ jpg: 'jpeg', svg: 'svg+xml' }[ext] || ext};base64,${fs.readFileSync(f).toString('base64')}`; };
@@ -42,6 +44,7 @@ export async function reviewAsset(res, b, specDir) {
     if (K.name === 'thumbnail') html += cardMock(src);
     html += `</div>`;
   }
+  if (res.analysis && DS.COMPOSED.has(K.name)) html += compositionRow(res, src);
   // kind-specific rows
   if (res.slice) {
     const [l, t, r, bt] = res.slice.insets, z = Math.max(1, Math.floor(240 / Math.max(w, h)));
@@ -60,6 +63,31 @@ export async function reviewAsset(res, b, specDir) {
   return b.renderPage(`<style>${CSS}</style>${html}`, 1276);
 }
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+// Composition row: grid overlay with the predicted reading order and the centre of visual weight, the attention map,
+// the 3-value plan, colour proportions and the hue wheel (references/graphic-design.md explains each).
+function compositionRow(res, src) {
+  const D = res.analysis, { w, h } = res, wide = w / h > 1.3, cw = wide ? 400 : 230, ch = Math.round(cw * h / w), sw = wide ? 250 : 170, sh = Math.round(sw * h / w);
+  const X = f => (f * cw).toFixed(1), Y = f => (f * ch).toFixed(1), ln = (x1, y1, x2, y2, st) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" ${st}/>`;
+  let g = '';
+  for (const f of [1 / 3, 2 / 3]) g += ln(X(f), 0, X(f), ch, 'stroke="#fff" stroke-opacity=".6"') + ln(0, Y(f), cw, Y(f), 'stroke="#fff" stroke-opacity=".6"');
+  for (const f of [0.382, 0.618]) g += ln(X(f), 0, X(f), ch, 'stroke="#ffcb6b" stroke-dasharray="4 4"') + ln(0, Y(f), cw, Y(f), 'stroke="#ffcb6b" stroke-dasharray="4 4"');
+  const m = 0.05 * Math.min(w, h), band = res.a.K.safe && res.a.K.safe.bottom ? res.a.K.safe.bottom * h : 0;
+  g += `<rect x="${X(m / w)}" y="${Y(m / h)}" width="${(cw - 2 * m / w * cw).toFixed(1)}" height="${(ch - (m + Math.max(m, band)) / h * ch).toFixed(1)}" fill="none" stroke="#5ee0ff" stroke-dasharray="2 3"/>`;
+  D.peaks.slice(0, 3).forEach((p, i) => { g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="11" fill="#ff5470" stroke="#fff" stroke-width="2"/><text x="${X(p.x)}" y="${(+Y(p.y) + 4.5).toFixed(1)}" text-anchor="middle" font-size="13" font-weight="700" fill="#fff" font-family="Segoe UI,sans-serif">${i + 1}</text>`; });
+  const bx = +X(D.balance.x), by = +Y(D.balance.y); g += `<path d="M${bx} ${by - 9}L${bx + 9} ${by}L${bx} ${by + 9}L${bx - 9} ${by}Z" fill="#5ee0ff" stroke="#000" stroke-width="1.5"/>`;
+  const grid = `<div style="position:relative;width:${cw}px;height:${ch}px"><img src="${src}" width="${cw}" height="${ch}" style="display:block;filter:saturate(.7) brightness(.85)"><svg width="${cw}" height="${ch}" style="position:absolute;left:0;top:0">${g}</svg></div>`;
+  const heat = im(uri(DS.heatImage(D)), sw, sh), notan = im(uri(DS.notanImage(D)), sw, sh), v = D.values;
+  // colour proportions (families) and the hue wheel
+  const fams = D.families.filter(f => f.share >= 0.01);
+  const bar = `<div style="display:flex;width:${wide ? 360 : 300}px;height:26px;border-radius:5px;overflow:hidden;outline:1px solid #444">${fams.map(f => `<div title="${f.name}" style="width:${(f.share * 100).toFixed(1)}%;background:${f.hex}"></div>`).join('')}</div><div class="cap" style="text-align:left;width:${wide ? 360 : 300}px">${fams.slice(0, 5).map(f => `${f.name} ${Math.round(f.share * 100)}%`).join(' · ')}</div>`;
+  const stops = Array.from({ length: 13 }, (_, i) => C.hex(C.fromOklch([0.74, 0.13, i * 30]))).join(',');
+  const R0 = 52, dots = D.families.filter(f => !f.neutral && f.share >= 0.01).map(f => { const t = f.h * Math.PI / 180, rr = R0 * (0.35 + 0.65 * Math.min(1, f.C / 0.2)), s = 5 + 18 * Math.sqrt(f.share); return `<div style="position:absolute;left:${(60 + rr * Math.sin(t) - s / 2).toFixed(1)}px;top:${(60 - rr * Math.cos(t) - s / 2).toFixed(1)}px;width:${s.toFixed(1)}px;height:${s.toFixed(1)}px;border-radius:50%;background:${f.hex};border:2px solid #fff"></div>`; }).join('');
+  const wheel = `<div style="position:relative;width:120px;height:120px"><div style="position:absolute;inset:6px;border-radius:50%;background:conic-gradient(${stops});opacity:.55"></div><div style="position:absolute;inset:44px;border-radius:50%;background:#121314"></div>${dots}</div>`;
+  return `<div class="sec">composition: 1-2-3 = where the eye goes, in order · ◆ = centre of visual weight · white = thirds, yellow = golden section, cyan = 5% margin</div><div class="row">` +
+    cell(grid, 'grid, reading order and balance') + cell(heat, 'attention (brighter = pulls the eye)') + cell(notan, `value plan: dark ${Math.round(v.dark * 100)}% · mid ${Math.round(v.mid * 100)}% · light ${Math.round(v.light * 100)}%`) +
+    `<div class="cell" style="align-items:flex-start;gap:6px">${bar}<div style="display:flex;gap:10px;align-items:center">${wheel}<div class="cap" style="text-align:left;max-width:170px">${esc(D.harmony)}<br>warm ${Math.round(D.warm * 100)}% · cool ${Math.round(D.cool * 100)}%<br>dot size = area, distance from centre = saturation</div></div></div></div>`;
+}
 // How a thumbnail reads as a small card in a list.
 const cardMock = src => `<div class="dark pad" style="width:236px"><img src="${src}" width="216" height="122" style="border-radius:8px"><div style="margin-top:6px;font-weight:600;color:#fff">Your Game Title</div><div class="cap" style="text-align:left">92% · 1.2K playing</div></div>`;
 

@@ -12,6 +12,7 @@ import { browser } from './chrome.mjs';
 import { kind as kindOf } from './presets.mjs';
 import { fontCssFor, familiesIn } from './fonts.mjs';
 import { runChecks, setChecks } from './checks.mjs';
+import * as DS from './design.mjs';
 import { reviewAsset, reviewSet } from './review.mjs';
 import { pack } from './sheet.mjs';
 
@@ -98,7 +99,7 @@ async function buildAsset(a, spec, out, b, opts) {
     const renderF = async (markup, tf) => R.fromRGBA8(await b.render(doc(markup, tf), IW, IH));
 
     // fit: scale + centre the main stage so a set of icons fills the canvas the same way
-    let tf = null;
+    let tf = null, fitScale = 1;
     if (a.fit && layers.some(L => L.stage === 'main')) {
       const all = await renderF(layers.filter(L => L.stage === 'main' || (L.stage === 'front' && L.fit !== false)).map(L => L.markup).join(''));
       const bb = R.bbox(R.alpha(all), IW, IH);
@@ -109,11 +110,13 @@ async function buildAsset(a, spec, out, b, opts) {
         let tx = a.W / 2 - s * bb.cx / ss, ty = a.H / 2 - s * bb.cy / ss;
         if (a.fit.anchor === 'bottom') ty = a.H - pad - s * bb.y1 / ss;
         if (a.shadow && !a.fit.anchor) ty -= (a.shadow.dy ?? 0) / 2;      // optical centre: leave room for the drop shadow
-        tf = `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})`;
+        tf = `translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${s.toFixed(4)})`; fitScale = s;
       }
     }
 
     const stage = { back: R.create(IW, IH), main: R.create(IW, IH), front: R.create(IW, IH) }, raw = {}, lastRaw = {};
+    // composed images (thumbnails, banners, icons, badges, logos) keep a small mask per layer for the design analysis
+    const studied = fi === 0 && !grid && DS.TEXTUAL.has(a.K.name), [aw, ah] = DS.analysisSize(a.W, a.H), layerInfo = [];
     for (const L of layers) {
       const st = stage[L.stage] ? L.stage : 'main';
       let img = await renderF(L.markup, st !== 'back' && L.fit !== false ? tf : null);   // front layers follow the fit unless fit: false
@@ -125,6 +128,11 @@ async function buildAsset(a, spec, out, b, opts) {
       const il = asObj(L.innerLine); if (il) img = FX.outline(img, Object.assign({}, il, { position: 'inside', width: px(il.width ?? 3) }));
       const ol = asObj(L.outline); if (ol) img = FX.outline(img, Object.assign({}, ol, { width: px(ol.width ?? 4) }));
       const T = stage[st];
+      if (studied) {
+        const mask = DS.maskOf(img, aw, ah), bb = R.bbox(R.alpha(img), IW, IH, 0.5);
+        layerInfo.push({ name: L.name, stage: st, role: L.role || null, text: /<text\b/.test(L.markup), mask, area: mask.reduce((p, q) => p + q, 0) / mask.length,
+          bbox: bb && { x0: bb.x0 / ss, y0: bb.y0 / ss, x1: bb.x1 / ss, y1: bb.y1 / ss }, texts: /<text\b/.test(L.markup) ? DS.textsIn(L.markup, k.defsMarkup()) : [], scale: st !== 'back' && L.fit !== false && tf ? fitScale : 1 });
+      }
       const cast = asObj(L.cast, 'dy'); if (cast) R.composite(T, FX.shadowOf(img, scaleFx(cast, px, { dy: 6, blur: 4, opacity: 0.3, color: '#1b1028' })), 'normal', 1, R.alpha(T));
       const lsh = asObj(L.shadow, 'dy'); if (lsh) R.composite(T, FX.shadowOf(img, scaleFx(lsh, px, { dy: 6, blur: 6, opacity: 0.3 })));
       const lg = asObj(L.glow, 'blur'); if (lg) R.composite(T, FX.glowOf(img, scaleFx(lg, px, { blur: 10 })));
@@ -137,7 +145,8 @@ async function buildAsset(a, spec, out, b, opts) {
     if (a.shadow) main = R.under(main, FX.shadowOf(main, scaleFx(a.shadow, px, { dy: 8, blur: 6, opacity: 0.3 })));
     const fin = R.clone(stage.back); R.composite(fin, main); R.composite(fin, stage.front);
     const down = F => ss > 1 && !grid ? R.resize(F, a.W, a.H) : F, design = down(fin);
-    if (fi === 0) first = { design, mainA: R.alpha(down(stage.main)), silA: R.alpha(down(silhouette)), frontA: R.alpha(down(stage.front)), backA: R.alpha(down(stage.back)) };
+    if (fi === 0) first = { design, mainA: R.alpha(down(stage.main)), silA: R.alpha(down(silhouette)), frontA: R.alpha(down(stage.front)), backA: R.alpha(down(stage.back)),
+      analysis: studied ? DS.analyze(design, { a, layers: layerInfo, outlineWidth: a.outline.reduce((t, o) => t + (o.width ?? 12), 0) }) : null };
     frameImgs.push(design);
   }
 
@@ -172,7 +181,8 @@ async function buildAsset(a, spec, out, b, opts) {
 
   const bytes = fs.statSync(files[0]).size;
   const checks = runChecks({ a, img8: main8, design: grid ? null : first.design, mainA: grid ? null : first.mainA, silA: grid ? null : first.silA, frontA: grid ? null : first.frontA, backA: grid ? null : first.backA, bytes, palette, slice, sheet: sheetInfo });
-  const res = { name: a.name, kind: a.K.name, w: a.W, h: a.H, files, checks, notes, slice, sheet: sheetInfo, palette, pixel: grid ? { grid, scale: pixelScale } : null, refs: a.refs, credits: a.credits, main: files[0], img8: main8, design: grid ? null : first.design, mainA: grid ? null : first.mainA, a };
+  if (first.analysis) checks.push(...DS.designChecks(first.analysis, a));
+  const res = { name: a.name, kind: a.K.name, w: a.W, h: a.H, files, checks, notes, slice, sheet: sheetInfo, palette, pixel: grid ? { grid, scale: pixelScale } : null, refs: a.refs, credits: a.credits, main: files[0], img8: main8, design: grid ? null : first.design, mainA: grid ? null : first.mainA, analysis: first.analysis, a };
   if (opts.review !== false) { const f = path.join(out, `review-${a.name}.png`); fs.writeFileSync(f, await reviewAsset(res, b, spec.dir)); files.push(f); res.review = f; }
   return res;
 }

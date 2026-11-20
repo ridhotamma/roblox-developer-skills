@@ -4,3 +4,4 @@ emitter.Texture = "rbxassetid://0" -- replace with the uploaded image id
 emitter.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
 emitter.FlipbookMode = Enum.ParticleFlipbookMode.OneShot -- Loop | OneShot | PingPong | Random
 emitter.FlipbookFramerate = NumberRange.new(24)
+emitter.FlipbookStartRandom = false -- OneShot: every particle starts on frame 1

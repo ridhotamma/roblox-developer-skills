@@ -76,7 +76,9 @@ Engine: the `value range` and `separation` checks; the review sheet's greyscale 
   across icons so the set feels like one game.
 - **Harmony for backgrounds and store art**: complementary (opposite hues: orange coin on blue rays) gives maximum
   pop; analogous (neighbours) feels calm. Bright, saturated colours suit cheerful / fantasy games; muted, low
-  saturation suits somber ones; heavy contrast suits horror (Roblox docs give the same guidance for icons).
+  saturation suits somber ones; heavy contrast suits horror (Roblox docs give the same guidance for icons). Colour
+  roles (60-30-10), Itten's contrasts and the pitfalls (mud, vibration, everything saturated) are in
+  `graphic-design.md` section 8; `k.c.scheme()` builds a role palette from the hero's colour.
 - **Rarity colours** are a shared language in Roblox games: common grey, uncommon green, rare blue, epic purple,
   legendary gold/orange, mythic red/pink. Back colour with shape (frame style, rays, sparkles) for colour-blind players.
 
@@ -134,24 +136,15 @@ SVG strokes for interior detail lines.
 
 ## 8. Composition
 
-**Icons**: one subject, centred on its optical centre (slightly above the geometric centre when there is a drop
-shadow), filling ~80-90% of the canvas; diagonal placement for long objects (more length, more dynamism);
+**Icons** (one object): one subject, centred on its optical centre (slightly above the geometric centre when there
+is a drop shadow), filling ~80-90% of the canvas; diagonal placement for long objects (more length, more dynamism);
 nothing important in corners. Text is rarely readable at icon size.
 
-**Game icon** (512, shown ~150): the game's promise in one image: the mascot or hero object, big, with a strong
-expression or action, on a simple high-contrast background (radial glow + rays is the classic). Must stand out on
-both Roblox themes and among neighbouring icons. No small text, no corner symbols (Roblox lists a graphic in the corner
-as an error example).
-
-**Thumbnail** (1920x1080): show what players actually get (Roblox rejects misleading media), one focal point,
-characters with readable faces/actions, foreground-midground-background depth, title text big and short (2-3
-words), away from the bottom edge (player count bar). Different thumbnails should show different motivations
-(combat, collecting, social) so personalisation testing can tell them apart.
-
-**Badges / passes / products**: designed inside a circle (Roblox crops to it): subject in the middle ~70%,
-background can bleed to the corners.
-
-General: rule of thirds for wide formats, leading lines toward the subject, contrast highest at the focal point.
+**Anything composed** (game icon, thumbnail, banner, badge, pass, logo, UI screen) follows the graphic design rules
+in `graphic-design.md`: one focal point and a 1-2-3 reading order, thirds / golden-section layout and 5% margins,
+balance of visual weight, a 3-value plan with one dominant value, 60-30-10 colour roles from a harmony scheme, three
+depth planes, a modular type scale, no tangents, and a layout template per kind. Different thumbnails should show
+different motivations (combat, collecting, social) so Roblox's personalisation testing can tell them apart.
 
 ## 9. Consistency across a set
 

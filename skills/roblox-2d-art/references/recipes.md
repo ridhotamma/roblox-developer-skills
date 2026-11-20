@@ -6,8 +6,10 @@ of them; copy the closest one.
 ## Contents
 - Building blocks (the drawing order that works)
 - Item icons: food, weapons, potions, gems and currency, chests, tools, armour, pets
+- Composed images: start from the brief
 - Game icon
 - Thumbnail
+- Banner
 - Badges, passes, products
 - UI: glyphs, 9-slice frames and buttons, progress bars, rarity cards
 - Logos and title text
@@ -54,26 +56,55 @@ of them; copy the closest one.
 
 Set rules: same `light`, `outline`, `shadow`, `fit` for the whole set (put them in `set:`), and read the set checks.
 
+## Composed images: start from the brief
+
+Thumbnails, banners, game icons, badges, passes and logos start with the design brief in `graphic-design.md`
+(section 13): message, reading order, layout template, value plan, colour scheme and roles, words and type sizes,
+depth planes. Then build the colours from the hero: `const S = k.c.scheme(heroColour, 'split', { mood: 'bright' })`
+and use `S.bg` / `S.bgLight` / `S.bgDeep` for the ~60% background, `S.secondary` for the ~30% ground and big props,
+`S.accent` for the ~10% title fill, coins and sparkles, `S.ink` for outlines. Mark the hero's layers `role: 'hero'`.
+Read the design checks and the composition row of the review sheet, then the critique checklist (section 14).
+
 ## Game icon (kind `game-icon`, 512, opaque)
 
-Layers: background (stage `back`: `k.bg.radial` + `k.bg.rays` + `k.bg.vignette`), the hero (mascot / object) huge,
-overlapping the frame slightly, an expression or action, 1-3 secondary props (coins, gems) smaller. Complementary
-background hue. No text, or one short word if it is the brand and big. Check: 150 and 64 px previews on both themes,
-`separation`. Make 2-3 variants with different heroes / angles for A/B tests.
+Layers: background (stage `back`: `k.bg.radial` in `S.bgLight` → `S.bg`, soft `k.bg.rays`, `k.bg.glowAt` behind the
+face, `k.bg.vignette`), the hero (mascot / object) at 60-85% of the canvas, three-quarter view, an expression or
+action, `role: 'hero'`; 1-3 secondary props at a third of the hero's size or less, partly behind it, lower contrast
+(odd numbers, different sizes). Two equal props behind the shoulders read as ears at 64 px: prefer one clear prop, or
+three at clearly different sizes. Background hue complementary or split-complementary to the hero. Quiet corners. No
+text, or one short word if it is the brand and big. Check: 150 and 64 px previews on both themes, `focal point`,
+`hierarchy` (props must not rival the hero), `figure hue`. Make 2-3 variants with different heroes / angles for A/B tests.
 
 ## Thumbnail (kind `thumbnail`, 1920x1080, opaque)
 
-Layers: sky / environment (back), midground props (back, shaded), the hero characters (main), title text and badges
-(front). Or start from a Studio screenshot: `k.image('shot.png', 0, 0, 1920, 1080)` on stage back, then add characters,
-title and colour treatment. Keep the title in the top two thirds, 2-3 words, `Luckiest Guy` / `Lilita One` / `Fredoka
-One`, gradient fill, thick dark outline plus a light outer outline, slight rotation (-4°). Nothing important in the
-bottom 12%. Show real gameplay elements. Each variant should show a different hook.
+Pick a template from `graphic-design.md` section 12 (hero + title, centred icon, versus, gameplay scene). The default:
+- **back**: sky gradient in the dominant colour, a few soft rays or none, far hills / buildings pushed back with
+  `k.c.atmos(colour, depth, sky)` or `k.bg.haze`, `k.bg.glowAt` behind the hero, a vignette.
+- **main**: the ground in the secondary colour (a value step away from the hero, never the hero's hue and value);
+  the hero (`role: 'hero'`) on a thirds line (`k.at('tl', 1920, 1080)`), 55-75% of the frame height, looking into the
+  frame; 3-5 props on a leading line toward the hero, getting smaller with distance and deeper in value than the title
+  fill. Bright, large props become a second focal point: the `hierarchy` check names them when they do.
+- **front**: the title as one block inside `k.safe()` on the side the hero faces: 2-3 words in one display face
+  (`Luckiest Guy`, `Lilita One`, `Fredoka One`), font size 160-240, gradient fill (`S.light` → `S.accent`), dark
+  outline 12-18% of the size (`S.ink`), a light outer rim, -3° to -6° rotation; an optional hook line one step down the
+  type scale (`k.typeScale(96, 1.5)`: 96 / 144 / 216) and at least ~86 px.
+- Or start from a Studio screenshot: `k.image('shot.png', 0, 0, 1920, 1080)` on stage back, graded with haze and a
+  vignette, then the hero cut-out larger in front and the title.
+Nothing important in the bottom 12%. Show real gameplay elements. Each variant should show a different hook.
+
+## Banner (kind `banner`, wide, menu / loading / promo)
+
+A text column on one side (about 40% of the width) and the hero on the other, three depth planes behind, one dominant
+colour family. If it is displayed with `ScaleType.Crop`, keep everything important inside the central 75% x 75%
+(phones and tablets cut different sides). Loading screens: leave a calm band for the progress bar.
 
 ## Badges, passes, products (512, circle crop)
 
-Background `k.bg.rarity(...)` (or radial), subject inside the middle ~70%, optional `k.frame.circle()` on front so the
-crop edge looks intentional. Passes: the perk as an object (crown = VIP, x2 coin = double money, speed boots), plus a
-short label only if it reads at 150 px. Check: `circle crop`.
+Background `k.bg.rarity(...)` (or radial) in a hue that contrasts with the subject (a gold trophy on deep blue or
+violet, not on gold: the `figure hue` check catches camouflage), subject inside the middle ~70%, symmetric, optional
+`k.frame.circle()` on front so the crop edge looks intentional. Passes: the perk as an object (crown = VIP, x2 coin =
+double money, speed boots), plus one short label in the lower third only if it reads at 150 px. Check: `circle crop`,
+`saturation` (the subject should be the most saturated thing).
 
 ## UI
 
@@ -90,7 +121,9 @@ short label only if it reads at 150 px. Check: `circle crop`.
 
 Text with `k.text`: `size` big, `fill` gradient (light top to saturated bottom), `stroke` dark (`sw` ~16% of size),
 `outer` light outline, `shadow` 6-10% of size, `shine: 0.35`. Add a shape behind (ribbon `k.ribbon`, burst
-`k.burst`) on stage back or main. Arc the text slightly (`arc: 20`) for energy.
+`k.burst`) on stage back or main. Arc the text slightly (`arc: 20`) for energy. Lockup: the main word biggest, other
+words 0.4-0.65x its size, stacked and centred as one block, one typeface, the same outline and shadow on every word,
+fill contrast at least 3:1 against the outline (`text contrast` check).
 
 ## Textures and decals (kind `texture`)
 
@@ -102,6 +135,19 @@ textures sit behind gameplay.
 
 White or greyscale with soft edges (`k.blurF`), centred, transparent. Animated: `frames: { count: 16, layout:
 'flipbook' }` and drive size / opacity with `ctx.t`. 4x4 at 1024 = 256 px frames; 8x8 at 1024 = 128 px frames.
+
+Flipbook rules that decide whether it looks right in game:
+- The sheet is always 1024 x 1024 (Roblox plays nothing on other sizes); frames read left to right, top to bottom.
+- `OneShot` spreads the frames over each particle's lifetime (16 frames on a 0.6 s particle is 27 fps; on 2 s it is
+  8 fps and choppy). `Loop` / `PingPong` use `FlipbookFramerate`, at most 30.
+- A loop must close: draw on a periodic time axis so the frame after the last equals the first (`count` covers one
+  cycle; t = 1 is not drawn). A one-shot must end on an empty frame, so nothing pops.
+- Break shapes up as they die (alpha erosion: raise a threshold through noise so thin parts vanish first) instead of
+  fading the whole sprite.
+- Keep frames white and let `ParticleEmitter.Color` tint them; let the frames change the shape and the emitter move it.
+- Procedural effect sprites (water splash crowns, ripples, churning foam, mist, smoke puffs, breaking wave crests) and
+  seamless flowing textures for beams come ready-made from the `roblox-vfx` skill, previewed inside the effect; draw
+  here when the sprite needs a designed, stylised shape (a cartoon star burst, a logo, a hand-drawn smoke style).
 
 ## Turning a reference into art
 

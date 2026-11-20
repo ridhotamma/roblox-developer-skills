@@ -11,6 +11,7 @@ import * as FX from './lib/fx.mjs';
 import { contours, simplifyLoop } from './lib/trace.mjs';
 import { pack } from './lib/sheet.mjs';
 import { makeKit } from './lib/kit.mjs';
+import * as DS from './lib/design.mjs';
 
 let fails = 0, passes = 0;
 const ok = (cond, name) => { if (cond) passes++; else { fails++; console.log('FAIL ' + name); } };
@@ -28,6 +29,14 @@ export async function selftest() {
   ok(C.oklch(C.shade('#3aa0e8', -1))[2] > C.oklch('#3aa0e8')[2], 'blue shadow shifts toward violet');
   ok(C.oklch(C.shade('#3ae860', 0.8))[2] < C.oklch('#3ae860')[2], 'green highlight shifts toward yellow');
   ok(C.contrast('#000', '#fff') > 20, 'contrast'); ok(C.kmeans([{ lab: [0.2, 0, 0], w: 1 }, { lab: [0.21, 0, 0], w: 1 }, { lab: [0.9, 0, 0], w: 1 }], 2).length === 2, 'kmeans');
+  // graphic-design helpers: a role palette, atmospheric depth, scheme naming, text parsing
+  const sc = C.scheme('#5ee05a', 'split', { mood: 'bright' });
+  ok(sc.hero && sc.bg && sc.secondary && sc.accent && sc.ink, 'scheme returns every role');
+  ok(Math.abs(C.oklch(sc.bg)[0] - C.oklch(sc.hero)[0]) >= 0.19, 'scheme sets the background a value step off the hero');
+  ok(C.oklch(C.atmos('#e8433a', 1, '#bcdcff'))[1] < C.oklch('#e8433a')[1], 'atmos loses chroma with depth');
+  ok(DS.harmonyOf([10, 190]) === 'complementary' && DS.harmonyOf([10, 130, 250]) === 'triadic', 'harmony names');
+  const tx = DS.textsIn('<text x="1" y="2" font-family="Luckiest Guy" font-size="80" fill="#ffffff" stroke="#000000" stroke-width="12">HI</text>');
+  ok(tx.length === 1 && tx[0].str === 'HI' && tx[0].size === 80 && tx[0].sw === 12, 'textsIn reads size, fill and outline');
   // distance transform against brute force
   const w = 24, h = 17, sites = new Uint8Array(w * h); [[3, 4], [20, 2], [11, 14]].forEach(([x, y]) => sites[y * w + x] = 1);
   const { d, idx } = R.edt(sites, w, h); let edtOk = true;
@@ -56,21 +65,28 @@ export async function selftest() {
   // sheets
   const fr = [1, 2, 3, 4, 5].map(i => ({ name: 'f' + i, img: { w: 10, h: 8, rgba: new Uint8Array(320).fill(i * 40) } }));
   const pk = pack(fr, { cols: 3, pad: 2 }); ok(pk.img.w === 3 * 14 && pk.img.h === 2 * 12 && pk.rects[4].x === 14 + 2 && /ImageRectOffset/.test(pk.luau), 'grid sheet layout + luau');
-  const fb = pack(fr, { flipbook: 4, size: 256 }); ok(fb.img.w === 256 && /Grid4x4/.test(fb.luau), 'flipbook');
+  const fb = pack(fr, { flipbook: 4, size: 256 }); ok(fb.img.w === 256 && /Grid4x4/.test(fb.luau) && /warning: 256x256/.test(fb.luau), 'flipbook (an explicit non-1024 size is kept but warned about)');
+  const fb2 = pack(fr.slice(0, 4), { flipbook: 2 }); ok(fb2.img.w === 1024 && fb2.img.h === 1024 && !/warning/.test(fb2.luau), 'flipbook sheets default to 1024 x 1024 even for small frames');
   // kit produces well-formed markup
   const k = makeKit({ w: 512, h: 512 }); const mk = k.path(k.smooth([[0, 0], [10, 0], [10, 10]]), '#f00') + k.text('HI', 100, 100) + k.bg.rarity('epic') + k.gem(100, 100, 50, 60) + k.coin(200, 200, 40);
   ok(!/NaN|undefined/.test(mk) && k.defs.length > 0, 'kit markup');
+  const sk = makeKit({ w: 1920, h: 1080 });
+  ok(near(sk.safe(0.05, 1920, 1080).y1, 1080 - 54, 1e-9) && near(sk.safe(0.05, 1920, 1080, 0.12).y1, 1080 - 129.6, 1e-9), 'safe box: margin and explicit bottom band');
+  ok(near(sk.at('tl', 1920, 1080)[0], 640, 1e-9) && near(sk.at('phi-right', 1920, 1080)[0], (1 - 0.382) * 1920, 1e-9), 'layout anchors');
   console.log(`maths and image ops: ${passes} passed, ${fails} failed`);
 
   // end to end with the browser
   try {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rart-self-'));
     fs.writeFileSync(path.join(dir, 't.art.mjs'), `export default (k) => [{ name: 'T', kind: 'item', size: 256, layers: [{ name: 'b', svg: k.circle(128, 128, 90, '#3aa0e8'), shade: 'toon' }] },
-      { name: 'P', kind: 'sprite', pixel: { size: 16, palette: 'sweetie16' }, layers: [{ svg: k.path(k.heart(256, 256, 400), '#e83a5a'), shade: 'toon' }] }]`);
+      { name: 'P', kind: 'sprite', pixel: { size: 16, palette: 'sweetie16' }, layers: [{ svg: k.path(k.heart(256, 256, 400), '#e83a5a'), shade: 'toon' }] },
+      { name: 'I', kind: 'game-icon', layers: [{ name: 'bg', stage: 'back', svg: k.bg.solid('#1a2350') }, { name: 'orb', role: 'hero', svg: k.circle(256, 270, 150, '#ffd12e'), shade: 'toon' }] }]`);
     const { buildFile } = await import('./lib/build.mjs'), res = await buildFile(path.join(dir, 't.art.mjs'), { out: path.join(dir, 'out'), review: false });
-    const t = res[0], p = res[1];
+    const t = res[0], p = res[1], ic = res[2];
     ok(fs.existsSync(t.main) && t.checks.every(c => c.level !== 'FAIL'), 'build: item icon with no FAIL');
     ok(p.img8.w === 16 && p.palette.length <= 16, 'build: pixel sprite');
+    ok(ic.analysis && ic.analysis.peaks[0].layer === 'orb', 'build: composed analysis names the hero layer as the focal point');
+    ok(ic.checks.some(c => c.name === 'focal point' && c.level === 'PASS') && ic.checks.every(c => c.level !== 'FAIL'), 'build: composed design checks run');
     console.log(`end to end: ${fails ? 'see failures above' : 'ok'} (${dir})`);
   } catch (e) { fails++; console.log('FAIL end to end: ' + e.message); }
   console.log(fails ? `\n${fails} FAILED` : '\nall passed');

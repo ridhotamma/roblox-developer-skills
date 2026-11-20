@@ -149,6 +149,22 @@ export function makeKit(ctx = {}) {
     return `<g>${out}</g>`;
   };
 
+  // ---------- layout: composition anchors, margins, safe area, type scale (references/graphic-design.md) ----------
+  // k.W / k.H are the asset's canvas inside layer functions; at the top of a spec pass the size: k.at('tl', 1920, 1080).
+  // at(): 'center', thirds intersections 'tl' 'tr' 'bl' 'br', thirds lines through the middle 'top' 'bottom' 'left'
+  // 'right', and the same on the golden-section grid (0.382 / 0.618) with a 'phi-' prefix ('phi-tl', 'phi-right').
+  k.at = (name = 'center', w = k.W, h = k.H) => {
+    const phi = name.startsWith('phi-'), f = phi ? 0.382 : 1 / 3, m = { center: 'cc', tl: 'lt', tr: 'rt', bl: 'lb', br: 'rb', top: 'ct', bottom: 'cb', left: 'lc', right: 'rc' }[name.replace(/^phi-/, '')];
+    if (!m) throw new Error(`k.at("${name}"): use center, tl, tr, bl, br, top, bottom, left, right (optionally phi-...)`);
+    return [{ l: f, c: 0.5, r: 1 - f }[m[0]] * w, { t: f, c: 0.5, b: 1 - f }[m[1]] * h];
+  };
+  k.margin = (f = 0.05, w = k.W, h = k.H) => f * Math.min(w, h);
+  // the box where titles and key elements are safe: inside the margin and above a thumbnail's covered bottom band.
+  // Inside a layer the kit knows the kind; at the top of a spec pass the size and, for a thumbnail, bottom = 0.12.
+  k.safe = (f = 0.05, w = k.W, h = k.H, bottom = null) => { const m = k.margin(f, w, h), K = k.ctx && k.ctx.asset && k.ctx.asset.K, band = (bottom != null ? bottom : K && K.safe && K.safe.bottom ? K.safe.bottom : 0) * h, y1 = h - Math.max(m, band); return { x: m, y: m, w: w - 2 * m, h: y1 - m, x1: w - m, y1, cx: w / 2, cy: (m + y1) / 2 }; };
+  // modular type scale: ts = k.typeScale(64, 1.5); ts(0) = 64 (body), ts(1) = 96, ts(2) = 144 (title)...
+  k.typeScale = (base, ratio = 1.5) => step => Math.round(base * Math.pow(ratio, step));
+
   // ---------- backgrounds and frames ----------
   const W = () => k.W, H = () => k.H;
   k.bg = {
@@ -159,8 +175,13 @@ export function makeKit(ctx = {}) {
     vignette: (op = 0.45, color = '#000') => `<rect width="${W()}" height="${H()}" fill="${k.radial([[0.55, color, 0], [1, color, op]], { r: 0.75 })}"/>`,
     dots: (color = '#fff', op = 0.12, step = 32, r = 4) => { const pid = id('pt'); defs.push(`<pattern id="${pid}" width="${step}" height="${step}" patternUnits="userSpaceOnUse"><circle cx="${step / 4}" cy="${step / 4}" r="${r}" fill="${color}"/><circle cx="${step * 0.75}" cy="${step * 0.75}" r="${r}" fill="${color}"/></pattern>`); return `<rect width="${W()}" height="${H()}" fill="url(#${pid})" opacity="${op}"/>`; },
     stripes: (color = '#fff', op = 0.1, step = 40, angle = 45) => { const pid = id('pt'); defs.push(`<pattern id="${pid}" width="${step}" height="${step}" patternUnits="userSpaceOnUse" patternTransform="rotate(${angle})"><rect width="${step / 2}" height="${step}" fill="${color}"/></pattern>`); return `<rect width="${W()}" height="${H()}" fill="url(#${pid})" opacity="${op}"/>`; },
-    // Rarity card background: radial glow in the rarity hue, rays, darker rim. rarity: common..mythic or a colour.
-    rarity: (rarity = 'rare', { rays = true } = {}) => { const c = C.RARITY[rarity] || rarity, [d2, d1, b, l1, l2] = C.ramp(c, 5); return `<rect width="${W()}" height="${H()}" fill="${k.radial([[0, l2], [0.5, b], [1, d1]], { r: 0.72 })}"/>` + (rays ? k.bg.rays({ color: l2, op: 0.25, n: 16 }) : ''); },
+    // Rarity card background: glow in the rarity hue behind the subject, falling off to a deeper, calmer rim (so the
+    // subject, not the background, is the most saturated thing), soft rays. rarity: common..mythic or a colour.
+    rarity: (rarity = 'rare', { rays = true } = {}) => { const c = C.RARITY[rarity] || rarity, [, d1, b, l1, l2] = C.ramp(c, 5), calm = x => C.saturate(x, -0.3), rim = C.saturate(C.shade(c, -0.9), -0.45); return `<rect width="${W()}" height="${H()}" fill="${k.radial([[0, calm(l1)], [0.35, calm(b)], [0.75, calm(d1)], [1, rim]], { r: 0.72 })}"/>` + (rays ? k.bg.rays({ color: l2, op: 0.14, n: 16 }) : ''); },
+    // Light pool behind the focal point: raises value contrast exactly where the eye should land.
+    glowAt: (x, y, r, color = '#ffffff', op = 0.55) => `<circle cx="${r2(x)}" cy="${r2(y)}" r="${r2(r)}" fill="${k.radial([[0, color, op], [0.45, color, op * 0.45], [1, color, 0]])}"/>`,
+    // Haze band: lays the sky colour over far layers (atmospheric perspective) from y0 (full) to y1 (none).
+    haze: (y0, y1, color = '#bcdcff', op = 0.6) => `<rect width="${W()}" height="${H()}" fill="${k.linear([[0, color, op], [1, color, 0]], { x1: 0, y1: y0 / H(), x2: 0, y2: y1 / H() })}"/>`,
   };
   k.frame = {
     // Rounded card border (inventory slots, shop tiles). Draw it on a 'front' layer.
