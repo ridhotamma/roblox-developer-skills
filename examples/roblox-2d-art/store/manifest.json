@@ -1,0 +1,85 @@
+{
+ "generated": "2026-11-20T07:49:15.850Z",
+ "spec": "../../../skills/roblox-2d-art/examples/store.art.mjs",
+ "assets": [
+  {
+   "name": "GameIcon",
+   "kind": "game-icon",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "GameIcon.png",
+    "review-GameIcon.png"
+   ],
+   "checks": [
+    "PASS size: 512x512",
+    "PASS background: fully opaque",
+    "PASS value range: subject lightness spans 0.64 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.43, dL 0.40",
+    "PASS small size: 15.1% of pixels are high-contrast edges at 64x64"
+   ]
+  },
+  {
+   "name": "Thumbnail",
+   "kind": "thumbnail",
+   "size": [
+    1920,
+    1080
+   ],
+   "files": [
+    "Thumbnail.png",
+    "review-Thumbnail.png"
+   ],
+   "checks": [
+    "PASS size: 1920x1080, 16:9",
+    "PASS background: fully opaque",
+    "PASS safe zone: front layers clear of the bottom band",
+    "PASS value range: subject lightness spans 0.50 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.27, dL 0.25",
+    "PASS small size: 13.2% of pixels are high-contrast edges at 256x144"
+   ]
+  },
+  {
+   "name": "FirstWinBadge",
+   "kind": "badge",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "FirstWinBadge.png",
+    "review-FirstWinBadge.png"
+   ],
+   "checks": [
+    "PASS size: 512x512",
+    "PASS background: fully opaque",
+    "PASS circle crop: 0.0% of the detail is outside the 481 px circle Roblox keeps",
+    "PASS value range: subject lightness spans 0.43 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.60, dL 0.60",
+    "PASS small size: 12.7% of pixels are high-contrast edges at 64x64"
+   ]
+  },
+  {
+   "name": "VipPass",
+   "kind": "pass",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "VipPass.png",
+    "review-VipPass.png"
+   ],
+   "checks": [
+    "PASS size: 512x512",
+    "PASS background: fully opaque",
+    "PASS circle crop: 0.0% of the detail is outside the 481 px circle Roblox keeps",
+    "PASS value range: subject lightness spans 0.41 (OKLab L, 5-95%)",
+    "PASS separation: subject edge vs background: dE 0.47, dL 0.42",
+    "PASS small size: 13.7% of pixels are high-contrast edges at 64x64"
+   ]
+  }
+ ]
+}

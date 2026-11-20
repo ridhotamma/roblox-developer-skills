@@ -1,0 +1,117 @@
+{
+ "generated": "2026-11-20T07:49:27.529Z",
+ "spec": "../../../skills/roblox-2d-art/examples/ui.art.mjs",
+ "assets": [
+  {
+   "name": "PanelFrame",
+   "kind": "panel",
+   "size": [
+    96,
+    96
+   ],
+   "files": [
+    "PanelFrame.png",
+    "review-PanelFrame.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS 9-slice: SliceCenter Rect.new(28, 28, 68, 68): stretch bands uniform"
+   ],
+   "slice": {
+    "SliceCenter": [
+     28,
+     28,
+     68,
+     68
+    ]
+   }
+  },
+  {
+   "name": "ButtonGreen",
+   "kind": "panel",
+   "size": [
+    96,
+    64
+   ],
+   "files": [
+    "ButtonGreen.png",
+    "review-ButtonGreen.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS 9-slice: SliceCenter Rect.new(30, 28, 66, 34): stretch bands uniform"
+   ],
+   "slice": {
+    "SliceCenter": [
+     30,
+     28,
+     66,
+     34
+    ]
+   }
+  },
+  {
+   "name": "ShopGlyph",
+   "kind": "ui-icon",
+   "size": [
+    256,
+    256
+   ],
+   "files": [
+    "ShopGlyph.png",
+    "ShopGlyph_128.png",
+    "ShopGlyph_64.png",
+    "ShopGlyph_white.png",
+    "review-ShopGlyph.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 84.4% of the canvas",
+    "PASS value range: subject lightness spans 0.28 (OKLab L, 5-95%)"
+   ]
+  },
+  {
+   "name": "GrassTile",
+   "kind": "texture",
+   "size": [
+    256,
+    256
+   ],
+   "files": [
+    "GrassTile.png",
+    "review-GrassTile.png"
+   ],
+   "checks": [
+    "PASS background: fully opaque",
+    "PASS small size: 0.3% of pixels are high-contrast edges at 128x128",
+    "PASS seamless: mean edge mismatch dE 0.003"
+   ]
+  },
+  {
+   "name": "SparkleBurst",
+   "kind": "particle",
+   "size": [
+    256,
+    256
+   ],
+   "files": [
+    "SparkleBurst.png",
+    "SparkleBurst_128.png",
+    "SparkleBurst_sheet.png",
+    "SparkleBurst_sheet.luau",
+    "review-SparkleBurst.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)"
+   ],
+   "sheet": {
+    "frames": 16,
+    "size": [
+     1024,
+     1024
+    ],
+    "flipbook": 4
+   }
+  }
+ ]
+}

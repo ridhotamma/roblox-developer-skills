@@ -1,0 +1,48 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>2D Art Examples</title>
+<style>:root{--bg:#0e0f12;--card:#1a1c21;--text:#e7e9ee;--muted:#9aa1ad;--accent:#ffd65c}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 ui-sans-serif,system-ui,sans-serif;padding:24px 16px;max-width:1080px;margin:0 auto}
+a{color:var(--accent)}h2{margin:32px 0 6px;font-size:18px}p{color:var(--muted);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}.wide{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.c{background:var(--card);border-radius:10px;padding:10px;text-decoration:none;color:var(--text);display:flex;flex-direction:column;gap:6px}
+.c img{width:100%;aspect-ratio:1;object-fit:contain;background:repeating-conic-gradient(#2a2c31 0 25%,#22242a 0 50%) 0 0/16px 16px;border-radius:6px}
+.wide .c img{aspect-ratio:16/9}.px{image-rendering:pixelated}.c span{font-size:13px}.c small{color:var(--muted);font-size:12px}</style></head>
+<body><h1>roblox-2d-art examples</h1>
+<p>Every image here is built by <code>scripts/rart.mjs build</code> from the specs in <code>skills/roblox-2d-art/examples/</code>. Click an image for its review sheet: Roblox dark and light themes, real display sizes, silhouette, greyscale and squint tests, circle crop, safe zones, 9-slice stretching and the automatic checks.</p>
+
+<h2>Item icon set</h2><p><code>items.art.mjs</code>: one light, one outline weight, one shadow for the whole set; toon, gloss and metal shading; liquid clipped inside glass; cast shadows between parts. <a href="items/review-set.png">Set review</a></p>
+<div class="grid">
+<a class="c" href="items/review-HealthPotion.png"><img src="items/HealthPotion.png" alt="Health potion"><span>HealthPotion</span><small>gloss glass, clipped liquid</small></a>
+<a class="c" href="items/review-IronSword.png"><img src="items/IronSword.png" alt="Iron sword"><span>IronSword</span><small>metal, tube form, fuller</small></a>
+<a class="c" href="items/review-KnightShield.png"><img src="items/KnightShield.png" alt="Knight shield"><span>KnightShield</span><small>toon, clipped band</small></a>
+<a class="c" href="items/review-BlueGem.png"><img src="items/BlueGem.png" alt="Blue gem"><span>BlueGem</span><small>faceted gem, front sparkles</small></a>
+<a class="c" href="items/review-GoldCoin.png"><img src="items/GoldCoin.png" alt="Gold coin"><span>GoldCoin</span><small>gloss coin</small></a>
+<a class="c" href="burger/review-Burger.png"><img src="burger/Burger.png" alt="Burger"><span>Burger</span><small>proportions traced from a CC0 photo</small></a>
+</div>
+
+<h2>Store media</h2><p><code>store.art.mjs</code>: one mascot reused across the game icon, thumbnail, badge and pass. <a href="store/review-set.png">Set review</a></p>
+<div class="grid">
+<a class="c" href="store/review-GameIcon.png"><img src="store/GameIcon.png" alt="Game icon"><span>GameIcon</span><small>512, opaque</small></a>
+<a class="c" href="store/review-FirstWinBadge.png"><img src="store/FirstWinBadge.png" alt="Badge"><span>FirstWinBadge</span><small>badge, circle crop</small></a>
+<a class="c" href="store/review-VipPass.png"><img src="store/VipPass.png" alt="VIP pass"><span>VipPass</span><small>game pass, circle crop</small></a>
+</div>
+<div class="grid wide" style="margin-top:12px">
+<a class="c" href="store/review-Thumbnail.png"><img src="store/Thumbnail.png" alt="Thumbnail"><span>Thumbnail</span><small>1920x1080, title text clear of the bottom band</small></a>
+</div>
+
+<h2>Pixel art</h2><p><code>pixel.art.mjs</code>: vector art snapped to a 32 px grid with a Lospec palette and selective outline; hand-placed pixels; an 8-frame coin spin packed into a sprite sheet with a Luau player (<a href="pixel/CoinSpin_sheet.luau">CoinSpin_sheet.luau</a>). <a href="pixel/review-set.png">Set review</a></p>
+<div class="grid">
+<a class="c" href="pixel/review-PotionPixel.png"><img class="px" src="pixel/PotionPixel.png" alt="Pixel potion"><span>PotionPixel</span><small>32x32, sweetie16</small></a>
+<a class="c" href="pixel/review-HeartPixel.png"><img class="px" src="pixel/HeartPixel.png" alt="Pixel heart"><span>HeartPixel</span><small>13x11, hand-placed</small></a>
+<a class="c" href="pixel/review-CoinSpin.png"><img class="px" src="pixel/CoinSpin_sheet.png" alt="Coin spin sheet"><span>CoinSpin</span><small>16x16, 8 frames</small></a>
+</div>
+
+<h2>UI, textures and particles</h2><p><code>ui.art.mjs</code>: 9-slice panel and button with their <code>SliceCenter</code>, a glyph with a white copy for <code>ImageColor3</code>, a seamless grass texture, and a 4x4 particle flipbook (<a href="ui/SparkleBurst_sheet.luau">SparkleBurst_sheet.luau</a>). <a href="ui/review-set.png">Set review</a></p>
+<div class="grid">
+<a class="c" href="ui/review-PanelFrame.png"><img src="ui/PanelFrame.png" alt="Panel frame"><span>PanelFrame</span><small>9-slice 28/28/28/28</small></a>
+<a class="c" href="ui/review-ButtonGreen.png"><img src="ui/ButtonGreen.png" alt="Green button"><span>ButtonGreen</span><small>9-slice button</small></a>
+<a class="c" href="ui/review-ShopGlyph.png"><img src="ui/ShopGlyph.png" alt="Shop glyph"><span>ShopGlyph</span><small>HUD glyph</small></a>
+<a class="c" href="ui/review-ShopGlyph.png"><img src="ui/ShopGlyph_white.png" alt="White shop glyph"><span>ShopGlyph_white</span><small>tint with ImageColor3</small></a>
+<a class="c" href="ui/review-GrassTile.png"><img src="ui/GrassTile.png" alt="Grass tile"><span>GrassTile</span><small>seamless texture</small></a>
+<a class="c" href="ui/review-SparkleBurst.png"><img src="ui/SparkleBurst_sheet.png" alt="Sparkle flipbook"><span>SparkleBurst</span><small>Grid4x4 flipbook</small></a>
+</div>
+</body></html>

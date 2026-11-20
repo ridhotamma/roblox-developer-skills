@@ -1,0 +1,34 @@
+{
+ "generated": "2026-11-20T07:48:55.075Z",
+ "spec": "../../../skills/roblox-2d-art/examples/burger.art.mjs",
+ "assets": [
+  {
+   "name": "Burger",
+   "kind": "item",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "Burger.png",
+    "Burger_256.png",
+    "Burger_128.png",
+    "review-Burger.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 87.9% of the canvas",
+    "PASS value range: subject lightness spans 0.57 (OKLab L, 5-95%)",
+    "PASS small size: 20.5% of pixels are high-contrast edges at 48x48"
+   ],
+   "refs": [
+    {
+     "file": "refs/burger-cc0.jpg",
+     "note": "Big Mac, CC0, Evan-Amos (Wikimedia Commons)",
+     "url": "https://commons.wikimedia.org/wiki/File:Big_Mac_hamburger.jpg",
+     "license": "CC0"
+    }
+   ]
+  }
+ ]
+}

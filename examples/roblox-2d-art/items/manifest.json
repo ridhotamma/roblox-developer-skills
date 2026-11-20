@@ -1,0 +1,106 @@
+{
+ "generated": "2026-11-20T07:48:52.578Z",
+ "spec": "../../../skills/roblox-2d-art/examples/items.art.mjs",
+ "assets": [
+  {
+   "name": "HealthPotion",
+   "kind": "item",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "HealthPotion.png",
+    "HealthPotion_256.png",
+    "HealthPotion_128.png",
+    "review-HealthPotion.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 85.2% of the canvas",
+    "PASS value range: subject lightness spans 0.51 (OKLab L, 5-95%)",
+    "PASS small size: 13.9% of pixels are high-contrast edges at 48x48"
+   ]
+  },
+  {
+   "name": "IronSword",
+   "kind": "item",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "IronSword.png",
+    "IronSword_256.png",
+    "IronSword_128.png",
+    "review-IronSword.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 87.7% of the canvas",
+    "PASS value range: subject lightness spans 0.57 (OKLab L, 5-95%)",
+    "PASS small size: 34.8% of pixels are high-contrast edges at 48x48"
+   ]
+  },
+  {
+   "name": "KnightShield",
+   "kind": "item",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "KnightShield.png",
+    "KnightShield_256.png",
+    "KnightShield_128.png",
+    "review-KnightShield.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 85.7% of the canvas",
+    "PASS value range: subject lightness spans 0.56 (OKLab L, 5-95%)",
+    "PASS small size: 30.0% of pixels are high-contrast edges at 48x48"
+   ]
+  },
+  {
+   "name": "BlueGem",
+   "kind": "item",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "BlueGem.png",
+    "BlueGem_256.png",
+    "BlueGem_128.png",
+    "review-BlueGem.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 87.9% of the canvas",
+    "PASS value range: subject lightness spans 0.52 (OKLab L, 5-95%)",
+    "PASS small size: 12.0% of pixels are high-contrast edges at 48x48"
+   ]
+  },
+  {
+   "name": "GoldCoin",
+   "kind": "item",
+   "size": [
+    512,
+    512
+   ],
+   "files": [
+    "GoldCoin.png",
+    "GoldCoin_256.png",
+    "GoldCoin_128.png",
+    "review-GoldCoin.png"
+   ],
+   "checks": [
+    "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
+    "PASS fill: subject spans 87.9% of the canvas",
+    "PASS value range: subject lightness spans 0.38 (OKLab L, 5-95%)",
+    "PASS small size: 8.0% of pixels are high-contrast edges at 48x48"
+   ]
+  }
+ ]
+}
