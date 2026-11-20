@@ -1,0 +1,31 @@
+{
+  "name": "WaterSplash",
+  "title": "Water splash",
+  "description": "Something heavy lands in water: a crown splash with a central jet (flipbook), smaller side crowns, droplets on ballistic arcs, a spray puff, foam left on the surface and two rings of ripples. Play it at the point where the object meets the water surface.",
+  "duration": 0.4,
+  "anchor": "ground",
+  "dummy": [7, -2],
+  "camera": { "yaw": 26, "pitch": 14, "dist": 21, "target": [0, 2.5, 0] },
+  "markers": [ { "t": 0, "name": "Impact" } ],
+  "layers": [
+    { "name": "Crown", "texture": "splash", "orientation": "cameraUp", "at": [0, 3.3, 0], "burst": 1,
+      "note": "The flipbook is the whole crown: keep the size constant and let the frames do the motion. Base at the sprite's bottom edge, so at = size / 2 - 0.2.",
+      "lifetime": 0.8, "size": 7, "transparency": 0.05, "color": ["#ffffff", "#d8f5ff"], "lightEmission": 0.3 },
+    { "name": "SideCrowns", "texture": "splash", "orientation": "cameraUp", "shape": { "type": "box", "size": [3.5, 0, 2.5] }, "direction": "up", "at": [0, 1.9, 0],
+      "burst": [ { "t": 0.06, "count": 3 } ], "lifetime": [0.5, 0.65], "size": [[0, 4, 0.6], [1, 4, 0.6]], "rotation": [-12, 12],
+      "transparency": 0.15, "color": ["#ffffff", "#d8f5ff"], "lightEmission": 0.3 },
+    { "name": "Droplets", "texture": "droplet", "orientation": "velocity", "at": [0, 0.6, 0], "burst": 26,
+      "direction": "up", "spread": [38, 38], "speed": [16, 32], "drag": 1, "accel": [0, -70, 0], "lifetime": [0.5, 0.85],
+      "size": [[0, 0.75, 0.2], [1, 0.4]], "transparency": [[0, 0], [0.85, 0.1], [1, 1]], "color": "#e8fbff", "lightEmission": 0.25 },
+    { "name": "Spray", "texture": "puff", "at": [0, 1.5, 0], "burst": [ { "t": 0.04, "count": 6 } ],
+      "direction": "up", "spread": [40, 40], "speed": [5, 11], "drag": 3, "lifetime": [0.8, 1.1], "rotation": [0, 360], "rotSpeed": [-60, 60],
+      "size": [[0, 2, 0.5], [1, 5, 1]], "transparency": [[0, 0.5], [1, 0.8]], "color": "#ffffff", "lightEmission": 0, "zOffset": -0.5 },
+    { "name": "Foam", "texture": "foam", "orientation": "flat", "direction": "up", "speed": 0.01, "at": [0, 0.08, 0], "burst": [ { "t": 0.1, "count": 1 } ],
+      "flipbook": { "fps": 10 }, "lifetime": 1.8, "rotation": [0, 360], "rotSpeed": 12,
+      "size": [[0, 3], [0.4, 7], [1, 8.5]], "transparency": [[0, 1], [0.1, 0.15], [1, 1]], "color": "#ffffff", "lightEmission": 0 },
+    { "name": "Ripples", "texture": "ripple", "orientation": "flat", "direction": "up", "speed": 0.01, "at": [0, 0.06, 0],
+      "burst": [ { "t": 0, "count": 1 }, { "t": 0.3, "count": 1 } ], "lifetime": [1.5, 1.7], "rotation": [0, 360],
+      "note": "Ripple rings expand inside the flipbook, so the size is constant: it is the final diameter.",
+      "size": 16, "transparency": 0.2, "color": "#dff7ff", "lightEmission": 0.2 }
+  ]
+}

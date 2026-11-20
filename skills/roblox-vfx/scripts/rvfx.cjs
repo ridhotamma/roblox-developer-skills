@@ -40,29 +40,159 @@ const TEX = {
   star: (u, v) => { const r = Math.hypot(u, v), a = Math.atan2(u, v), k = Math.abs((((a / (Math.PI * 2 / 5)) % 1) + 1) % 1 - 0.5) * 2; return c01((0.36 + 0.6 * Math.pow(1 - k, 1.8) - r) / 0.06); },
   shard: (u, v) => c01((1 - (Math.abs(u) / 0.42 + Math.abs(v) / 0.95)) / 0.1),
   flame: (u, v) => { const h = (v + 1) / 2; if (h <= 0 || h >= 1) return 0; const hw = 0.66 * Math.sqrt(Math.min(1, h / 0.22)) * Math.pow(1 - h, 0.75); return c01((hw - Math.abs(u)) / 0.3) * (0.65 + 0.35 * noise(u * 3 + 2, v * 3 + 8)); },
+  droplet: (u, v) => { const head = c01((0.34 - Math.hypot(u, v - 0.5)) / 0.07), k = c01((v + 0.95) / 1.45), tw = 0.3 * k;    // water drop for "velocity": head leads, thin tail behind
+    return Math.max(head, v < 0.5 && v > -0.95 ? c01((tw - Math.abs(u)) / 0.07) * (0.3 + 0.7 * k) : 0); },
+  bubble: (u, v) => { const r = Math.hypot(u, v); if (r >= 1) return 0; return c01(0.9 * Math.exp(-Math.pow((r - 0.82) / 0.07, 2)) + 0.12 * c01((0.85 - r) / 0.1) + c01((0.2 - Math.hypot(u + 0.32, v - 0.36)) / 0.08)); },
   _beamHard: u => c01((1 - Math.abs(u)) / 0.1),
   _beamSoft: u => { const k = 1 - u * u; return k <= 0 ? 0 : k * k; },
 };
-const TEXTURES = Object.keys(TEX).filter(k => k[0] !== '_');
+// ---- Periodic noise. Gradient (Perlin-style) noise and Worley cells whose lattice wraps with integer periods, so a texture
+// ---- tiles seamlessly in x / y and an animation loops seamlessly in time (time is just another wrapped axis).
+const ih = (x, y, z) => { let n = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) + Math.imul(z | 0, 1440662683); n = Math.imul(n ^ (n >>> 13), 1274126177); return (n ^ (n >>> 16)) >>> 0; };
+const wrp = (i, p) => (p ? ((i % p) + p) % p : i);
+const GX = [1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0], GY = [1, 1, -1, -1, 0, 0, 0, 0, 1, -1, 1, -1], GZ = [0, 0, 0, 0, 1, 1, -1, -1, 1, 1, -1, -1];
+function gnoise(x, y, z, px, py, pz) {                     // about -1..1; px, py, pz: periods in lattice cells (0 = no wrap)
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), fx = x - xi, fy = y - yi, fz = z - zi;
+  const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10), v = fy * fy * fy * (fy * (fy * 6 - 15) + 10), w = fz * fz * fz * (fz * (fz * 6 - 15) + 10);
+  const x0 = wrp(xi, px), x1 = wrp(xi + 1, px), y0 = wrp(yi, py), y1 = wrp(yi + 1, py), z0 = wrp(zi, pz), z1 = wrp(zi + 1, pz);
+  const g = (X, Y, Z, dx, dy, dz) => { const h = ih(X, Y, Z) % 12; return GX[h] * dx + GY[h] * dy + GZ[h] * dz; };
+  const a = g(x0, y0, z0, fx, fy, fz), b = g(x1, y0, z0, fx - 1, fy, fz), c = g(x0, y1, z0, fx, fy - 1, fz), d = g(x1, y1, z0, fx - 1, fy - 1, fz);
+  const e = g(x0, y0, z1, fx, fy, fz - 1), f = g(x1, y0, z1, fx - 1, fy, fz - 1), G = g(x0, y1, z1, fx, fy - 1, fz - 1), H = g(x1, y1, z1, fx - 1, fy - 1, fz - 1);
+  const k0 = a + (b - a) * u, k1 = c + (d - c) * u, k2 = e + (f - e) * u, k3 = G + (H - G) * u, m0 = k0 + (k1 - k0) * v, m1 = k2 + (k3 - k2) * v;
+  return m0 + (m1 - m0) * w;
+}
+function fbm(x, y, z, oct, px, py, pz) {                   // fractal noise 0..1; periods double with the frequency, so it still wraps
+  let s = 0, n = 0, amp = 0.5, f = 1;
+  for (let i = 0; i < oct; i++, f *= 2, amp *= 0.5) { s += amp * gnoise(x * f, y * f, z * f + i * 17, px * f, py * f, pz * f); n += amp; }
+  return c01(0.5 + 0.75 * s / n);
+}
+let WF1 = 0, WF2 = 0;
+function worley(x, y, px, py, t, seed) {                   // sets WF1 / WF2 (nearest and second-nearest cell point); points circle once per t 0..1
+  const xi = Math.floor(x), yi = Math.floor(y), T = t * 6.283185307; let f1 = 9, f2 = 9;
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const cx = xi + i, cy = yi + j, h = ih(wrp(cx, px), wrp(cy, py), seed | 0), ph = (h >>> 20) / 4096 * 6.283185307;
+    const d = Math.hypot(x - (cx + 0.1 + 0.8 * (h & 1023) / 1023 + 0.1 * Math.cos(T + ph)), y - (cy + 0.1 + 0.8 * ((h >>> 10) & 1023) / 1023 + 0.1 * Math.sin(T + ph)));   // spread over the whole cell so walls do not line up on the lattice
+    if (d < f1) { f2 = f1; f1 = d; } else if (d < f2) f2 = d;
+  }
+  WF1 = f1; WF2 = f2;
+}
+const sstep = (a, b, x) => { const t = c01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+// Alpha erosion: instead of fading uniformly, raise a threshold through a noise-weighted copy of the alpha so thin, wispy
+// parts disappear first and the shape breaks up as it dies (also called alpha dissolve / black point fade).
+const erode = (a, n, e) => (e <= 0 ? a : a * sstep(0, 0.15, a * (0.45 + 0.55 * n) - e));
+
+// ---- Flipbooks: animated masks f(u, v, t) packed into a 1024 x 1024 Grid4x4 (16 frames of 256 px, read left to right, top to
+// ---- bottom). OneShot frames sample t = 0..1 over the particle's life; Loop frames sample t = 0..15/16 (t = 1 is frame 0 again).
+const FB = { grid: 4, size: 1024, margin: 0.04 };          // every frame is inset by 4% so mip filtering never bleeds neighbours
+const ANIM = {
+  splash: { mode: 'OneShot', base: 'bottom', about: 'crown splash, side view, base on the bottom edge: use cameraUp, constant size', f: (u, v, t) => {
+    const y = v + 1, ax = Math.abs(u), rise = Math.sin(Math.min(1, t / 0.38) * Math.PI / 2), fall = t > 0.38 ? Math.pow((t - 0.38) / 0.62, 1.15) : 0;
+    const H = 0.9 * rise * (1 - 0.92 * fall), R = 0.2 + 0.48 * Math.pow(t, 0.6), r0 = 0.12 + 0.28 * Math.pow(t, 0.7);
+    let a = 0;
+    if (H > 0.02) {                                          // the crown: a thin flaring sheet, densest at its silhouette, rim torn into fingers
+      const k = c01(y / H), xw = r0 + (R - r0) * k * k + 0.05 * gnoise(y * 5, u > 0 ? 3 : 9, t * 3, 0, 0, 0), top = H + 0.26 * rise * (1 - fall) * Math.pow(Math.max(0, Math.cos(u * 15 + 1.3 + 2 * gnoise(u * 3, 1, t, 0, 0, 0))), 10);
+      if (y < top && ax < xw + 0.03) a = (0.26 + 0.68 * c01(1 - (xw - ax) / 0.12)) * c01((xw + 0.03 - ax) / 0.04) * c01((top - y) / 0.04);
+    }
+    a = Math.max(a, 0.85 * c01((1 - Math.hypot(u / (R * 1.15 + 0.06), y / (0.16 * (1 - 0.6 * t)))) / 0.25));   // churned water at the base
+    if (t > 0.3) { const q = (t - 0.3) / 0.62;               // Worthington jet: rises from the centre as the crown falls, then drops its tip
+      if (q < 1) { const J = 1.25 * Math.sin(q * Math.PI), wj = 0.035 + 0.07 * Math.sqrt(c01(1 - y / Math.max(J, 1e-3))); if (y < J) a = Math.max(a, 0.9 * c01((wj - ax) / 0.025)); }
+      if (q > 0.5) { const d = (q - 0.5) * 2, ty = 1.25 + 0.5 * d - 1.4 * d * d; if (ty > 0.05) a = Math.max(a, c01((0.055 - Math.hypot(u, y - ty)) / 0.02)); } }
+    for (let i = 0; i < 12; i++) {                           // droplets thrown from the rim on ballistic arcs
+      const h = ih(i, 3, 9), q = (h & 1023) / 1023, q2 = ((h >>> 10) & 1023) / 1023, sd = i % 2 ? 1 : -1, t0 = 0.08 + 0.24 * q, dt = t - t0; if (dt <= 0) continue;
+      const x = sd * (0.2 + 0.22 * q2) + sd * (0.2 + 0.32 * q2) * dt, yy = 0.55 + 0.35 * q + (2.2 + 1.2 * q2) * dt - 4.6 * dt * dt; if (yy < 0.03) continue;
+      a = Math.max(a, c01((0.03 + 0.02 * q - Math.hypot(u - x, y - yy)) / 0.015) * c01((0.96 - Math.abs(x)) / 0.05) * c01((1.94 - yy) / 0.05)); }
+    return erode(c01(a) * c01((v + 1) / 0.05), fbm(u * 3 + 4, v * 3 + 1, 0, 2, 0, 0, 0), c01((t - 0.62) / 0.38)); } },
+  ripple: { mode: 'OneShot', about: 'concentric rings from a drop or footstep, top view: use flat with speed 0.01', f: (u, v, t) => {
+    const r = Math.hypot(u, v) * (1 + 0.05 * (fbm(u * 2 + 5, v * 2 + 5, 0, 2, 0, 0, 0) - 0.5)); let a = 0.6 * Math.pow(c01(1 - t / 0.25), 2) * c01(1 - r / 0.12);
+    for (let k = 0; k < 3; k++) { const tk = k * 0.16, q = (t - tk) / (1 - tk); if (q <= 0 || q >= 1) continue;
+      const rk = 0.06 + 0.84 * Math.pow(q, 0.8), w = 0.022 + 0.045 * q, amp = Math.pow(1 - q, 1.3) * (k ? 0.7 : 1);
+      a += amp * (Math.exp(-Math.pow((r - rk) / w, 2)) + 0.4 * Math.exp(-Math.pow((r - rk + 2.6 * w) / (0.7 * w), 2))); }
+    return c01(a); } },
+  foam: { mode: 'Loop', about: 'patch of churning foam, top view; loops (flat on water, or camera-facing in white water)', f: (u, v, t) => {
+    const r = Math.hypot(u, v), n = fbm(u * 1.5 + 3, v * 1.5 + 7, t * 2, 3, 0, 0, 2), edge = c01((0.8 - r - 0.4 * (n - 0.5)) / 0.18);
+    worley(u * 3 + 10, v * 3 + 10, 0, 0, t, 5); const big = 1 - sstep(0.02, 0.14, WF2 - WF1);
+    worley(u * 7 + 10, v * 7 + 10, 0, 0, t, 6); const fine = 1 - sstep(0.02, 0.12, WF2 - WF1);
+    const dense = sstep(0.5, 0.72, fbm(u * 2.2 + 9, v * 2.2 + 1, t * 2, 3, 0, 0, 2));             // clumps where the foam is thick
+    return c01(Math.max(big * 0.9, fine * 0.55, 0.15, dense * 0.85) * edge * (0.75 + 0.5 * (n - 0.5))); } },
+  mist: { mode: 'Loop', about: 'soft billowing vapour; loops (mist, spray clouds, steam, fog banks)', f: (u, v, t) => {
+    const r2 = u * u + v * v; if (r2 >= 1) return 0;
+    return c01(Math.pow(1 - r2, 1.6) * (0.2 + 1.1 * sstep(0.3, 0.78, fbm(u * 1.4 + 2, v * 1.4 + 5, t * 2, 4, 0, 0, 2)))); } },
+  puff: { mode: 'OneShot', about: 'billowing puff that expands and erodes away (smoke, dust, steam, splash spray)', f: (u, v, t) => {
+    const R = 0.38 + 0.42 * (1 - Math.pow(1 - t, 2.2)), n = fbm(u * 2.2 + 1, v * 2.2 + 8, t * 0.8, 4, 0, 0, 0), d = Math.hypot(u, v), r = d / R + 0.45 * (n - 0.5);
+    return erode(c01(c01((1 - r) / 0.4) * (0.45 + 0.9 * (n - 0.3)) * c01((1 - d) / 0.12)), fbm(u * 3.5 + 9, v * 3.5 + 2, 0, 3, 0, 0, 0), c01((t - 0.25) / 0.75)); } },
+  crest: { mode: 'OneShot', base: 'bottom', about: 'breaking wave whitewater, side view, travelling right: the lip pitches over and explodes into foam', f: (u, v, t) => {
+    const y = v + 1, n = fbm(u * 2.4 + 3, v * 2.4 + 11, t * 1.2, 3, 0, 0, 0); let a = 0;
+    const A = 1.2 * sstep(0, 0.4, t), xc = -0.6 + 0.35 * sstep(0, 0.6, t), top = 0.12 + A;   // the crest rises and travels right
+    const prof = 0.12 + A * Math.exp(-Math.pow((u - xc) / (u > xc ? 0.22 : 0.6), 2));         // swell profile: long back, steep face
+    const cap = (0.06 + 0.14 * sstep(0, 0.4, t)) * c01((prof - 0.12 - 0.7 * A) / 0.12);         // feathering whitecap along the top
+    if (y < prof && y > prof - cap) a = 0.85 * (0.8 + 0.4 * (n - 0.5));
+    const sw = 3.4 * sstep(0.15, 0.6, t), R0 = 0.42, dx = u - (xc + 0.3), dy = y - (top - R0);   // the lip: a tapering arc swept clockwise from the crest
+    if (sw > 0.02) { let s = 2.02 - Math.atan2(dy, dx); if (s < 0) s += 6.283185307;
+      if (s < sw) { const k = s / 3.4, th = 0.2 * (1 - 0.75 * k); a = Math.max(a, c01((th / 2 - Math.abs(Math.hypot(dx, dy) - R0 * (1 - 0.3 * k))) / 0.02) * (1 - sstep(0.62, 0.85, t))); } }
+    if (t > 0.48) { const q = (t - 0.48) / 0.52, bx = xc + 0.5 + 0.3 * q, rx = 0.25 + 0.55 * q, ry = 0.3 + 1.05 * Math.sin(Math.min(1, q * 1.7) * Math.PI / 2) * (1 - 0.35 * q);
+      const r = Math.hypot((u - bx) / rx, (y - 0.1) / ry) + 0.55 * (n - 0.5);                  // whitewater exploding where the lip lands
+      a = Math.max(a, c01((1 - r) / 0.22) * (0.75 + 0.5 * (n - 0.5)) * c01((0.97 - Math.abs(u)) / 0.06)); }
+    for (let i = 0; i < 12; i++) { const h = ih(i, 7, 2), q = (h & 1023) / 1023, q2 = ((h >>> 10) & 1023) / 1023, t0 = 0.4 + 0.3 * q, dt = t - t0; if (dt <= 0) continue;
+      const x = xc + 0.5 + (0.3 + 0.6 * q2) * dt, yy = 0.5 + 0.5 * q + (1.6 + 1.2 * q) * dt - 5 * dt * dt; if (yy < 0.05 || x > 0.95) continue;     // spray
+      a = Math.max(a, c01((0.025 + 0.015 * q2 - Math.hypot(u - x, y - yy)) / 0.012)); }
+    return erode(c01(a) * c01((v + 1) / 0.05), fbm(u * 3 + 1, v * 3 + 6, 0, 3, 0, 0, 0), c01((t - 0.72) / 0.28)); } },
+};
+// ---- Tiling textures f(x, y) with x, y in 0..1, seamless on both axes. On a Beam the image's x runs along the beam (Attachment0
+// ---- to Attachment1) and y across its width; on a surface they are the Texture's U and V.
+const TILE = {
+  waterflow: { about: 'falling or flowing water: translucent body with streaks along the flow', f: (x, y) => {
+    const s = fbm(x * 2, y * 9, 0, 4, 2, 9, 0), b = fbm(x * 3, y * 4, 3, 3, 3, 4, 0); return c01(0.32 + 0.6 * sstep(0.5, 0.78, s) + 0.3 * (b - 0.5)); } },
+  foamflow: { about: 'streaky foam riding on fast water (waterfall lips, rapids, shore wash)', f: (x, y) => {
+    worley(x * 3, y * 12, 3, 12, 0, 3); const web = 1 - sstep(0.03, 0.22, WF2 - WF1), cov = sstep(0.35, 0.68, fbm(x * 2, y * 4, 5, 3, 2, 4, 0));
+    return c01(web * (0.35 + 0.65 * cov) + 0.55 * cov * sstep(0.45, 0.8, fbm(x * 4, y * 8, 9, 2, 4, 8, 0)) + 0.15 * cov); } },
+  caustics: { about: 'light caustics web for pool floors and underwater walls; scroll two copies in different directions', f: (x, y) => {
+    const wx = 0.06 * (fbm(x * 2, y * 2, 1, 2, 2, 2, 0) - 0.5), wy = 0.06 * (fbm(x * 2, y * 2, 7, 2, 2, 2, 0) - 0.5);
+    worley((x + wx) * 5, (y + wy) * 5, 5, 5, 0, 1); const l1 = 1 - sstep(0, 0.13, WF2 - WF1); worley(x * 9, y * 9, 9, 9, 0, 2); const l2 = 1 - sstep(0, 0.1, WF2 - WF1);
+    return c01(0.85 * l1 + 0.35 * l2); } },
+  waves: { about: 'stylised wave lines for an ocean or lake surface (contour lines of noise, broken up)', f: (x, y) => {
+    const w = fbm(x * 2, y * 2, 11, 2, 2, 2, 0), f = fbm(x + 0.3 * w, y * 4, 0, 2, 1, 4, 0) * 3.5, l = 1 - sstep(0.05, 0.15, Math.abs(f - Math.round(f)));
+    return c01(l * sstep(0.42, 0.62, fbm(x * 2, y * 2, 4, 2, 2, 2, 0)) * 0.95); } },
+};
+const TEXTURES = Object.keys(TEX).filter(k => k[0] !== '_').concat(Object.keys(ANIM));
 // Textures that ship with every Roblox client, used until the user uploads the generated PNGs.
 const RBXTEX = 'rbxasset://textures/particles/';
-const BUILTIN = { glow: 'sparkles_main.dds', dot: 'sparkles_main.dds', spark: 'sparkles_main.dds', star: 'sparkles_main.dds', smoke: 'smoke_main.dds', flame: 'fire_main.dds' };
-const TN = 64, tabs = {};
+const BUILTIN = { glow: 'sparkles_main.dds', dot: 'sparkles_main.dds', spark: 'sparkles_main.dds', star: 'sparkles_main.dds', smoke: 'smoke_main.dds', flame: 'fire_main.dds', puff: 'smoke_main.dds', mist: 'smoke_main.dds' };
+const TN = 64, TS = 128, tabs = {};
 function texTab(name) {
   if (tabs[name]) return tabs[name];
   const t = new Float32Array(TN * TN), f = TEX[name];
   for (let y = 0; y < TN; y++) for (let x = 0; x < TN; x++) t[y * TN + x] = f((x + 0.5) / TN * 2 - 1, 1 - (y + 0.5) / TN * 2);
   return (tabs[name] = t);
 }
+const frameT = (A, i, n) => (A.mode === 'Loop' ? i / n : i / (n - 1));
+function animTab(name) {                                   // frames as preview tables, sampled exactly like the PNG cells (inset included)
+  const key = '@' + name; if (tabs[key]) return tabs[key];
+  const A = ANIM[name], n = FB.grid * FB.grid, s = 1 / (1 - 2 * FB.margin), out = [];
+  for (let i = 0; i < n; i++) { const t = frameT(A, i, n), tab = new Float32Array(TN * TN);
+    for (let y = 0; y < TN; y++) for (let x = 0; x < TN; x++) { const u = ((x + 0.5) / TN * 2 - 1) * s, v = (1 - (y + 0.5) / TN * 2) * s; tab[y * TN + x] = Math.abs(u) >= 1 || Math.abs(v) >= 1 ? 0 : A.f(u, v, t); }
+    out.push(tab); }
+  return (tabs[key] = out);
+}
+function tileTab(name) {                                   // mip chain (128, 64, 32, 16, 8): minified textures average out like Roblox's mipmaps instead of sparkling
+  const key = '#' + name; if (tabs[key]) return tabs[key];
+  const t = new Float32Array(TS * TS), f = TILE[name].f, mips = [t];
+  for (let y = 0; y < TS; y++) for (let x = 0; x < TS; x++) t[y * TS + x] = f((x + 0.5) / TS, (y + 0.5) / TS);
+  for (let n = TS / 2; n >= 8; n /= 2) { const a = mips[mips.length - 1], b = new Float32Array(n * n), m = n * 2;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) b[y * n + x] = (a[2 * y * m + 2 * x] + a[2 * y * m + 2 * x + 1] + a[(2 * y + 1) * m + 2 * x] + a[(2 * y + 1) * m + 2 * x + 1]) / 4;
+    mips.push(b); }
+  return (tabs[key] = mips);
+}
 
 // ============ 3. COMPILE: validate a spec, normalise every layer, pre-generate deterministic particles ============
 const DIRS = { up: [0, 1, 0], down: [0, -1, 0], right: [1, 0, 0], left: [-1, 0, 0], forward: [0, 0, 1], back: [0, 0, -1] };
 const FACE = { up: ['Top', 1], down: ['Bottom', 4], right: ['Right', 0], left: ['Left', 3], forward: ['Front', 5], back: ['Back', 2] };
+const FLIPMODE = { Loop: 0, OneShot: 1, PingPong: 2, Random: 3 };
 const ORIENT = { camera: ['FacingCamera', 0], cameraUp: ['FacingCameraWorldUp', 1], velocity: ['VelocityParallel', 2], flat: ['VelocityPerpendicular', 3] };
 const KEYS = {
-  particles: 'name type at direction shape texture textureId burst rate window lifetime speed spread rotation rotSpeed size transparency color accel drag lightEmission lightInfluence brightness orientation zOffset lockedToPart note',
+  particles: 'name type at direction shape texture textureId flipbook burst rate window lifetime speed spread rotation rotSpeed size transparency color accel drag lightEmission lightInfluence brightness orientation zOffset lockedToPart note',
   light: 'name type at color range brightness window shadows note',
-  beam: 'name type from to curve0 curve1 width pulse window color transparency lightEmission lightInfluence brightness segments texture textureId note',
+  beam: 'name type from to curve0 curve1 width pulse window color transparency lightEmission lightInfluence brightness segments texture textureId textureMode textureLength textureSpeed softEdges faceCamera widthAxis zOffset note',
+  surface: 'name type at size facing texture textureId tile scroll color transparency zIndex note',
 };
 const TOP = 'name title description duration loop anchor dummy scale layers markers textures camera shots seed';
 function hexc(h, E, where) {
@@ -150,16 +280,16 @@ function compile(spec) {
   const texOverride = spec.textures || {};
   const texUrl = (n, id) => { const v = id != null ? id : texOverride[n]; if (v == null || v === '') return null; return /^\d+$/.test(String(v)) ? 'rbxassetid://' + v : String(v); };
   c.textures = {};                                         // name -> { url, uploaded }
-  const useTex = (n, id, where) => {
-    const url = texUrl(n, id);
-    if (!c.textures[n] || url) c.textures[n] = { url: url || RBXTEX + (BUILTIN[n] || 'sparkles_main.dds'), uploaded: !!url, standin: !url && !BUILTIN[n] };
+  const useTex = (n, id, where) => {                       // n: texture key (a tiling texture on a Beam with soft edges is "<name>_beam")
+    const url = texUrl(n, id), tiling = !TEX[n] && !ANIM[n];
+    if (!c.textures[n] || url) c.textures[n] = { url: url || (tiling ? '' : RBXTEX + (BUILTIN[n] || 'sparkles_main.dds')), uploaded: !!url, standin: !url && !BUILTIN[n], tiling };
     return url;
   };
   const seen = {};
   if (!Array.isArray(spec.layers) || !spec.layers.length) E.push('"layers" must be a non-empty array');
   (Array.isArray(spec.layers) ? spec.layers : []).forEach((l, li) => {
     const kind = l.type || 'particles', nm = String(l.name || '').replace(/[^A-Za-z0-9_]/g, ''), w = `layer ${li + 1} "${nm || '?'}"`;
-    if (!KEYS[kind]) { E.push(`${w}: unknown type "${kind}" (particles, light, beam)`); return; }
+    if (!KEYS[kind]) { E.push(`${w}: unknown type "${kind}" (particles, light, beam, surface)`); return; }
     if (!nm) { E.push(`layer ${li + 1}: needs a "name" (letters, digits, _)`); return; }
     if (seen[nm]) { E.push(`${w}: duplicate layer name`); return; } seen[nm] = 1;
     for (const k of Object.keys(l)) if (!KEYS[kind].split(' ').includes(k)) WN.push(`${w}: unknown field "${k}" is ignored (${kind} layers accept: ${KEYS[kind].split(' ').slice(2).join(', ')})`);
@@ -181,9 +311,16 @@ function compile(spec) {
         if (type === 'box' && sh.style === 'surface') WN.push(`${w}: "surface" style is only previewed for spheres`);
       }
       L.texture = l.texture || 'glow';
-      if (!TEX[L.texture] || L.texture[0] === '_') { E.push(`${w}.texture: "${L.texture}" (one of ${TEXTURES.join(', ')})`); L.texture = 'glow'; }
+      if (!TEXTURES.includes(L.texture)) { E.push(`${w}.texture: "${L.texture}" (one of ${TEXTURES.join(', ')}${TILE[L.texture] ? `; "${L.texture}" is a tiling texture for beams and surfaces` : ''})`); L.texture = 'glow'; }
       useTex(L.texture, l.textureId, w);
       L.textureId = texUrl(L.texture, l.textureId);
+      L.anim = !!ANIM[L.texture];
+      if (L.anim) { const fl = l.flipbook || {}, mode = fl.mode || ANIM[L.texture].mode;
+        if (FLIPMODE[mode] == null) E.push(`${w}.flipbook.mode: "${mode}" (Loop, OneShot, PingPong or Random)`);
+        L.flip = { mode: FLIPMODE[mode] == null ? 'Loop' : mode, fps: range(fl.fps == null ? 20 : fl.fps, 20, E, `${w}.flipbook.fps`), startRandom: fl.startRandom == null ? mode !== 'OneShot' : !!fl.startRandom, blend: !!fl.blend };
+        for (const k of Object.keys(fl)) if (!['mode', 'fps', 'startRandom', 'blend'].includes(k)) WN.push(`${w}.flipbook: unknown field "${k}" (mode, fps, startRandom, blend)`);
+        if (L.flip.mode !== 'OneShot' && L.flip.fps[1] > 30) { WN.push(`${w}: FlipbookFramerate is capped at 30 fps by Roblox`); L.flip.fps = L.flip.fps.map(x => Math.min(30, x)); }
+      } else if (l.flipbook) WN.push(`${w}.flipbook is ignored: "${L.texture}" is not animated (animated: ${Object.keys(ANIM).join(', ')})`);
       L.bursts = l.burst == null ? [] : typeof l.burst === 'number' ? [{ t: 0, count: l.burst }] : [].concat(l.burst).map(b => ({ t: +b.t || 0, count: Math.round(+b.count || 0) }));
       L.rate = +l.rate || 0;
       if (!L.bursts.length && !L.rate) E.push(`${w}: needs "burst" and/or "rate"`);
@@ -218,13 +355,15 @@ function compile(spec) {
             const n = unit(v), k = L.shape.surface ? 1 : Math.cbrt(R()), off = W([n[0] * h[0] * k, n[1] * h[1] * k, n[2] * h[2] * k]);
             p0 = add(p0, off); d = mul(unit(off), L.shape.inward ? -1 : 1); [a, bb] = perp(d); } }
         d = rot(rot(d, a, (R() * 2 - 1) * L.spread[0]), bb, (R() * 2 - 1) * L.spread[1]);
-        P.push({ b, life: rr(L.lifetime), p0, d, v0: mul(d, rr(L.speed)), rot0: rr(L.rotation), rs: rr(L.rotSpeed), es: R() * 2 - 1, et: R() * 2 - 1 });
+        const q = { id: P.length, b, life: rr(L.lifetime), p0, d, v0: mul(d, rr(L.speed)), rot0: rr(L.rotation), rs: rr(L.rotSpeed), es: R() * 2 - 1, et: R() * 2 - 1 };
+        if (L.anim) { q.fr = R(); q.f0 = R(); }
+        P.push(q);
       };
       for (const b of L.bursts) { if (b.count > 400) WN.push(`${w}: burst of ${b.count} particles is heavy; most bursts read well at 5 to 60`); for (let i = 0; i < Math.min(b.count, 5000); i++) born(b.t); }
       if (L.rate) { if (L.rate > 400) WN.push(`${w}: rate ${L.rate}/s is heavy`); for (let i = 0; i < 20000; i++) { const b = win[0] + (i + 0.5) / L.rate; if (b >= win[1]) break; born(b); } }
       L.P = P;
       const a1 = 1 - seqAt(L.transparency, 1), s1 = seqAt(L.size, 1), sm = Math.max(...L.size.map(k => k[1]));
-      if (a1 > 0.2 && s1 > 0.2 * sm) WN.push(`${w}: still ${Math.round(a1 * 100)}% opaque at full size when it dies, so it will pop out; end "transparency" at 1 or "size" at 0`);
+      if (a1 > 0.2 && s1 > 0.2 * sm && !(L.anim && L.flip.mode === 'OneShot')) WN.push(`${w}: still ${Math.round(a1 * 100)}% opaque at full size when it dies, so it will pop out; end "transparency" at 1 or "size" at 0`);
     } else if (kind === 'light') {
       L.at = W(mul(vec(l.at, [0, 0, 0], E, `${w}.at`), S));
       L.color = hexc(l.color == null ? '#ffffff' : l.color, E, `${w}.color`);
@@ -232,6 +371,24 @@ function compile(spec) {
       L.brightness = track(l.brightness, 2, E, `${w}.brightness`);
       L.shadows = !!l.shadows;
       if (trackMax(L.range) > 60) WN.push(`${w}: PointLight.Range is capped at 60 studs`);
+    } else if (kind === 'surface') {
+      L.at = W(mul(vec(l.at, [0, 0, 0], E, `${w}.at`), S));
+      const sz = l.size == null ? [8, 8] : typeof l.size === 'number' ? [l.size, l.size] : l.size;
+      if (!Array.isArray(sz) || sz.length !== 2 || !sz.every(x => typeof x === 'number' && x > 0)) E.push(`${w}.size: [width, length] in studs`);
+      L.size = (Array.isArray(sz) && sz.length === 2 ? sz : [8, 8]).map(x => Math.max(0.05, +x || 1) * S);
+      const fn = l.facing == null ? 'up' : l.facing; if (typeof fn === 'string' && !DIRS[fn]) E.push(`${w}.facing: "${fn}" (up, down, left, right, forward, back or a vector)`);
+      const n = unit(W(typeof fn === 'string' ? DIRS[fn] || DIRS.up : vec(fn, [0, 1, 0], E, `${w}.facing`)));
+      const X = Math.abs(n[1]) > 0.99 ? [1, 0, 0] : unit(cross(n, [0, 1, 0])), Z = cross(X, n);
+      L.n = n; L.ax = X; L.ay = mul(Z, -1); L.m = [X[0], n[0], Z[0], X[1], n[1], Z[1], X[2], n[2], Z[2]];   // part frame: +Y = facing (the Texture sits on Top)
+      L.texture = l.texture;
+      if (!TILE[L.texture]) { E.push(`${w}.texture: surfaces need a tiling texture (${Object.keys(TILE).join(', ')})`); L.texture = Object.keys(TILE)[0]; }
+      useTex(L.texture, l.textureId, w); L.textureId = texUrl(L.texture, l.textureId);
+      const tl = l.tile == null ? 4 : l.tile; L.tile = (Array.isArray(tl) ? tl.slice(0, 2) : [tl, tl]).map(x => Math.max(0.05, +x || 4) * S);
+      if (l.scroll != null && !(Array.isArray(l.scroll) && l.scroll.length === 2)) E.push(`${w}.scroll: [u, v] studs per second`);
+      L.scroll = (Array.isArray(l.scroll) ? l.scroll.slice(0, 2) : [0, 0]).map(x => (+x || 0) * S);
+      L.color = hexc(l.color == null ? '#ffffff' : l.color, E, `${w}.color`);
+      L.transparency = track(l.transparency, 0, E, `${w}.transparency`);
+      L.zIndex = l.zIndex == null ? 1 : Math.round(+l.zIndex) || 1;
     } else {
       L.from = W(mul(vec(l.from, null, E, `${w}.from`), S)); L.to = W(mul(vec(l.to, null, E, `${w}.to`), S));
       L.curve0 = W(mul(vec(l.curve0, [0, 0, 0], E, `${w}.curve0`), S)); L.curve1 = W(mul(vec(l.curve1, [0, 0, 0], E, `${w}.curve1`), S));
@@ -244,9 +401,20 @@ function compile(spec) {
       L.brightness = l.brightness == null ? 1 : +l.brightness;
       L.segments = clamp(Math.round(l.segments || 16), 1, 100);
       L.texture = l.texture || null;
-      if (L.texture && L.texture !== 'glow') { E.push(`${w}.texture: beams support "glow" (soft edges) or none (solid)`); L.texture = null; }
-      if (L.texture) useTex('glow', l.textureId, w);
-      L.textureId = L.texture ? texUrl('glow', l.textureId) : null;
+      if (L.texture && L.texture !== 'glow' && !TILE[L.texture]) { E.push(`${w}.texture: beams take "glow" (soft edges), a tiling texture (${Object.keys(TILE).join(', ')}) or none (solid)`); L.texture = null; }
+      L.tile = !!(L.texture && TILE[L.texture]); L.soft = L.tile && l.softEdges !== false;
+      L.texKey = !L.texture ? null : L.tile ? L.texture + (L.soft ? '_beam' : '') : 'glow';
+      if (L.texKey) useTex(L.texKey, l.textureId, w);
+      L.textureId = L.texKey ? texUrl(L.texKey, l.textureId) : null;
+      L.mode = l.textureMode || (L.tile ? 'wrap' : 'stretch');
+      if (!['stretch', 'wrap'].includes(L.mode)) { E.push(`${w}.textureMode: "${L.mode}" (stretch: repeats textureLength times over the beam; wrap: one repeat every textureLength studs)`); L.mode = 'stretch'; }
+      L.texLen = l.textureLength != null ? Math.max(0.01, +l.textureLength || 1) * (L.mode === 'wrap' ? S : 1) : L.mode === 'wrap' ? 2 * Math.max(L.width[0], L.width[1]) : 1;
+      L.texSpeed = +l.textureSpeed || 0;
+      L.faceCamera = l.faceCamera !== false; L.zOffset = +l.zOffset || 0;
+      const bd = unit(sub(L.to, L.from)), wd = cross(bd, [0, 1, 0]);
+      L.widthAxis = l.widthAxis != null ? unit(W(vec(l.widthAxis, [1, 0, 0], E, `${w}.widthAxis`))) : len(wd) > 0.1 ? unit(wd) : [1, 0, 0];
+      if (l.widthAxis != null && L.faceCamera) WN.push(`${w}: widthAxis only applies with "faceCamera": false`);
+      if (L.tile && !L.texSpeed) NOTES.push(`layer "${L.name}": a tiling texture with textureSpeed 0 does not flow; set textureSpeed (texture repeats per second toward "to")`);
       L.pts = t => { const p0 = L.from, p3 = L.to, p1 = add(p0, L.curve0), p2 = add(p3, L.curve1), u = 1 - t;
         return add(add(mul(p0, u * u * u), mul(p1, 3 * u * u * t)), add(mul(p2, 3 * u * t * t), mul(p3, t * t * t))); };
     }
@@ -265,6 +433,8 @@ function compile(spec) {
       for (let i = 0; i < L.P.length; i++) { const p = L.P[i]; if (!c.loop && p.b + p.life > tail) tail = p.b + p.life; if (p.life > maxLife) maxLife = p.life;
         if (i % step === 0) for (let k = 0; k <= 4; k++) { const m = motion(L, p, p.life * k / 4), a = 1 - seqAt(L.transparency, k / 4, p.et); if (a > 0.08 || k === 0) grow(L.B, m.p, seqAt(L.size, k / 4, p.es) / 2, L.orientation === 'flat' ? (len(m.v) > 1e-4 ? unit(m.v) : p.d) : null); } }
     } else if (L.kind === 'beam') { for (let i = 0; i <= 12; i++) grow(L.B, L.pts(i / 12), Math.max(L.width[0], L.width[1]) / 2); if (!c.loop) tail = Math.max(tail, L.window[1]); }
+    else if (L.kind === 'surface') { for (const a of [-0.5, 0.5]) for (const b of [-0.5, 0.5]) grow(L.B, add(L.at, add(mul(L.ax, a * L.size[0]), mul(L.ay, b * L.size[1]))), 0);
+      if (!c.loop) tail = Math.max(tail, L.transparency[L.transparency.length - 1][0]); }
     else { grow(L.B, L.at, 0.5); if (!c.loop) tail = Math.max(tail, L.window[1]); }
     for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], L.B.lo[i]); hi[i] = Math.max(hi[i], L.B.hi[i]); }
   }
@@ -363,10 +533,11 @@ function render(c, t, view, T) {
   }
   // collect sprites
   const S = []; let live = 0;
-  const push = (C, U, V, col, a, le, tab, bri) => { const d = sub(C, pos), z = dot(d, f); if (z < 0.3 || a <= 0.004) return; const s = focal / z;
-    S.push({ z, sx: cx + dot(d, r) * s, sy: cy - dot(d, up) * s, ax: dot(U, r) * s, ay: -dot(U, up) * s, bx: dot(V, r) * s, by: -dot(V, up) * s, r: col[0] * bri, g: col[1] * bri, b: col[2] * bri, a, le, tab, zn: z - Math.max(len(U), len(V)) }); };
+  const push = (C, U, V, col, a, le, tab, bri) => { const d = sub(C, pos), z = dot(d, f); if (z < 0.3 || a <= 0.004) return null; const s = focal / z;
+    const sp = { z, sx: cx + dot(d, r) * s, sy: cy - dot(d, up) * s, ax: dot(U, r) * s, ay: -dot(U, up) * s, bx: dot(V, r) * s, by: -dot(V, up) * s, r: col[0] * bri, g: col[1] * bri, b: col[2] * bri, a, le, tab, zn: z - Math.max(len(U), len(V)) };
+    S.push(sp); return sp; };
   for (const L of c.layers) { if (hidden && hidden.has(L.name)) continue;
-    if (L.kind === 'particles') { const tab = texTab(L.texture);
+    if (L.kind === 'particles') { const frames = L.anim ? animTab(L.texture) : null, tab = frames ? null : texTab(L.texture);
       eachLive(c, L, t, (p, a) => { live++; const x = a / p.life, m = motion(L, p, a), half = seqAt(L.size, x, p.es) / 2, al = 1 - seqAt(L.transparency, x, p.et); if (half <= 0 || al <= 0.004) return;
         const col = colAt(L.color, x), th = (p.rot0 + p.rs * a) * D2R, cs = Math.cos(th), sn = Math.sin(th); let U, V;
         if (L.orientation === 'velocity' || L.orientation === 'flat') {
@@ -374,15 +545,28 @@ function render(c, t, view, T) {
           if (L.orientation === 'velocity') { const view = unit(sub(m.p, pos)); let sd = cross(vd, view); if (len(sd) < 1e-4) sd = r; U = mul(unit(sd), half); V = mul(vd, half); }
           else { const [a1, b1] = perp(vd); U = mul(add(mul(a1, cs), mul(b1, sn)), half); V = mul(sub(mul(b1, cs), mul(a1, sn)), half); }
         } else { const uu = L.orientation === 'cameraUp' ? [0, 1, 0] : up; U = mul(add(mul(r, cs), mul(uu, sn)), half); V = mul(sub(mul(uu, cs), mul(r, sn)), half); }
-        push(m.p, U, V, col, clamp(al, 0, 1), L.le, tab, L.brightness); });
+        if (!frames) { push(m.p, U, V, col, clamp(al, 0, 1), L.le, tab, L.brightness); return; }
+        const fr = frameOf(L, p, a, x, frames.length), sp = push(m.p, U, V, col, clamp(al, 0, 1), L.le, frames[fr[0]], L.brightness);
+        if (sp && fr[1] >= 0 && fr[2] > 0) { sp.tab2 = frames[fr[1]]; sp.mix = fr[2]; } });
     } else if (L.kind === 'beam' && inWindow(c, L, t)) { const pu = Math.max(0, trackAt(L.pulse, t)); if (pu <= 0) continue;
-      const n = Math.max(L.segments, 12), tab = texTab(L.texture ? '_beamSoft' : '_beamHard');
-      for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, p0 = L.pts(i / n), p1 = L.pts((i + 1) / n), mid = mul(add(p0, p1), 0.5), sd = sub(p1, p0);
-        let side = cross(sd, sub(mid, pos)); if (len(side) < 1e-6) continue;
-        let al = 1 - seqAt(L.transparency, u); if (L.texture) al *= Math.pow(c01(1 - Math.pow(2 * u - 1, 2)), 0.6);
-        const q0 = proj(p0), q1 = proj(p1); if (!q0 || !q1) continue; const k0 = S.length;
-        push(mid, mul(unit(side), (L.width[0] + (L.width[1] - L.width[0]) * u) * pu / 2), mul(sd, 0.5), colAt(L.color, u), c01(al), L.le, tab, L.brightness);
-        if (S.length > k0) { const sp = S[k0]; sp.sx = (q0[0] + q1[0]) / 2; sp.sy = (q0[1] + q1[1]) / 2; sp.bx = (q1[0] - q0[0]) / 2; sp.by = (q1[1] - q0[1]) / 2; sp.seg = 1; } } }
+      const n = Math.max(L.segments, 12), tab = L.tile ? null : texTab(L.texture ? '_beamSoft' : '_beamHard'), tt = L.tile ? tileTab(L.texture) : null;
+      const P = [], cum = [0]; for (let i = 0; i <= n; i++) P.push(L.pts(i / n)); for (let i = 1; i <= n; i++) cum.push(cum[i - 1] + len(sub(P[i], P[i - 1])));
+      const k = L.mode === 'wrap' ? 1 / L.texLen : L.texLen / Math.max(cum[n], 1e-6), sh = L.texSpeed * t;   // texture coordinate along the beam, scrolled toward "to"
+      for (let i = 0; i < n; i++) { const u = (i + 0.5) / n, p0 = P[i], p1 = P[i + 1], mid = mul(add(p0, p1), 0.5), sd = sub(p1, p0);
+        let side; if (L.faceCamera) side = cross(sd, sub(mid, pos)); else { const dd = unit(sd); side = sub(L.widthAxis, mul(dd, dot(L.widthAxis, dd))); }
+        if (len(side) < 1e-6) continue;
+        let al = 1 - seqAt(L.transparency, u); if (L.texture === 'glow') al *= Math.pow(c01(1 - Math.pow(2 * u - 1, 2)), 0.6);
+        const q0 = proj(p0), q1 = proj(p1); if (!q0 || !q1) continue;
+        const sp = push(mid, mul(unit(side), (L.width[0] + (L.width[1] - L.width[0]) * u) * pu / 2), mul(sd, 0.5), colAt(L.color, u), c01(al), L.le, tab, L.brightness);
+        if (sp) { sp.sx = (q0[0] + q1[0]) / 2; sp.sy = (q0[1] + q1[1]) / 2; sp.bx = (q1[0] - q0[0]) / 2; sp.by = (q1[1] - q0[1]) / 2; sp.seg = 1;
+          if (tt) sp.tile = { tab: tt, ox: cum[i] * k - sh, uxu: 0, uxv: (cum[i + 1] - cum[i]) * k, oy: 0, uyu: 1, uyv: 0, soft: L.soft }; } }
+    } else if (L.kind === 'surface') { const al = c01(1 - trackAt(L.transparency, t)); if (al <= 0.004) continue;
+      const tt = tileTab(L.texture), G = clamp(Math.ceil(Math.max(L.size[0], L.size[1]) / 2.5), 4, 24), cw = L.size[0] / G, cl = L.size[1] / G;
+      const oU = L.scroll[0] * t, oV = L.scroll[1] * t, U = mul(L.ax, cw / 2), V = mul(L.ay, cl / 2);
+      for (let i = 0; i < G; i++) for (let j = 0; j < G; j++) { const us = -L.size[0] / 2 + i * cw, vs = -L.size[1] / 2 + j * cl;
+        const sp = push(add(L.at, add(mul(L.ax, us + cw / 2), mul(L.ay, vs + cl / 2))), U, V, L.color, al, 0, null, 1);
+        if (sp) sp.tile = { tab: tt, ox: (us - oU) / L.tile[0], uxu: cw / L.tile[0], uxv: 0, oy: (vs - oV) / L.tile[1], uyu: 0, uyv: cl / L.tile[1], soft: false }; }
+    }
   }
   S.sort((a, b) => b.z - a.z);
   for (let i = 0; i < S.length; i++) splat(T, S[i]);
@@ -404,17 +588,39 @@ function splat(T, s) {
   const det = ax * by - bx * ay; if (Math.abs(det) < 0.3) return;
   const ex = Math.abs(ax) + Math.abs(bx), ey = Math.abs(ay) + Math.abs(by);
   const x0 = Math.max(0, Math.floor(s.sx - ex)), x1 = Math.min(w - 1, Math.ceil(s.sx + ex)), y0 = Math.max(0, Math.floor(s.sy - ey)), y1 = Math.min(h - 1, Math.ceil(s.sy + ey));
-  const tab = s.tab, keep = 1 - s.le, N1 = TN - 1, id = 1 / det;
+  const tab = s.tab, tab2 = s.tab2, mix = s.mix || 0, tl = s.tile, keep = 1 - s.le, N1 = TN - 1, id = 1 / det;
+  let tmip = null, tsz = TS;
+  if (tl) { const tpp = Math.max(Math.hypot(tl.uxu, tl.uyu) * TS / (2 * Math.max(la, 0.7)), Math.hypot(tl.uxv, tl.uyv) * TS / (2 * Math.max(lb, 0.7)));   // texels per pixel
+    const lv = Math.min(tl.tab.length - 1, Math.max(0, Math.floor(Math.log2(Math.max(1, tpp))))); tmip = tl.tab[lv]; tsz = TS >> lv; }
+  const look = (t, fx, fy) => { const ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy, o = iy * TN + ix, ix1 = ix < N1 ? 1 : 0, iy1 = iy < N1 ? TN : 0;
+    return (t[o] * (1 - tx) + t[o + ix1] * tx) * (1 - ty) + (t[o + iy1] * (1 - tx) + t[o + iy1 + ix1] * tx) * ty; };
   for (let y = y0; y <= y1; y++) { const dy = y + 0.5 - s.sy;
     for (let x = x0; x <= x1; x++) { const dx = x + 0.5 - s.sx, u = (dx * by - dy * bx) * id, v = (dy * ax - dx * ay) * id;
       if (u <= -1 || u >= 1 || v < -1 || v >= 1) continue;
       const j = y * w + x; if (zb[j] < s.zn) continue;
-      const fx = (u + 1) * 0.5 * N1, fy = (1 - v) * 0.5 * N1, ix = fx | 0, iy = fy | 0, tx = fx - ix, ty = fy - iy, o = iy * TN + ix;
-      const ix1 = ix < N1 ? 1 : 0, iy1 = iy < N1 ? TN : 0;
-      const a = ((tab[o] * (1 - tx) + tab[o + ix1] * tx) * (1 - ty) + (tab[o + iy1] * (1 - tx) + tab[o + iy1 + ix1] * tx) * ty) * s.a;
+      let a;
+      if (tl) { const fu = (u + 1) * 0.5, fv = (v + 1) * 0.5, ty0 = tl.oy + tl.uyu * fu + tl.uyv * fv; let tx = tl.ox + tl.uxu * fu + tl.uxv * fv, ty = ty0;
+        tx = (tx - Math.floor(tx)) * tsz - 0.5; ty = (ty - Math.floor(ty)) * tsz - 0.5;
+        const ix = Math.floor(tx), iy = Math.floor(ty), gx = tx - ix, gy = ty - iy, X0 = (ix + tsz) % tsz, X1 = (ix + 1) % tsz, Y0 = ((iy + tsz) % tsz) * tsz, Y1 = ((iy + 1) % tsz) * tsz, t = tmip;
+        a = (t[Y0 + X0] * (1 - gx) + t[Y0 + X1] * gx) * (1 - gy) + (t[Y1 + X0] * (1 - gx) + t[Y1 + X1] * gx) * gy;
+        if (tl.soft) { const e = 1 - (2 * ty0 - 1) * (2 * ty0 - 1); a *= e > 0 ? e * e : 0; }
+        a *= s.a;
+      } else { const fx = (u + 1) * 0.5 * N1, fy = (1 - v) * 0.5 * N1; a = look(tab, fx, fy); if (tab2) a += (look(tab2, fx, fy) - a) * mix; a *= s.a; }
       if (a < 0.003) continue;
       const i = j * 3, k = 1 - a * keep;
       buf[i] = buf[i] * k + s.r * a; buf[i + 1] = buf[i + 1] * k + s.g * a; buf[i + 2] = buf[i + 2] * k + s.b * a; } }
+}
+// Which flipbook frame a particle shows (and the next one with the blend amount, for FlipbookBlendFrames), as Roblox plays it:
+// OneShot spreads the frames evenly over the particle's lifetime; the other modes advance at FlipbookFramerate.
+function frameOf(L, p, a, x, n) {
+  const F = L.flip;
+  if (F.mode === 'OneShot') { const q = Math.min(x * n, n - 1e-6), f = q | 0; return [f, F.blend && f < n - 1 ? f + 1 : -1, q - f]; }
+  const q = a * (F.fps[0] + (F.fps[1] - F.fps[0]) * p.fr) + (F.startRandom ? p.f0 * n : 0), k = Math.floor(q);
+  let f, g;
+  if (F.mode === 'Loop') { f = k % n; g = (k + 1) % n; }
+  else if (F.mode === 'PingPong') { const P = Math.max(1, 2 * n - 2), m1 = k % P, m2 = (k + 1) % P; f = m1 < n ? m1 : P - m1; g = m2 < n ? m2 : P - m2; }
+  else { f = ih(k, p.id, 7) % n; g = ih(k + 1, p.id, 7) % n; }
+  return [f, F.blend ? g : -1, q - k];
 }
 const tone = x => (x < 0.8 ? x : 0.8 + 0.2 * (1 - Math.exp(-(x - 0.8) / 0.2)));
 function toRGBA(T, out, ox, oy, stride) {                  // tonemap the float buffer into an RGBA byte array (optionally into a larger sheet)
@@ -434,16 +640,20 @@ function report(c) {
   o.push('Layers (studs; R = right, U = up from the origin, F = forward):');
   for (const L of c.layers) {
     if (L.kind === 'particles') { const em = [L.bursts.map(b => `burst ${b.count}@${b.t.toFixed(2)}s`).join(' '), L.rate ? `rate ${L.rate}/s${c.loop ? '' : ` ${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}` : ''].filter(Boolean).join(' + ');
-      o.push(`  ${L.name.padEnd(12)} particles  ${em} · life ${L.lifetime[0]}-${L.lifetime[1]}s · size ${num(seqAt(L.size, 0))}>${num(Math.max(...L.size.map(k => k[1])))}>${num(seqAt(L.size, 1))} · ${L.texture}${L.le >= 0.5 ? ' additive' : ' opaque'} · peak ${L.peak} alive\n  ${''.padEnd(12)} reach ${extent(L.B)}`); }
+      const fb = !L.anim ? '' : L.flip.mode === 'OneShot' ? ` · flipbook OneShot 16 frames over the life (${Math.round(16 / L.lifetime[1])}-${Math.round(16 / L.lifetime[0])} fps)` : ` · flipbook ${L.flip.mode} ${num(L.flip.fps[0])}${L.flip.fps[1] !== L.flip.fps[0] ? '-' + num(L.flip.fps[1]) : ''} fps${L.flip.startRandom ? ', random start' : ''}`;
+      o.push(`  ${L.name.padEnd(12)} particles  ${em} · life ${L.lifetime[0]}-${L.lifetime[1]}s · size ${num(seqAt(L.size, 0))}>${num(Math.max(...L.size.map(k => k[1])))}>${num(seqAt(L.size, 1))} · ${L.texture}${L.le >= 0.5 ? ' additive' : ' opaque'}${fb}${L.anim && L.flip.blend ? ' blended' : ''} · peak ${L.peak} alive\n  ${''.padEnd(12)} reach ${extent(L.B)}`); }
     else if (L.kind === 'light') o.push(`  ${L.name.padEnd(12)} light      brightness peak ${num(trackMax(L.brightness))} · range ${num(trackMax(L.range))} · ${c.loop ? 'always on' : `${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}`);
-    else o.push(`  ${L.name.padEnd(12)} beam       ${len(sub(L.to, L.from)).toFixed(1)} studs long · width ${num(L.width[0])}>${num(L.width[1])} · ${c.loop ? 'always on' : `${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}\n  ${''.padEnd(12)} reach ${extent(L.B)}`);
+    else if (L.kind === 'surface') o.push(`  ${L.name.padEnd(12)} surface    ${num(L.size[0])} x ${num(L.size[1])} studs · ${L.texture} every ${num(L.tile[0])} x ${num(L.tile[1])} studs · scroll ${num(L.scroll[0])}, ${num(L.scroll[1])} studs/s · facing ${L.n.map(x => num(Math.round(x * 100) / 100)).join(', ')}\n  ${''.padEnd(12)} reach ${extent(L.B)}`);
+    else { let lb = 0, pr = L.pts(0); for (let i = 1; i <= 24; i++) { const pt = L.pts(i / 24); lb += len(sub(pt, pr)); pr = pt; }
+      const tx = !L.texture ? 'solid' : !L.tile ? 'glow' : `${L.texture} ${L.mode === 'wrap' ? `repeats every ${num(L.texLen)} studs` : `x${num(L.texLen)} over the beam`}, flows ${num(Math.abs(L.texSpeed) * (L.mode === 'wrap' ? L.texLen : lb / L.texLen))} studs/s ${L.texSpeed >= 0 ? 'toward "to"' : 'toward "from"'}`;
+      o.push(`  ${L.name.padEnd(12)} beam       ${lb.toFixed(1)} studs long · width ${num(L.width[0])}>${num(L.width[1])} · ${tx} · ${L.faceCamera ? 'faces camera' : 'flat ribbon'} · ${c.loop ? 'always on' : `${L.window[0].toFixed(2)}-${L.window[1].toFixed(2)}s`}\n  ${''.padEnd(12)} reach ${extent(L.B)}`); }
   }
   o.push(`Whole effect: ${extent(c.bounds)} · peak ${c.peak} particles alive at t=${c.peakT.toFixed(2)}s`);
   o.push('Storyboard panels (left to right, top to bottom) and particles alive per layer:');
   const pl = c.layers.filter(L => L.kind === 'particles');
   c.shots.forEach((t, i) => o.push(`  ${String(i + 1).padStart(2)}. t=${t.toFixed(2)}s  ` + pl.map(L => `${L.name} ${liveCount(c, L, t)}`).join(' · ')));
   if (c.markers.length) o.push('Markers: ' + c.markers.map(m => `${m.name}@${m.t.toFixed(2)}s`).join(', '));
-  for (const [n, t] of Object.entries(c.textures)) o.push(`Texture ${n}: ${t.uploaded ? t.url : (t.standin ? 'no built-in match, Studio shows the default sparkle' : 'built-in stand-in ' + t.url.replace(RBXTEX, '')) + ` until textures/${n}.png is uploaded`}`);
+  for (const [n, t] of Object.entries(c.textures)) o.push(`Texture ${n}: ${t.uploaded ? t.url : (t.tiling ? 'no stand-in (beams draw a plain ribbon, surfaces draw nothing)' : t.standin ? 'no built-in match, Studio shows the default sparkle' : 'built-in stand-in ' + t.url.replace(RBXTEX, '')) + ` until textures/${n}.png is uploaded`}${ANIM[n] && !t.uploaded ? ' (flipbook: plays as a still until then)' : ''}`);
   for (const x of c.warnings) o.push('WARN ' + x);
   for (const x of c.notes) o.push('NOTE ' + x);
   if (!c.warnings.length) o.push('No warnings.');
@@ -457,6 +667,7 @@ const V = { f: v => ({ t: 'float', v }), i: v => ({ t: 'int', v }), b: v => ({ t
 const inst = (cls, name, props, kids) => ({ cls, name, props: props || {}, kids: kids || [] });
 const basisY = d => { const [a] = perp(d), z = cross(a, d); return [a[0], d[0], z[0], a[1], d[1], z[1], a[2], d[2], z[2]]; };       // +Y along d
 const basisX = d => { const [a, b] = perp(d); return [d[0], a[0], b[0], d[1], a[1], b[1], d[2], a[2], b[2]]; };                      // +X along d
+const basisXY = (d, wa) => { const y0 = sub(wa, mul(d, dot(wa, d))); if (len(y0) < 1e-4) return basisX(d); const y = unit(y0), z = cross(d, y); return [d[0], y[0], z[0], d[1], y[1], z[1], d[2], y[2], z[2]]; };
 const I3 = [1, 0, 0, 0, 1, 0, 0, 0, 1];
 function tree(c) {
   const part = (name, size, pos) => inst('Part', name, { Anchored: V.b(true), CanCollide: V.b(false), CanTouch: V.b(false), CanQuery: V.b(false), CastShadow: V.b(false), Massless: V.b(true),
@@ -468,6 +679,9 @@ function tree(c) {
         Rotation: V.nr(L.rotation), RotSpeed: V.nr(L.rotSpeed), Size: V.ns(L.size), Transparency: V.ns(L.transparency), Color: V.cs(L.color), Acceleration: V.v3(L.accel), Drag: V.f(L.drag),
         LightEmission: V.f(L.le), LightInfluence: V.f(L.li), Brightness: V.f(L.brightness), ZOffset: V.f(L.zOffset), LockedToPart: V.b(L.locked), Orientation: V.en('ParticleOrientation', ORIENT[L.orientation]),
         Texture: V.tex(L.texture, L.textureId || c.textures[L.texture].url), EmissionDirection: V.en('NormalId', L.shape ? FACE[L.dirName] || FACE.up : FACE.up) });
+      if (L.anim) Object.assign(e.props, { FlipbookLayout: V.en('ParticleFlipbookLayout', ['Grid4x4', 2]), FlipbookMode: V.en('ParticleFlipbookMode', [L.flip.mode, FLIPMODE[L.flip.mode]]),
+        FlipbookFramerate: V.nr(L.flip.fps), FlipbookStartRandom: V.b(L.flip.startRandom) });
+      if (L.anim && L.flip.blend) e.props.FlipbookBlendFrames = V.b(true);
       if (L.shape) {
         e.props.Shape = V.en('ParticleEmitterShape', L.shape.type === 'sphere' ? ['Sphere', 1] : ['Box', 0]);
         e.props.ShapeStyle = V.en('ParticleEmitterShapeStyle', L.shape.surface ? ['Surface', 1] : ['Volume', 0]);
@@ -476,22 +690,31 @@ function tree(c) {
       } else origin.kids.push(inst('Attachment', L.name, { CFrame: V.cf(L.at, basisY(L.dir)) }, [e]));
     } else if (L.kind === 'light') {
       origin.kids.push(inst('Attachment', L.name, { CFrame: V.cf(L.at, I3) }, [inst('PointLight', L.name, { Enabled: V.b(c.loop), Color: V.c3(L.color), Range: V.f(Math.min(60, trackAt(L.range, 0))), Brightness: V.f(trackAt(L.brightness, 0)), Shadows: V.b(L.shadows) })]));
+    } else if (L.kind === 'surface') {
+      const p = part(L.name, [L.size[0], 0.05, L.size[1]], sub(L.at, mul(L.n, 0.025))); p.props.CFrame = V.cf(sub(L.at, mul(L.n, 0.025)), L.m);
+      p.kids.push(inst('Texture', L.name, { Texture: V.tex(L.texture, L.textureId || c.textures[L.texture].url), Face: V.en('NormalId', ['Top', 1]), StudsPerTileU: V.f(L.tile[0]), StudsPerTileV: V.f(L.tile[1]),
+        OffsetStudsU: V.f(0), OffsetStudsV: V.f(0), Color3: V.c3(L.color), Transparency: V.f(trackAt(L.transparency, 0)), ZIndex: V.i(L.zIndex) }));
+      parts.push(p);
     } else {
-      const d = unit(sub(L.to, L.from)), c0 = len(L.curve0), c1 = len(L.curve1);
-      const a0 = inst('Attachment', L.name + '_A0', { CFrame: V.cf(L.from, basisX(c0 > 1e-6 ? unit(L.curve0) : d)) }), a1 = inst('Attachment', L.name + '_A1', { CFrame: V.cf(L.to, basisX(c1 > 1e-6 ? mul(unit(L.curve1), -1) : d)) });
+      // Attachment +X is the curve direction (documented). With FaceCamera off the ribbon's width follows the attachments' +Y
+      // (SecondaryAxis), so +Y is set to widthAxis; if a flat beam shows edge-on in Studio, rotate both attachments 90 degrees about X.
+      const d = unit(sub(L.to, L.from)), c0 = len(L.curve0), c1 = len(L.curve1), fr = x => (L.faceCamera ? basisX(x) : basisXY(x, L.widthAxis));
+      const a0 = inst('Attachment', L.name + '_A0', { CFrame: V.cf(L.from, fr(c0 > 1e-6 ? unit(L.curve0) : d)) }), a1 = inst('Attachment', L.name + '_A1', { CFrame: V.cf(L.to, fr(c1 > 1e-6 ? mul(unit(L.curve1), -1) : d)) });
       const pu = trackAt(L.pulse, 0);
       origin.kids.push(a0, a1, inst('Beam', L.name, { Enabled: V.b(c.loop), Attachment0: V.ref(a0), Attachment1: V.ref(a1), CurveSize0: V.f(c0), CurveSize1: V.f(c1), Width0: V.f(L.width[0] * pu), Width1: V.f(L.width[1] * pu),
-        Color: V.cs(L.color), Transparency: V.ns(L.transparency), LightEmission: V.f(L.le), LightInfluence: V.f(L.li), Brightness: V.f(L.brightness), Segments: V.i(L.segments), FaceCamera: V.b(true),
-        Texture: V.tex(L.texture ? 'glow' : null, L.texture ? (L.textureId || c.textures.glow.url) : ''), TextureMode: V.en('TextureMode', ['Stretch', 0]), TextureLength: V.f(1), TextureSpeed: V.f(0) }));
+        Color: V.cs(L.color), Transparency: V.ns(L.transparency), LightEmission: V.f(L.le), LightInfluence: V.f(L.li), Brightness: V.f(L.brightness), Segments: V.i(L.segments), FaceCamera: V.b(L.faceCamera), ZOffset: V.f(L.zOffset),
+        Texture: V.tex(L.texKey, L.texKey ? (L.textureId || c.textures[L.texKey].url) : ''), TextureMode: V.en('TextureMode', L.mode === 'wrap' ? ['Wrap', 1] : ['Stretch', 0]), TextureLength: V.f(L.texLen), TextureSpeed: V.f(L.texSpeed) }));
     }
   }
   return inst('ModuleScript', c.name, { Source: V.src(moduleSource(c)) }, [inst('Model', 'Template', { PrimaryPart: V.ref(origin) }, parts)]);
 }
 function moduleSource(c) {
   const q = s => JSON.stringify(String(s)), rows = a => (a.length ? '\n\t' + a.join(',\n\t') + ',\n' : '');
-  const bursts = [], windows = [], tracks = [];
+  const bursts = [], windows = [], tracks = [], scrolls = [];
   for (const L of c.layers) {
     if (L.kind === 'particles') { for (const b of L.bursts) bursts.push(`{${q(L.name)}, ${num(b.t)}, ${b.count}}`); if (L.rate) windows.push(`{${q(L.name)}, ${num(L.window[0])}, ${num(L.window[1])}}`); }
+    else if (L.kind === 'surface') { if (L.transparency.length > 1) tracks.push(`{${q(L.name)}, "Transparency", {${L.transparency.map(x => `{${num(x[0])}, ${num(x[1])}}`).join(', ')}}}`);
+      if (L.scroll[0] || L.scroll[1]) scrolls.push(`{${q(L.name)}, ${num(L.scroll[0])}, ${num(-L.scroll[1])}, ${num(L.tile[0])}, ${num(L.tile[1])}}`); }
     else { windows.push(`{${q(L.name)}, ${num(L.window[0])}, ${num(L.window[1])}}`);
       const tr = (prop, k, m, cap) => { if (k.length > 1) tracks.push(`{${q(L.name)}, ${q(prop)}, {${k.map(x => `{${num(x[0])}, ${num(cap ? Math.min(cap, x[1] * m) : x[1] * m)}}`).join(', ')}}}`); };
       if (L.kind === 'light') { tr('Brightness', L.brightness, 1); tr('Range', L.range, 1, 60); } else { tr('Width0', L.pulse, L.width[0]); tr('Width1', L.pulse, L.width[1]); } }
@@ -509,6 +732,7 @@ local BURSTS = {${rows(bursts)}} -- layer, seconds, particle count
 local WINDOWS = {${rows(windows)}} -- layer, on at, off at
 local TRACKS = {${rows(tracks)}} -- layer, property, {seconds, value} keys
 local MARKERS = {${rows(c.markers.map(m => `{${num(m.t)}, ${q(m.name)}}`))}} -- seconds, name
+local SCROLLS = {${rows(scrolls)}} -- Texture, OffsetStudsU and OffsetStudsV per second, StudsPerTileU, StudsPerTileV
 
 local VFX = { Name = ${q(c.name)}, Duration = DURATION, Tail = TAIL, Loop = LOOP, Template = TEMPLATE }
 
@@ -548,7 +772,7 @@ function VFX.play(target, options)
 	end
 	local objects = {}
 	for _, d in model:GetDescendants() do
-		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") then objects[d.Name] = d end
+		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") or d:IsA("Texture") then objects[d.Name] = d end
 	end
 	model.Parent = options.parent or workspace
 
@@ -581,14 +805,21 @@ function VFX.play(target, options)
 		task.delay(delayTime, function() model:Destroy() end)
 	end
 
-	if #TRACKS > 0 then
+	if #TRACKS > 0 or #SCROLLS > 0 then
 		conn = RunService.Heartbeat:Connect(function()
 			if not model.Parent then finish(0) return end
-			local t = os.clock() - started
-			if LOOP then t = t % DURATION end
+			local elapsed = os.clock() - started
+			local t = if LOOP then elapsed % DURATION else elapsed
 			for _, tr in TRACKS do
 				local o = objects[tr[1]]
 				if o then o[tr[2]] = valueAt(tr[3], t) end
+			end
+			for _, sc in SCROLLS do -- textures slide forever (no jump at the loop point)
+				local o = objects[sc[1]]
+				if o then
+					o.OffsetStudsU = (sc[2] * elapsed) % sc[4]
+					o.OffsetStudsV = (sc[3] * elapsed) % sc[5]
+				end
 			end
 		end)
 	end
@@ -677,7 +908,10 @@ local I = {}
 local function make(class, name, parent, props)
 	local o = Instance.new(class)
 	o.Name = name
-	for k, v in props do o[k] = v end
+	for k, v in props do
+		local ok = pcall(function() o[k] = v end)
+		if not ok then warn(("[vfx] %s.%s was not set (not available in this Studio version?)"):format(name, k)) end
+	end
 	o.Parent = parent
 	return o
 end
@@ -725,6 +959,44 @@ function texturePng(name, size) {                          // white, alpha = mas
     const o = (y * size + x) * 4; px[o] = px[o + 1] = px[o + 2] = 255; px[o + 3] = Math.round(c01(a / (ss * ss)) * 255); }
   return png(size, size, px);
 }
+function flipbookPng(name) {                               // 1024 x 1024 Grid4x4 sheet: 16 frames left to right, top to bottom, each inset for spacing
+  const A = ANIM[name], G = FB.grid, n = G * G, S = FB.size, cell = S / G, sc = 1 / (1 - 2 * FB.margin), px = new Uint8Array(S * S * 4), ss = 2;
+  for (let i = 0; i < n; i++) { const t = frameT(A, i, n), ox = (i % G) * cell, oy = Math.floor(i / G) * cell;
+    for (let y = 0; y < cell; y++) for (let x = 0; x < cell; x++) { let a = 0;
+      for (let j = 0; j < ss; j++) for (let k = 0; k < ss; k++) { const u = ((x + (k + 0.5) / ss) / cell * 2 - 1) * sc, v = (1 - (y + (j + 0.5) / ss) / cell * 2) * sc; if (Math.abs(u) < 1 && Math.abs(v) < 1) a += A.f(u, v, t); }
+      const o = ((oy + y) * S + ox + x) * 4; px[o] = px[o + 1] = px[o + 2] = 255; px[o + 3] = Math.round(c01(a / (ss * ss)) * 255); } }
+  return png(S, S, px);
+}
+function tilePng(name, soft, size) {                       // seamless tile; "soft" fades the top and bottom edges (the width of a Beam)
+  size = size || 256; const f = TILE[name].f, px = new Uint8Array(size * size * 4), ss = 2;
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) { let a = 0;
+    for (let j = 0; j < ss; j++) for (let k = 0; k < ss; k++) a += f((x + (k + 0.5) / ss) / size, (y + (j + 0.5) / ss) / size);
+    let e = 1; if (soft) { const q = 1 - Math.pow(2 * (y + 0.5) / size - 1, 2); e = q * q; }
+    const o = (y * size + x) * 4; px[o] = px[o + 1] = px[o + 2] = 255; px[o + 3] = Math.round(c01(a / (ss * ss)) * e * 255); }
+  return png(size, size, px);
+}
+function texPngFor(key) {                                  // the PNG to upload for a texture key used by a spec
+  if (TEX[key]) return texturePng(key);
+  if (ANIM[key]) return flipbookPng(key);
+  const soft = /_beam$/.test(key), base = soft ? key.slice(0, -5) : key;
+  if (TILE[base]) return tilePng(base, soft);
+  throw new Error('unknown texture ' + key);
+}
+function textureSheet(keys) {                              // review sheet on a dark background: statics in a row, one row per flipbook, tiles 2 x 2
+  const C = 112, gap = 4, st = keys.filter(k => TEX[k]), an = keys.filter(k => ANIM[k]), ti = keys.filter(k => !TEX[k] && !ANIM[k]);
+  const rows = (st.length ? 1 : 0) + an.length + (ti.length ? 2 : 0), Wd = 16 * (C + gap) + gap, Hd = Math.max(1, rows) * (C + gap) + gap, px = new Uint8Array(Wd * Hd * 4);
+  for (let i = 0; i < Wd * Hd; i++) { px[i * 4] = 30; px[i * 4 + 1] = 35; px[i * 4 + 2] = 46; px[i * 4 + 3] = 255; }
+  const put = (x, y, a) => { if (x < 0 || y < 0 || x >= Wd || y >= Hd) return; const o = (y * Wd + x) * 4; a = c01(a); px[o] += (240 - px[o]) * a; px[o + 1] += (246 - px[o + 1]) * a; px[o + 2] += (255 - px[o + 2]) * a; };
+  let row = 0; const sc = 1 / (1 - 2 * FB.margin);
+  if (st.length) { st.forEach((k, i) => { const f = TEX[k]; for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) put(gap + i * (C + gap) + x, gap + y, f((x + 0.5) / C * 2 - 1, 1 - (y + 0.5) / C * 2)); }); row++; }
+  for (const k of an) { const A = ANIM[k], n = FB.grid * FB.grid;
+    for (let i = 0; i < n; i++) { const t = frameT(A, i, n);
+      for (let y = 0; y < C; y++) for (let x = 0; x < C; x++) { const u = ((x + 0.5) / C * 2 - 1) * sc, v = (1 - (y + 0.5) / C * 2) * sc; if (Math.abs(u) < 1 && Math.abs(v) < 1) put(gap + i * (C + gap) + x, gap + row * (C + gap) + y, A.f(u, v, t)); } }
+    row++; }
+  ti.forEach((k, i) => { const soft = /_beam$/.test(k), f = TILE[soft ? k.slice(0, -5) : k].f, ox = gap + i * 2 * (C + gap) * 2;
+    for (let y = 0; y < 2 * C; y++) for (let x = 0; x < 4 * C; x++) { const ty = (y % C + 0.5) / C, e = soft ? Math.pow(Math.max(0, 1 - Math.pow(2 * ty - 1, 2)), 2) : 1; put(ox + x, gap + row * (C + gap) + y, f((x % C + 0.5) / C, ty) * e); } });
+  return png(Wd, Hd, px);
+}
 const FONT = { 0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001', 5: '111100111001111', 6: '111100111101111', 7: '111001010010010', 8: '111101111101111', 9: '111101111001111', '.': '000000000000010', s: '011100010001110', ' ': '000000000000000' };
 function storyboard(c) {                                   // PNG contact sheet of c.shots
   const tw = 400, th = 300, cols = Math.min(4, c.shots.length), rows = Math.ceil(c.shots.length / cols), gap = 4;
@@ -739,7 +1011,7 @@ function storyboard(c) {                                   // PNG contact sheet 
   return png(SW, SH, sheet);
 }
 
-const API = { TEX, TEXTURES, compile, motion, render, makeTarget, toRGBA, report, tree, toRbxmx, toLuau, storyboard, texturePng, png, seqAt, colAt, trackAt, liveCount };
+const API = { TEX, ANIM, TILE, FB, TEXTURES, gnoise, fbm, worley: (x, y, px, py, t, seed) => (worley(x, y, px, py, t, seed), [WF1, WF2]), frameOf, flipbookPng, tilePng, texPngFor, textureSheet, compile, motion, render, makeTarget, toRGBA, report, tree, toRbxmx, toLuau, storyboard, texturePng, png, seqAt, colAt, trackAt, liveCount };
 
 // ============ 9. PREVIEWER (browser) ============
 const CSS = `
@@ -770,8 +1042,9 @@ function mount(specs, host) {
     $('.tabs').innerHTML = clips.length > 1 ? clips.map((k, j) => `<button data-i="${j}" class="${j === i ? 'on' : ''}">${esc(k.title)}</button>`).join('') : '';
     $('h1').textContent = c.title; $('.sub').textContent = c.spec.description || '';
     if (c.errors.length) { $('.side').innerHTML = c.errors.map(e => `<div class="warn">${esc(e)}</div>`).join(''); return; }
-    const sum = L => L.kind === 'particles' ? `${L.texture}, ${[L.bursts.length ? L.bursts.map(b => b.count + ' @' + b.t.toFixed(2) + 's').join(', ') : '', L.rate ? L.rate + '/s' : ''].filter(Boolean).join(' + ')}, life ${L.lifetime[0]}-${L.lifetime[1]}s`
-      : L.kind === 'light' ? `point light, range ${num(trackMax(L.range))}` : `beam, ${num(len(sub(L.to, L.from)))} studs`;
+    const sum = L => L.kind === 'particles' ? `${L.texture}${L.anim ? ` flipbook (${L.flip.mode})` : ''}, ${[L.bursts.length ? L.bursts.map(b => b.count + ' @' + b.t.toFixed(2) + 's').join(', ') : '', L.rate ? L.rate + '/s' : ''].filter(Boolean).join(' + ')}, life ${L.lifetime[0]}-${L.lifetime[1]}s`
+      : L.kind === 'light' ? `point light, range ${num(trackMax(L.range))}` : L.kind === 'surface' ? `surface ${num(L.size[0])} x ${num(L.size[1])} studs, ${L.texture}${L.scroll[0] || L.scroll[1] ? ', scrolling' : ''}`
+      : `beam, ${len(sub(L.to, L.from)).toFixed(1)} studs, ${L.texture || 'solid'}${L.texSpeed ? `, flowing ${L.mode}` : ''}${L.faceCamera ? '' : ', flat'}`;
     $('.side').innerHTML = `<h2>Layers</h2>` + c.layers.map(L => `<label class="l"><input type="checkbox" checked data-l="${L.name}"><span><b>${L.name}</b><small>${esc(sum(L))}${L.note ? '<br>' + esc(L.note) : ''}</small></span></label>`).join('') +
       `<h2>Timing</h2><div class="mk">${c.loop ? 'Loops every ' + c.duration.toFixed(2) + 's' : 'One-shot, ' + c.duration.toFixed(2) + 's; particles gone by ' + c.total.toFixed(2) + 's'}<br>Peak ${c.peak} particles alive</div>` +
       (c.markers.length ? `<h2>Markers</h2>` + c.markers.map(m => `<div class="mk"><b>${esc(m.name)}</b> at ${m.t.toFixed(2)}s</div>`).join('') : '') +
@@ -806,7 +1079,9 @@ if (typeof document !== 'undefined') {
   G.RVfx = Object.assign(API, { mount });
   const go = () => { if (G.RVFX_EFFECTS) mount(G.RVFX_EFFECTS); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
-} else if (typeof module !== 'undefined') {
+}
+// PREVIEW-STRIP-START: Node CLI only. preview.html embeds the code above this line without the loader.
+else if (typeof module !== 'undefined') {
   module.exports = API;
   if (require.main === module) {
     const fs = require('fs'), path = require('path'), args = process.argv.slice(2), oi = args.indexOf('--out');
@@ -823,19 +1098,25 @@ if (typeof document !== 'undefined') {
       for (const [n, t] of Object.entries(c.textures)) if (!t.uploaded) tex.add(n);
       console.log(`wrote ${c.name}.rbxmx, ${c.name}.lua, storyboard-${c.name}.png\n`);
     }
-    for (const n of tex) fs.writeFileSync(path.join(out, 'textures', n + '.png'), texturePng(n));
-    if (tex.size) console.log(`wrote textures/{${[...tex].join(',')}}.png (white on transparent, 256px; upload to Roblox for the exact look)`);
+    for (const n of tex) fs.writeFileSync(path.join(out, 'textures', n + '.png'), texPngFor(n));
+    if (tex.size) { const ks = [...tex]; fs.writeFileSync(path.join(out, 'textures.png'), textureSheet(ks));
+      console.log(`wrote textures/{${ks.join(',')}}.png (white on transparent: particles 256px, flipbooks 1024px Grid4x4, tiling 256px; upload to Roblox for the exact look)`);
+      console.log(`wrote textures.png (review sheet, not for upload): ${[ks.filter(k => TEX[k]).join(', '), ...ks.filter(k => ANIM[k]).map(k => k + ' (16 frames)'), ks.filter(k => !TEX[k] && !ANIM[k]).join(', ')].filter(Boolean).join(' / ')}`); }
     const title = specs.length === 1 ? (specs[0].title || specs[0].name || 'VFX') + ' preview' : 'Roblox VFX previews';
+    // Embed only the browser runtime: the Node CLI branch (fs, process.exit, require) is stripped so the
+    // preview is a plain page with no Node globals in it.
+    const runtime = fs.readFileSync(__filename, 'utf8').replace(/\n?\/\/ PREVIEW-STRIP-START[\s\S]*?\/\/ PREVIEW-STRIP-END\r?\n?/, '\n');
     fs.writeFileSync(path.join(out, 'preview.html'), `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${xml(title)}</title>
 <style>html,body{margin:0;background:#14171d}</style></head>
 <body><div id="rvfx"></div>
 <script>window.RVFX_EFFECTS = ${JSON.stringify(specs).replace(/</g, '\\u003c')};</` + `script>
-<script>${fs.readFileSync(__filename, 'utf8')}</` + `script>
+<script>${runtime}</` + `script>
 </body></html>
 `);
     console.log(`wrote preview.html (${specs.length} effect${specs.length > 1 ? 's' : ''})`);
     process.exit(bad ? 1 : 0);
   }
 }
+// PREVIEW-STRIP-END
 })(typeof globalThis !== 'undefined' ? globalThis : this);

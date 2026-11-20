@@ -44,6 +44,7 @@ local MARKERS = {
 	{0, "Telegraph"},
 	{0.25, "Strike"},
 } -- seconds, name
+local SCROLLS = {} -- Texture, OffsetStudsU and OffsetStudsV per second, StudsPerTileU, StudsPerTileV
 
 local VFX = { Name = "LightningStrike", Duration = DURATION, Tail = TAIL, Loop = LOOP, Template = TEMPLATE }
 
@@ -83,7 +84,7 @@ function VFX.play(target, options)
 	end
 	local objects = {}
 	for _, d in model:GetDescendants() do
-		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") then objects[d.Name] = d end
+		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") or d:IsA("Texture") then objects[d.Name] = d end
 	end
 	model.Parent = options.parent or workspace
 
@@ -116,14 +117,21 @@ function VFX.play(target, options)
 		task.delay(delayTime, function() model:Destroy() end)
 	end
 
-	if #TRACKS > 0 then
+	if #TRACKS > 0 or #SCROLLS > 0 then
 		conn = RunService.Heartbeat:Connect(function()
 			if not model.Parent then finish(0) return end
-			local t = os.clock() - started
-			if LOOP then t = t % DURATION end
+			local elapsed = os.clock() - started
+			local t = if LOOP then elapsed % DURATION else elapsed
 			for _, tr in TRACKS do
 				local o = objects[tr[1]]
 				if o then o[tr[2]] = valueAt(tr[3], t) end
+			end
+			for _, sc in SCROLLS do -- textures slide forever (no jump at the loop point)
+				local o = objects[sc[1]]
+				if o then
+					o.OffsetStudsU = (sc[2] * elapsed) % sc[4]
+					o.OffsetStudsV = (sc[3] * elapsed) % sc[5]
+				end
 			end
 		end)
 	end
@@ -155,7 +163,10 @@ local I = {}
 local function make(class, name, parent, props)
 	local o = Instance.new(class)
 	o.Name = name
-	for k, v in props do o[k] = v end
+	for k, v in props do
+		local ok = pcall(function() o[k] = v end)
+		if not ok then warn(("[vfx] %s.%s was not set (not available in this Studio version?)"):format(name, k)) end
+	end
 	o.Parent = parent
 	return o
 end
@@ -164,16 +175,16 @@ I[2] = make("Model", "Template", I[1], {})
 I[3] = make("Part", "Origin", I[2], {Anchored = true, CanCollide = false, CanTouch = false, CanQuery = false, CastShadow = false, Massless = true, Transparency = 1, Size = Vector3.new(1, 1, 1), CFrame = CFrame.new(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1)})
 I[4] = make("Attachment", "Telegraph_A0", I[3], {CFrame = CFrame.new(0, 40, 0, 0, 0, -1, -1, 0, 0, 0, 1, 0)})
 I[5] = make("Attachment", "Telegraph_A1", I[3], {CFrame = CFrame.new(0, 0, 0, 0, 0, -1, -1, 0, 0, 0, 1, 0)})
-I[6] = make("Beam", "Telegraph", I[3], {Enabled = false, CurveSize0 = 0, CurveSize1 = 0, Width0 = 0, Width1 = 0, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(0.6235, 0.8235, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.6235, 0.8235, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.75, 0), NumberSequenceKeypoint.new(1, 0.4, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 1, Segments = 16, FaceCamera = true, Texture = "", TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
+I[6] = make("Beam", "Telegraph", I[3], {Enabled = false, CurveSize0 = 0, CurveSize1 = 0, Width0 = 0, Width1 = 0, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(0.6235, 0.8235, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.6235, 0.8235, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0.75, 0), NumberSequenceKeypoint.new(1, 0.4, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 1, Segments = 16, FaceCamera = true, ZOffset = 0, Texture = "", TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
 I[7] = make("Attachment", "BoltA_A0", I[3], {CFrame = CFrame.new(1.5, 40, 0, -0.3553, 0, -0.9347, -0.9239, -0.1521, 0.3512, -0.1421, 0.9884, 0.054)})
 I[8] = make("Attachment", "BoltA_A1", I[3], {CFrame = CFrame.new(0, 0, 0, -0.3123, 0, -0.95, -0.937, -0.1644, 0.3081, -0.1562, 0.9864, 0.0513)})
-I[9] = make("Beam", "BoltA", I[3], {Enabled = false, CurveSize0 = 14.0712, CurveSize1 = 12.8062, Width0 = 2.24, Width1 = 3.64, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.749, 0.8941, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 0, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 1, Segments = 24, FaceCamera = true, Texture = TEXTURES.glow, TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
+I[9] = make("Beam", "BoltA", I[3], {Enabled = false, CurveSize0 = 14.0712, CurveSize1 = 12.8062, Width0 = 2.24, Width1 = 3.64, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.749, 0.8941, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 0, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 1, Segments = 24, FaceCamera = true, ZOffset = 0, Texture = TEXTURES.glow, TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
 I[10] = make("Attachment", "BoltB_A0", I[3], {CFrame = CFrame.new(-1, 40, -1, 0.4983, -0.4472, -0.7428, -0.8305, 0, -0.5571, 0.2491, 0.8944, -0.3714)})
 I[11] = make("Attachment", "BoltB_A1", I[3], {CFrame = CFrame.new(0, 0, 0, 0.3156, 0, -0.9489, -0.9468, 0.0665, -0.3149, 0.0631, 0.9978, 0.021)})
-I[12] = make("Beam", "BoltB", I[3], {Enabled = false, CurveSize0 = 12.0416, CurveSize1 = 15.843, Width0 = 0.9, Width1 = 1.5, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(0.8745, 0.9451, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.498, 0.7686, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 0, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 1, Segments = 24, FaceCamera = true, Texture = TEXTURES.glow, TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
+I[12] = make("Beam", "BoltB", I[3], {Enabled = false, CurveSize0 = 12.0416, CurveSize1 = 15.843, Width0 = 0.9, Width1 = 1.5, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(0.8745, 0.9451, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.498, 0.7686, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 0, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 1, Segments = 24, FaceCamera = true, ZOffset = 0, Texture = TEXTURES.glow, TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
 I[13] = make("Attachment", "BoltCore_A0", I[3], {CFrame = CFrame.new(0.4, 40, 0, -0.1414, 0, -0.9899, -0.9899, 0, 0.1414, 0, 1, 0)})
 I[14] = make("Attachment", "BoltCore_A1", I[3], {CFrame = CFrame.new(0, 0, 0, -0.1146, 0, -0.9934, -0.9934, 0, 0.1146, 0, 1, 0)})
-I[15] = make("Beam", "BoltCore", I[3], {Enabled = false, CurveSize0 = 14.1421, CurveSize1 = 13.0863, Width0 = 0.5, Width1 = 0.8, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 0, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 2, Segments = 24, FaceCamera = true, Texture = "", TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
+I[15] = make("Beam", "BoltCore", I[3], {Enabled = false, CurveSize0 = 14.1421, CurveSize1 = 13.0863, Width0 = 0.5, Width1 = 0.8, Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1))}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 0, 0)}), LightEmission = 1, LightInfluence = 0, Brightness = 2, Segments = 24, FaceCamera = true, ZOffset = 0, Texture = "", TextureMode = Enum.TextureMode.Stretch, TextureLength = 1, TextureSpeed = 0})
 I[16] = make("Attachment", "GroundFlash", I[3], {CFrame = CFrame.new(0, 1, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0)})
 I[17] = make("ParticleEmitter", "GroundFlash", I[16], {Enabled = false, Rate = 0, Lifetime = NumberRange.new(0.22, 0.22), Speed = NumberRange.new(0, 0), SpreadAngle = Vector2.new(0, 0), Rotation = NumberRange.new(0, 0), RotSpeed = NumberRange.new(0, 0), Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 8, 0), NumberSequenceKeypoint.new(0.3, 20, 0), NumberSequenceKeypoint.new(1, 12, 0)}), Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(1, 1, 0)}), Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)), ColorSequenceKeypoint.new(1, Color3.new(0.5608, 0.7922, 1))}), Acceleration = Vector3.new(0, 0, 0), Drag = 0, LightEmission = 1, LightInfluence = 0, Brightness = 2, ZOffset = 0, LockedToPart = false, Orientation = Enum.ParticleOrientation.FacingCamera, Texture = TEXTURES.glow, EmissionDirection = Enum.NormalId.Top})
 I[18] = make("Attachment", "Ring", I[3], {CFrame = CFrame.new(0, 0.12, 0, 0, 0, 1, 0, 1, 0, -1, 0, 0)})

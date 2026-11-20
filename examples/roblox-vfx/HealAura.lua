@@ -28,6 +28,7 @@ local TRACKS = {
 	{"Glow", "Brightness", {{0, 1.2}, {1, 2.2}, {2, 1.2}}},
 } -- layer, property, {seconds, value} keys
 local MARKERS = {} -- seconds, name
+local SCROLLS = {} -- Texture, OffsetStudsU and OffsetStudsV per second, StudsPerTileU, StudsPerTileV
 
 local VFX = { Name = "HealAura", Duration = DURATION, Tail = TAIL, Loop = LOOP, Template = TEMPLATE }
 
@@ -67,7 +68,7 @@ function VFX.play(target, options)
 	end
 	local objects = {}
 	for _, d in model:GetDescendants() do
-		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") then objects[d.Name] = d end
+		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") or d:IsA("Texture") then objects[d.Name] = d end
 	end
 	model.Parent = options.parent or workspace
 
@@ -100,14 +101,21 @@ function VFX.play(target, options)
 		task.delay(delayTime, function() model:Destroy() end)
 	end
 
-	if #TRACKS > 0 then
+	if #TRACKS > 0 or #SCROLLS > 0 then
 		conn = RunService.Heartbeat:Connect(function()
 			if not model.Parent then finish(0) return end
-			local t = os.clock() - started
-			if LOOP then t = t % DURATION end
+			local elapsed = os.clock() - started
+			local t = if LOOP then elapsed % DURATION else elapsed
 			for _, tr in TRACKS do
 				local o = objects[tr[1]]
 				if o then o[tr[2]] = valueAt(tr[3], t) end
+			end
+			for _, sc in SCROLLS do -- textures slide forever (no jump at the loop point)
+				local o = objects[sc[1]]
+				if o then
+					o.OffsetStudsU = (sc[2] * elapsed) % sc[4]
+					o.OffsetStudsV = (sc[3] * elapsed) % sc[5]
+				end
 			end
 		end)
 	end
@@ -139,7 +147,10 @@ local I = {}
 local function make(class, name, parent, props)
 	local o = Instance.new(class)
 	o.Name = name
-	for k, v in props do o[k] = v end
+	for k, v in props do
+		local ok = pcall(function() o[k] = v end)
+		if not ok then warn(("[vfx] %s.%s was not set (not available in this Studio version?)"):format(name, k)) end
+	end
 	o.Parent = parent
 	return o
 end

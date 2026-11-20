@@ -38,6 +38,7 @@ local MARKERS = {
 	{0, "Telegraph"},
 	{0.25, "Strike"},
 } -- seconds, name
+local SCROLLS = {} -- Texture, OffsetStudsU and OffsetStudsV per second, StudsPerTileU, StudsPerTileV
 
 local VFX = { Name = "LightningStrike", Duration = DURATION, Tail = TAIL, Loop = LOOP, Template = TEMPLATE }
 
@@ -77,7 +78,7 @@ function VFX.play(target, options)
 	end
 	local objects = {}
 	for _, d in model:GetDescendants() do
-		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") then objects[d.Name] = d end
+		if d:IsA("ParticleEmitter") or d:IsA("Beam") or d:IsA("Light") or d:IsA("Texture") then objects[d.Name] = d end
 	end
 	model.Parent = options.parent or workspace
 
@@ -110,14 +111,21 @@ function VFX.play(target, options)
 		task.delay(delayTime, function() model:Destroy() end)
 	end
 
-	if #TRACKS > 0 then
+	if #TRACKS > 0 or #SCROLLS > 0 then
 		conn = RunService.Heartbeat:Connect(function()
 			if not model.Parent then finish(0) return end
-			local t = os.clock() - started
-			if LOOP then t = t % DURATION end
+			local elapsed = os.clock() - started
+			local t = if LOOP then elapsed % DURATION else elapsed
 			for _, tr in TRACKS do
 				local o = objects[tr[1]]
 				if o then o[tr[2]] = valueAt(tr[3], t) end
+			end
+			for _, sc in SCROLLS do -- textures slide forever (no jump at the loop point)
+				local o = objects[sc[1]]
+				if o then
+					o.OffsetStudsU = (sc[2] * elapsed) % sc[4]
+					o.OffsetStudsV = (sc[3] * elapsed) % sc[5]
+				end
 			end
 		end)
 	end
@@ -193,6 +201,7 @@ return VFX
 						<float name="Brightness">1</float>
 						<int name="Segments">16</int>
 						<bool name="FaceCamera">true</bool>
+						<float name="ZOffset">0</float>
 						<Content name="Texture"><null></null></Content>
 						<token name="TextureMode">0</token>
 						<float name="TextureLength">1</float>
@@ -228,6 +237,7 @@ return VFX
 						<float name="Brightness">1</float>
 						<int name="Segments">24</int>
 						<bool name="FaceCamera">true</bool>
+						<float name="ZOffset">0</float>
 						<Content name="Texture"><url>rbxasset://textures/particles/sparkles_main.dds</url></Content>
 						<token name="TextureMode">0</token>
 						<float name="TextureLength">1</float>
@@ -263,6 +273,7 @@ return VFX
 						<float name="Brightness">1</float>
 						<int name="Segments">24</int>
 						<bool name="FaceCamera">true</bool>
+						<float name="ZOffset">0</float>
 						<Content name="Texture"><url>rbxasset://textures/particles/sparkles_main.dds</url></Content>
 						<token name="TextureMode">0</token>
 						<float name="TextureLength">1</float>
@@ -298,6 +309,7 @@ return VFX
 						<float name="Brightness">2</float>
 						<int name="Segments">24</int>
 						<bool name="FaceCamera">true</bool>
+						<float name="ZOffset">0</float>
 						<Content name="Texture"><null></null></Content>
 						<token name="TextureMode">0</token>
 						<float name="TextureLength">1</float>

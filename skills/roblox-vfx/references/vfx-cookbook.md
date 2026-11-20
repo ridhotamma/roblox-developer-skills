@@ -2,7 +2,9 @@
 
 Layer recipes, timing and palettes. Sizes assume an avatar about 5 studs tall; use the top-level `scale` to resize a finished effect. Numbers are starting points; always check them in the storyboard.
 
-Contents: 1. Universal structure · 2. Impacts and hits · 3. Explosions · 4. Ground effects · 5. Auras, buffs and loops · 6. Fire and smoke · 7. Magic: charge, cast, projectile · 8. Lightning and beams · 9. Palettes · 10. Troubleshooting
+Contents: 1. Universal structure · 2. Impacts and hits · 3. Explosions · 4. Ground effects · 5. Auras, buffs and loops · 6. Fire and smoke · 7. Magic: charge, cast, projectile · 8. Lightning and beams · 9. Palettes · 10. Troubleshooting · 11. Water
+
+For water, flipbooks (animated sprites) and scrolling textures, read `water-and-flipbooks.md` first: it has the theory behind section 11.
 
 ## 1. Universal structure
 
@@ -46,7 +48,7 @@ See `examples/explosion.json` for the full stack. Scale guide: grenade 12 to 16 
 - **Smoke:** 8 to 12 opaque puffs delayed 0.08 s, lifetime 1.2 to 2 s, rising slowly, `zOffset: -1` so the fire draws in front.
 - **Light:** range 30 → 14, brightness 8 → 0 over 0.5 s.
 
-Variants: *magic burst* swaps the palette and replaces smoke with a second, slower ring and `star` debris; *water splash* uses opaque pale-blue `dot` debris with strong gravity and no fire; *dust-only* (a wall breaking) drops flash and fire and doubles the smoke in tan.
+Variants: *magic burst* swaps the palette and replaces smoke with a second, slower ring and `star` debris; *water splash*: see section 11; *dust-only* (a wall breaking) drops flash and fire and doubles the smoke in tan. For smoke that billows and breaks up instead of fading, use the `puff` flipbook (section 11) in place of `smoke`.
 
 ## 4. Ground effects
 
@@ -124,6 +126,11 @@ Three or four stops, from the hottest (start of life) to the coldest.
 | Poison | `#f4ffb0` → `#9be22a` → `#3f7d12` |
 | Holy / gold | `#ffffff` → `#ffe9a8` → `#ffb040` |
 | Shadow | `#b78cff` → `#4a2a7a` → `#120a1e` (opaque layers, `lightEmission` 0 to 0.3) |
+| Fresh water | sheet `#d8f6ff` → `#9fdcf2` → `#e8fbff`; foam and spray `#ffffff`; mist `#f4fcff` |
+| Tropical / shallow | `#e9fffb` → `#7fe3d8` → `#2fb3b0` |
+| Deep sea / storm | `#dfeef5` → `#6f9fb8` → `#2b4c63` (foam stays near white) |
+| Swamp / toxic water | `#f0ffd0` → `#9cc35a` → `#4d6b2a` (opaque) |
+| Lava flow | `#fff1b0` → `#ff9a2e` → `#c2310c` → `#3a0d05` (`lightEmission` 1 on the sheet, crust opaque) |
 | Dust / stone | `#cdbb9c` → `#8d8170` (opaque) |
 | Smoke | `#4a3a30` → `#26221f` (opaque) |
 
@@ -144,3 +151,45 @@ Additive colours saturate to white where particles overlap, which is what makes 
 | Smoke hides the fire | Delay the smoke burst, start it transparent, give it a negative `zOffset` |
 | Looks different in Studio | Stand-in textures until the PNGs are uploaded; bloom and lighting in the place; `LightInfluence` 0 keeps colours independent of the scene |
 | Laggy with many players | Lower counts before anything else, play effects on the client only, shorten smoke lifetimes |
+| Flipbook looks choppy | OneShot plays 16 frames over the lifetime: above about 1.3 s it drops under 12 fps. Shorten the lifetime, or set `"flipbook": { "blend": true }` |
+| All foam / mist particles churn in sync | Looping flipbooks need `startRandom` (the default for Loop) and some `rotation` spread |
+| Splash floats above the water or is cut off | Splash and crest sprites stand on the bottom edge of the frame: `orientation: "cameraUp"`, constant `size`, `at` = size / 2 minus a little |
+| Flipbook shows as a still image in Studio | Not uploaded yet (the stand-in is a single image), or the uploaded sheet is not 1024 x 1024 |
+| Flowing beam looks like a conveyor belt | Add a second copy with a different `textureSpeed` and `textureLength`, narrower, with `zOffset`; vary transparency along the length |
+| Flat beam is invisible from some angles | That is a flat ribbon seen edge-on; use `faceCamera: true` for vertical sheets, keep flat ribbons for things lying on surfaces (and see the axis note in water-and-flipbooks.md section 10) |
+| Water is invisible in daylight | Additive white on a bright sky; drop `lightEmission` to 0 to 0.3 on foam, white water and mist |
+
+## 11. Water
+
+Read `water-and-flipbooks.md` for why these work. Textures: animated `splash`, `ripple`, `foam`, `mist`, `puff`, `crest`
+(particles, flipbooks); static `droplet`, `bubble` (particles); tiling `waterflow`, `foamflow`, `caustics`, `waves` (beams and
+surfaces). Water reads as transparent and tinted when calm and white when churned: make foam, white water and mist
+opaque-ish (`lightEmission` 0 to 0.3) so they survive daylight.
+
+| Effect | Layers |
+|---|---|
+| Waterfall (loop) | Flat `foamflow` beam over the lip; two `waterflow` beams down the drop (a slow wide one about 24 studs/s, a fast narrow one about 40 with `zOffset`), `curve0` forward over the lip and `curve1` straight up from the pool; at the impact a `splash` flipbook (cameraUp, constant size), `droplet` with gravity, `puff` white water, flat `foam` and `ripple` flipbooks on the pool, opaque `mist` drifting up and downwind. See `examples/waterfall.json` |
+| River / stream (loop) | Flat beams (`faceCamera: false`, `widthAxis` across the river) following the channel, `waterflow` at 6 to 12 studs/s plus a narrower `foamflow` beam faster in the middle; foam flipbooks where the river hits rocks; or a `surface` with `waves` scrolling downstream for a lake-like look |
+| Rapids / river around a rock | Flat `foam` flipbook patches (rate 3 to 5) behind the rock, short `droplet` bursts, a small `puff` loop at the rock's upstream face |
+| Big splash (one-shot) | `splash` flipbook burst 1 (size 6 to 8), smaller side splashes 0.06 s later, 20 to 30 `droplet` (speed 16 to 32, gravity -70, drag 1), a few `puff` spray, a flat `foam` flipbook, two `ripple` rings 0.3 s apart. See `examples/water_splash.json` |
+| Small splash / footstep in water | One `splash` (size 1.5 to 2.5, lifetime 0.35), one `ripple` (size 3 to 4), 4 to 6 droplets. Under 12 particles: it plays a lot |
+| Ripples on a lake (ambient loop) | Flat `ripple` flipbook, rate 1 to 3 over a large box shape, size 4 to 8, transparency 0.4 to 0.6 |
+| Rain on water | Sky: `streak` with `velocity`, rate 200+ from a large box high up, speed 60 to 80 down. Surface: per-drop `splash` (size 0.8 to 1.2, lifetime 0.25) and `ripple` (size 2 to 3) at rate 20 to 60 over a flat box near the surface |
+| Shore waves (loop) | `waves` surface scrolling toward the beach, staggered `puff` bursts along the break line (peeling), a camera-facing `foamflow` curtain beam that rises and collapses (pulse track), `droplet` spray, opaque `mist`, a flat `foamflow` wash beam whose width swells and shrinks, flat `foam` patches left behind. See `examples/shore_waves.json` |
+| Breaking wave (side view) | `crest` flipbook (cameraUp, size 10 to 20, lifetime 1.2 to 2) moving along the shore with the swell, plus spray and a `puff` burst where the lip lands. A side-view sprite reads right only when the camera sees the wave from the side (2.5D, side-scrollers, fixed cameras); otherwise use the shore-waves recipe |
+| Water wave attack (one-shot ability) | A wall of `puff` and `mist` from a wide box (the wave's width) moving forward fast with drag (speed 40 with drag 1 to 1.5 travels about 25 studs), `splash` flipbooks bursting along the front edge, `droplet` spray thrown up and forward, flat `foam` and `ripple` left on the ground behind it, and a flat `waterflow` beam along the path scrolling forward for the body of the wave. Put a `Damage` marker where the front reaches the hitbox |
+| Fountain (loop) | Column: `droplet` with `velocity`, rate 60, `spread` 6, speed 25 to 30, gravity -45 so it arcs back; top: `mist` puffs; basin: `splash` (size 2) and `ripple` where the water lands |
+| Geyser burst | `puff` + `mist` column (rate 40 for 0.5 s, speed 30 to 45 up, drag 1), `droplet` rain falling back, `splash` at the base |
+| Bubbles (underwater loop) | `bubble` texture, rate 4 to 8 from the seabed or a diver, speed 2 to 4 up with a little `spread` for wobble, size 0.2 to 0.6; pop by taking transparency to 1 in the last 10 % |
+| Pool / underwater caustics | Two `surface` layers of `caustics` on the floor, tile 6 and 9, scrolling in different directions at 0.6 to 1.5 studs/s, white, transparency 0.6 to 0.8 (one copy alone just slides) |
+| Steam / hot spring (loop) | Opaque `mist` flipbook, rate 3 to 5, speed 1 to 2 up, lifetime 3 to 5, size 4 → 12, transparency never below 0.7 |
+| Lava / slime flow | The waterfall and river recipes with the lava or swamp palette; lava sheet additive (`lightEmission` 1), crust and droplets opaque; add a PointLight |
+
+Rules of thumb:
+- Splash and ripple sizes are the whole frame: keep `size` constant and let the flipbook animate.
+- Waterfall sheet speed: `sqrt(70 x height)` studs/s at the bottom is physically about right (Earth gravity at 1 stud = 0.28 m);
+  stylised falls look good at 20 to 45 studs/s. Always two speeds.
+- Foam on water lies flat (`orientation: "flat"`, `direction: "up"`, `speed: 0.01`, 0.05 to 0.1 studs above the surface);
+  white water at an impact faces the camera.
+- Budget: a waterfall or shore loop is ambient and runs for a long time; keep it under about 100 particles alive (the
+  examples peak at 80 to 85) and lean on beams and surfaces, which cost no particles.
