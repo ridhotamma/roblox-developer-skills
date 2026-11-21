@@ -116,7 +116,8 @@ local Occupied = {}
 Occupied.__index = Occupied
 
 function Scatter.Occupied(cell: number?)
-	return setmetatable({ c = cell or 16, m = {} :: { [number]: { { number } } } }, Occupied)
+	-- r: the widest circle added so far (at least 12), so Any reaches big ones like a camp
+	return setmetatable({ c = cell or 16, r = 12, m = {} :: { [number]: { { number } } } }, Occupied)
 end
 
 function Occupied:Add(x: number, z: number, r: number?)
@@ -127,10 +128,13 @@ function Occupied:Add(x: number, z: number, r: number?)
 		self.m[k] = bucket
 	end
 	table.insert(bucket, { x, z, r or 0 })
+	if (r or 0) > self.r then
+		self.r = r :: number
+	end
 end
 
 function Occupied:Any(x: number, z: number, d: number): boolean
-	local n = math.ceil((d + 12) / self.c)
+	local n = math.ceil((d + self.r) / self.c)
 	local ci, cj = math.floor(x / self.c), math.floor(z / self.c)
 	for i = ci - n, ci + n do
 		for j = cj - n, cj + n do

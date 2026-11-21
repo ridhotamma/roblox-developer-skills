@@ -191,9 +191,10 @@ function city(o = {}) {
 
 // ------------------------------------------------------------------ wilderness (procedural survival map)
 class Occupied {
-  constructor(cell = 16) { this.c = cell; this.m = new Map(); }
-  add(x, z, r = 0) { const k = Math.floor(x / this.c) * 4099 + Math.floor(z / this.c); if (!this.m.has(k)) this.m.set(k, []); this.m.get(k).push([x, z, r]); }
-  any(x, z, d) { const n = Math.ceil((d + 12) / this.c), ci = Math.floor(x / this.c), cj = Math.floor(z / this.c); for (let i = ci - n; i <= ci + n; i++) for (let j = cj - n; j <= cj + n; j++) { const b = this.m.get(i * 4099 + j); if (b) for (const p of b) if (Math.hypot(p[0] - x, p[1] - z) < d + p[2]) return true; } return false; }
+  // r: the widest circle added so far (at least 12), so the search reaches big ones like a camp
+  constructor(cell = 16) { this.c = cell; this.m = new Map(); this.r = 12; }
+  add(x, z, r = 0) { const k = Math.floor(x / this.c) * 4099 + Math.floor(z / this.c); if (!this.m.has(k)) this.m.set(k, []); this.m.get(k).push([x, z, r]); if (r > this.r) this.r = r; }
+  any(x, z, d) { const n = Math.ceil((d + this.r) / this.c), ci = Math.floor(x / this.c), cj = Math.floor(z / this.c); for (let i = ci - n; i <= ci + n; i++) for (let j = cj - n; j <= cj + n; j++) { const b = this.m.get(i * 4099 + j); if (b) for (const p of b) if (Math.hypot(p[0] - x, p[1] - z) < d + p[2]) return true; } return false; }
 }
 function wilderness(o = {}) {
   const seed = o.seed || 1, R = G.rng(seed), N = G.noise2(seed), S = o.size || 640, c = S / 2, items = [], zones = [], pois = [], paths = [];

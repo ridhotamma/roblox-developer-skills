@@ -51,7 +51,8 @@ To put something with its back against a wall: north wall (low z) `rot` 180, sou
 | `focus` | What the Player view looks at: the focal point. |
 | `bounds` | Optional; worked out from the items when missing. |
 | `rules` | Optional overrides of the type's thresholds: `pass`, `main`, `empty`, `coverage`, `cell`. Use sparingly and say why. |
-| `seed` | Seeds `scatter` macros. |
+| `seed` | Seeds `scatter` macros and the terrain. |
+| `terrain` | The ground under the layout: relief, hills, lakes, rivers, pads, fields... See `terrain.md`. Item heights become relative to the ground. |
 
 ## 3. Items
 
@@ -72,6 +73,8 @@ To put something with its back against a wall: north wall (low z) `rot` 180, sou
 | `walkable` | True for things players walk over (rugs, pads, road paint): they never block. Defaults to true for `floor`, `decor` and `marker`. |
 | `clear` | Free floor the object needs, `{ "f": 4, "b": 0, "l": 0, "r": 0 }`; overrides the catalog. |
 | `label`, `zone`, `tags` | Carried into the export as attributes and `Layout_<tag>` tags. Tag `checkpoint` marks obby checkpoints. |
+| `ground` | With terrain: `"high"` sits on the highest point under it (bridges), `"water"` on the water surface (docks). Default: structures on their lowest corner, nature on its centre, groups on one shared base. |
+| `abs` | With terrain: true keeps `pos[1]` as an absolute height instead of a height above the ground. |
 | `parts` | Inline geometry for one-off objects: a list of `{ "s": shape, "p": [x, y, z], "z": [w, h, d], "c": colour, "m": material, "r": yaw }`, positions relative to the base centre. |
 
 A plain block with no catalog kind:
@@ -125,7 +128,7 @@ For a building, write one `walls` for the outside, then partitions as `walls` wi
     "avoid": [[100, 100, 30], [40, 160, 18]], "seed": 3 } }
 ```
 
-`rect` or `circle: [x, z, r]`; `spacing` is the minimum distance between results; `avoid` is a list of `[x, z, radius]` circles to stay out of (clearings, paths, buildings); rotation and scale are randomised.
+`rect` or `circle: [x, z, r]`; `spacing` is the minimum distance between results; `avoid` is a list of `[x, z, radius]` circles to stay out of (clearings, paths, buildings); rotation and scale are randomised. With terrain, scatter also keeps off paths (`avoidPaths`) and drops points in water or on slopes over `maxSlope` (35).
 
 ## 5. Zones, paths, points of interest, route
 
@@ -192,6 +195,9 @@ Errors must be fixed. Warnings should be fixed or justified. Notes are polish.
 | `copy-paste` (note) | many natural objects share rotation or scale | randomise |
 | `clumped` (note) | two natural objects jammed together | nudge or remove one |
 | `long-walk` (note) | farthest point of an interior is over 12 s from the door | bring key things closer or shrink |
+| `underwater` (error) | with terrain: an object stands in a lake, river or the sea | move it, or the water |
+| `on-slope` | with terrain: the ground rises 1.5+ studs under a structure | add the `flatten` pad the fix gives |
+| `steep-path` | with terrain: a path climbs over 30 degrees | run it along the slope, or round the hill |
 
 The verdict (too tight, balanced, too loose) comes from which kinds of findings dominate. The stats line gives floor coverage, the narrowest route, the median gap between neighbours and the widest empty circle: read them even when there are no findings.
 
@@ -215,7 +221,7 @@ The verdict (too tight, balanced, too loose) comes from which kinds of findings 
 node scripts/rlayout.cjs new <type> [options] [-o layout.json]
 node scripts/rlayout.cjs check <layout.json> [--json] [--all]
 node scripts/rlayout.cjs preview <layout.json> [-o preview.html]
-node scripts/rlayout.cjs export <layout.json> [--out dir] [--format rbxmx,script,module]
+node scripts/rlayout.cjs export <layout.json> [--out dir] [--format rbxmx,script,module,terrain]
 node scripts/rlayout.cjs build <type> [options] --out dir
 node scripts/rlayout.cjs kinds [name]
 node scripts/rlayout.cjs sets
@@ -227,6 +233,6 @@ node scripts/selftest.cjs
 
 Types: `restaurant`, `cafe`, `shop`, `living`, `bedroom`, `office`, `kitchen`, `bath`, `house`, `obby`, `tycoon`, `city`, `wilderness`.
 
-Options: `--seed`, `--name`, `--palette`; rooms `--width --depth --height --ceiling`; obby `--stages --jumps --easy --hard`; tycoon `--plots --plot-width --plot-depth`; city `--blocks-x --blocks-z --block-width --block-depth --road`; wilderness `--size --pois --lakes`.
+Options: `--seed`, `--name`, `--palette`; rooms `--width --depth --height --ceiling`; obby `--stages --jumps --easy --hard`; tycoon `--plots --plot-width --plot-depth`; city `--blocks-x --blocks-z --block-width --block-depth --road`; wilderness `--size --pois --lakes --hills --relief --flat`. A layout with terrain also exports `<Name>.terrain.lua` (the terrain on its own, for the `.rbxmx` route).
 
 `check` exits with status 1 when there are errors, so it can gate a build script. Node 18+ is the only requirement; `selftest.cjs` also compares the kit with the tool when the `luau` CLI is installed.

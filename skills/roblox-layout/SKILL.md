@@ -1,6 +1,6 @@
 ---
 name: roblox-layout
-description: Design the layout of Roblox rooms, buildings and maps so everything is placed nicely at natural distances, not too tight and not too loose. Covers interiors (restaurant, cafe, shop, house, office), obbies, tycoon plots, cities, simulator hubs and procedural survival maps. Ships a tool that generates a layout, measures it (dead gaps, blocked furniture, unreachable spots, narrow aisles, empty floor, impossible jumps), renders a 3D and floor-plan preview, and exports a Studio model, command-bar script or ModuleScript; plus a Luau kit for runtime generation (seeded world and obby generators, Poisson scatter, build-mode placement rules). Use this whenever the user wants to lay out, furnish, arrange, decorate, block out or generate a room, building, lobby, map, level, obby, tycoon, city or world in Roblox, asks where to put things or how far apart, wants a random or procedural map, or says a build looks cramped, empty, cluttered or unnatural, even if they only say "build me a cafe" or "make my map look better".
+description: Design the layout of Roblox rooms, buildings and maps so everything is placed nicely at natural distances, not too tight and not too loose. Covers interiors (restaurant, cafe, shop, house, office), obbies, tycoon plots, cities, simulator hubs and procedural survival maps, and the ground under outdoor maps: real Roblox Smooth Terrain with hills, mountains, mesas, valleys, lakes, rivers, sea and beaches, flat pads for buildings, plowed fields, rock outcrops and painted areas. Ships a tool that generates a layout, measures it (dead gaps, blocked furniture, unreachable spots, narrow aisles, empty floor, impossible jumps, objects on slopes or under water, paths too steep), renders a 3D and floor-plan preview, and exports a Studio model, command-bar script or ModuleScript; plus a Luau kit for runtime generation (seeded world, terrain and obby generators, Poisson scatter, build-mode placement rules). Use this whenever the user wants to lay out, furnish, arrange, decorate, block out or generate a room, building, lobby, map, level, obby, tycoon, city or world in Roblox, asks where to put things or how far apart, wants a random or procedural map, wants terrain (hills, a lake, a river, a mountain, a beach, an island, fields, rocks), or says a build looks cramped, empty, cluttered, flat or unnatural, even if they only say "build me a cafe" or "make my map look better".
 ---
 
 # Roblox layout
@@ -18,7 +18,8 @@ Do not place objects by guessing coordinates. Generate or write a layout spec, r
 5. **Group, then space the groups.** Furniture comes in sets (table and chairs, sofa and coffee table and rug, bed and nightstands). Inside a set things nearly touch; between sets there is an aisle. Single props scattered evenly across a floor look like clutter.
 6. **One focal point, visible from the entrance.** The counter, the fountain, the landmark tower, the first jump. The main route leads to it. Everything else is quieter.
 7. **Rhythm for built things, irregularity for nature.** Lamps, shelves, tables: equal spacing, aligned, rotated in 90 degree steps. Trees, rocks, bushes: even-but-irregular spacing (Poisson, not random), random rotation, size varied by about 15%, dense in places and open in others.
-8. **Scale to the avatar and the camera.** The avatar is about 4 wide and 5 tall; the camera sits 12.5 studs behind it. Doors 6 wide and 8 high, ceilings 14 (under 12 the camera clips), 16 studs is one second of walking. Points of interest sit 6 to 15 seconds apart.
+8. **Ground is part of the layout.** Outdoors, shape the land first (hills, water, a rim), then put places on flat pads, then route paths along slopes (main routes under 20 degrees), then scatter. Nothing sits on a slope it would look buried in, nothing stands in water, and every crossing of a river has a bridge.
+9. **Scale to the avatar and the camera.** The avatar is about 4 wide and 5 tall; the camera sits 12.5 studs behind it. Doors 6 wide and 8 high, ceilings 14 (under 12 the camera clips), 16 studs is one second of walking. Points of interest sit 6 to 15 seconds apart.
 
 `references/spacing-metrics.md` has every number; `references/composition.md` covers the look (hierarchy, palettes, height, sight lines, dressing).
 
@@ -31,7 +32,8 @@ Do not place objects by guessing coordinates. Generate or write a layout spec, r
 | An obby | `build obby --stages n --jumps n --easy 0.15 --hard 0.85`. Check the difficulty curve in the report. Read `references/genre-layouts.md` (obby) before changing gaps by hand; `rlayout.cjs jump` prints the reach table for the game's WalkSpeed and JumpHeight. |
 | A tycoon | `build tycoon --plots n`. The plot layout (line on one side, buttons lined up with what they buy, build area kept open) is the part to adapt. |
 | A city or town | `build city --blocks-x n --blocks-z n`. Blocks, lots, setbacks, alleys, kerb furniture rhythm, a park and a plaza. |
-| A procedural / random map (survival, exploration) | Preview seeds with `build wilderness --seed n --size n`, then install the kit and call `WorldGen.Generate({ seed = n })` at runtime: it builds the same map as the preview. Read `references/procedural.md`. |
+| A procedural / random map (survival, exploration) | Preview seeds with `build wilderness --seed n --size n` (terrain by default: rolling ground, hills, a rim, carved lakes, pads and trail beds; `--hills n --relief n`, or `--flat` for the old flat map), then install the kit and call `WorldGen.Generate({ seed = n })` at runtime: it builds the same map and terrain as the preview. Read `references/procedural.md`. |
+| Terrain for a designed map: hills, a lake, a river, mountains, fields, rocks, a beach or island | Add a `terrain` block to the spec (start from `examples/valley.json`): shapes first, then water, then `flatten` pads under every built place, `field`s, `outcrop`s. Put a `bridge` where a path crosses a river. Read `references/terrain.md`. |
 | Something else (lobby, simulator hub, arena, dungeon, custom building) | Write a spec by hand using sets, rows, walls and scatter (start from `examples/simulator_hub.json`), then check and preview it like any other. |
 | "Why does my build look cramped / empty / messy?" | Rebuild the area as a spec (measure the real positions) and run `check`; or apply the rules above by eye and explain which one is broken. |
 | Players place objects at runtime (build mode, furniture, plots) | The kit's `Spacing.CanPlace` and `Spacing.SnapOffset` enforce rules 1 and 2 live. |
@@ -59,8 +61,8 @@ Do not place objects by guessing coordinates. Generate or write a layout spec, r
    ```bash
    node <skill>/scripts/rlayout.cjs export <file>.layout.json --out <dir> --format rbxmx,script,module
    ```
-   - `.rbxmx`: drag into Studio (or right-click Workspace > Insert from File). Easiest.
-   - `.lua`: paste into the command bar; builds the model with one undo step.
+   - `.rbxmx`: drag into Studio (or right-click Workspace > Insert from File). Easiest. With terrain, run `<Name>.terrain.lua` in the command bar first: a model file can't carry terrain.
+   - `.lua`: paste into the command bar; builds the terrain and the model with one undo step.
    - `.module.luau`: a ModuleScript for `LayoutBuilder.Build` when the layout is built at runtime (one tycoon plot per player, obby stages loaded on demand).
    The result is a blockout: anchored parts in the right place at the right size, grouped as one Model per object in folders (Structure, Furniture, Props, Nature, Buildings, Gameplay), each tagged `Layout_<kind>`. Art replaces blockout object by object without moving anything.
 
@@ -70,8 +72,9 @@ Do not place objects by guessing coordinates. Generate or write a layout spec, r
 
 | Module | Does |
 |---|---|
-| `LayoutBuilder.luau` | `Build(layout, { Parent, Origin, Prefabs, SnapToGround, YieldEvery, Catalog })`: builds an exported module or a generated layout. `Prefabs` is a Folder of models named after kinds (`chair`, `oak`): they replace the blockout shapes. `SnapToGround` drops objects onto terrain. |
-| `WorldGen.luau` | `Generate({ seed, size, lakes, pois })`: the wilderness generator. Same seed, same map as `rlayout.cjs new wilderness --seed n`. |
+| `LayoutBuilder.luau` | `Build(layout, { Parent, Origin, Prefabs, SnapToGround, YieldEvery, Catalog, Terrain })`: builds an exported module or a generated layout. `Prefabs` is a Folder of models named after kinds (`chair`, `oak`): they replace the blockout shapes. A layout with a terrain spec gets its Terrain written first and every object set on the ground; it returns the model and the terrain sampler. `SnapToGround` raycasts objects onto ground you built yourself. |
+| `TerrainGen.luau` | `Sample(spec, paths)`: the height, water and material grid (`:Height`, `:Slope`, `:Water`, `:Material`, `:Ground`); `Write(sampler, { Origin, YieldEvery })`: writes it into Terrain with WriteVoxels. Same spec, same ground as the preview. |
+| `WorldGen.luau` | `Generate({ seed, size, lakes, pois, hills, relief, terrain })`: the wilderness generator. Same seed, same map as `rlayout.cjs new wilderness --seed n`. |
 | `ObbyGen.luau` | `Generate({ seed, stages, jumps, easy, hard, metrics })`: always-beatable obby courses, same as the preview. |
 | `Scatter.luau` | `Poisson` (even-but-irregular fill with spacing that can vary by place), `JitterCell` / `JitterRect` (deterministic per-cell points for endless or streamed worlds), `Occupied` (keep kinds apart). |
 | `Spacing.luau` | `CanPlace` (overlap, dead gap, blocked working space, keep-out, bounds), `SnapOffset` (magnetic snap that closes a dead gap), `Distribute`, `FitCount`, `JumpReach`, `JumpBand`, `JumpDifficulty`. |
@@ -91,7 +94,8 @@ The modules use string requires (`require("./Rng")`). On tooling that predates t
 ## Limits to be honest about
 
 - The output is a blockout and a plan, not finished art. It fixes placement and proportion; models, textures and lighting come after (see `roblox-atmosphere` for the mood).
-- The checker reasons in 2D footprints on one floor level. Multi-storey buildings are checked one floor per spec; ramps and stairs between levels are not routed.
+- The checker reasons in 2D footprints on one floor level. Multi-storey buildings are checked one floor per spec; ramps and stairs between levels are not routed. On terrain it adds slopes, water and cliffs, but it doesn't route switchbacks for you.
+- Terrain is a height field at Terrain's 4-stud voxel size: no caves, overhangs or arches, rivers hold one water level (no waterfalls), and it can be moved but not rotated. Carve the rest by hand in Studio afterwards.
 - The preview approximates Roblox rendering. Wedge parts (pitched roofs, tents) follow Roblox's wedge orientation but have not been verified in Studio by this skill: glance at roofs after import.
 - Generators give a sound starting point per genre, not the only good layout. Expect to adjust sizes, counts and the focal point to the game.
 - `Spacing.CanPlace` is a rule check, not pathfinding: for "can players still reach everything" after a player places an object, also test a path with PathfindingService.
@@ -102,5 +106,6 @@ The modules use string requires (`require("./Rng")`). On tooling that predates t
 - `references/spacing-metrics.md` — every number in studs: avatar and camera, doors and ceilings, aisles, clearances per object, seating, shops, kitchens, streets, lots, plots, nature spacing, walking times, jump table.
 - `references/composition.md` — making it look good: focal point, hierarchy, grouping, rhythm and variation, alignment, height and skyline, palettes (60-30-10), dressing, the first view from spawn, common mistakes.
 - `references/genre-layouts.md` — per genre: obby, tycoon, restaurant and shop, house and interiors, city, simulator hub, survival map, horror, with the layout pattern and the numbers that matter.
+- `references/terrain.md` — the ground: the terrain block, every feature (hill, mountain, mesa, dip, lake, river, sea, flatten, field, outcrop, paint, patches) with sizes that work, surface materials, how objects sit on slopes, bridges and docks, recipes (village, farm, river crossing, canyon, island, mountain pass), the terrain findings, building it in Studio and at runtime.
 - `references/procedural.md` — generating maps at runtime: the layer order, Poisson and jittered scatter, noise for biomes, points of interest and trails, fairness, chunks and streaming, seeds, using the kit.
 - `references/layout-spec.md` — the JSON spec, the macros (set, row, walls, scatter), custom kinds, the checker's findings and how to fix each, the CLI.

@@ -108,7 +108,9 @@ function build(specIn, paths, layout) {
       });
     } else if (t === "lake") {
       const R = f.radius, depth = f.depth || 8, shore = f.shore !== undefined ? f.shore : 8, ax = f.at[0], az = f.at[1];
-      const level = f.level !== undefined ? f.level : r2(height(ax, az) - 1);
+      // default level: just under the lowest point of the rim, so the water never needs a dam
+      let level = f.level;
+      if (level === undefined) { let rim = Infinity; for (let q = 0; q < 16; q++) rim = Math.min(rim, height(ax + Math.cos(q * Math.PI / 8) * R * 1.05, az + Math.sin(q * Math.PI / 8) * R * 1.05)); level = r2(rim - 0.6); }
       f.level = level; bodies.push({ type: "lake", id: f.id, at: [ax, az], radius: R, level });
       const m = R * 1.15 + shore;
       each(ax - m, az - m, ax + m, az + m, (k, x, z) => {
@@ -204,6 +206,16 @@ function build(specIn, paths, layout) {
       if (locked[k]) { if (e[0] <= hw && !hard[k]) hard[k] = mat; continue; } // pads stay level
       if (e[0] <= hw) { H[k] = e[1]; hard[k] = mat; }
       else H[k] = e[1] + (H[k] - e[1]) * sstep((e[0] - hw) / (band - hw));
+    }
+  }
+
+  // 3b. sea: every bit of ground under the sea level is under water, with sand just above it
+  if (s.sea !== undefined && s.sea !== null) {
+    bodies.push({ type: "sea", level: s.sea });
+    for (let k = 0; k < n; k++) {
+      if (W[k] !== NONE) continue;
+      if (H[k] < s.sea) { W[k] = s.sea; if (!hard[k]) hard[k] = s.sea - H[k] < 2.2 ? "Sand" : "Mud"; }
+      else if (H[k] < s.sea + 1.5 && !hard[k]) hard[k] = "Sand";
     }
   }
 

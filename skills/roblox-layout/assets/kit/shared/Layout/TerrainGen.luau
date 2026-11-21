@@ -298,7 +298,15 @@ function TerrainGen.Sample(specIn: any, paths: { any }?, layout: any?): Sampler
 			local R, depth = f.radius, f.depth or 8
 			local shore = if f.shore ~= nil then f.shore else 8
 			local ax, az = f.at[1], f.at[2]
-			local level = if f.level ~= nil then f.level else r2(height(ax, az) - 1)
+			-- default level: just under the lowest point of the rim, so the water never needs a dam
+			local level = f.level
+			if level == nil then
+				local rim = math.huge
+				for q = 0, 15 do
+					rim = math.min(rim, height(ax + math.cos(q * math.pi / 8) * R * 1.05, az + math.sin(q * math.pi / 8) * R * 1.05))
+				end
+				level = r2(rim - 0.6)
+			end
 			f.level = level
 			table.insert(bodies, { type = "lake", id = f.id, at = { ax, az }, radius = R, level = level })
 			local m = R * 1.15 + shore
@@ -513,6 +521,24 @@ function TerrainGen.Sample(specIn: any, paths: { any }?, layout: any?): Sampler
 				else
 					H[k] = y + (H[k] - y) * sstep((d - hw) / (band - hw))
 				end
+			end
+		end
+	end
+
+	-- 3b. sea: every bit of ground under the sea level is under water, with sand just above it
+	if s.sea ~= nil then
+		table.insert(bodies, { type = "sea", level = s.sea })
+		for k = 1, n do
+			if W[k] ~= NONE then
+				continue
+			end
+			if H[k] < s.sea then
+				W[k] = s.sea
+				if not hard[k] then
+					hard[k] = if s.sea - H[k] < 2.2 then "Sand" else "Mud"
+				end
+			elseif H[k] < s.sea + 1.5 and not hard[k] then
+				hard[k] = "Sand"
 			end
 		end
 	end

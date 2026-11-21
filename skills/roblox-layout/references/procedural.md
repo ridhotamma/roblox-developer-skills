@@ -20,7 +20,7 @@ How to generate a map at runtime that still looks placed by hand, and how the ki
 
 Random placement looks random. Generated maps look designed when they are built in the order a designer would work, with every layer keeping clear of what is already there:
 
-1. **Water and terrain features** (lakes, cliffs): the big shapes everything else works around.
+1. **Ground and water** (rolling relief, hills, a rim, lakes): the big shapes everything else works around.
 2. **Places**: spawn, points of interest, each with a clearing.
 3. **Routes** between places.
 4. **Resources**, spread for fairness.
@@ -65,7 +65,7 @@ After placing: random yaw for every natural object, scale between 0.8 and 1.25, 
 - Thresholds set the proportions: raising the forest threshold from 0.5 to 0.55 turns a wooded map into parkland.
 - Blend at the borders. A biome that ends on a hard line looks generated; the edge band with its wider spacing is what sells it.
 
-For height, use Roblox Terrain with its own noise or a hand-made heightmap and build with `SnapToGround = true`; the layout stays 2D.
+For height, the generated map carries a terrain spec (see `terrain.md`): rolling ground, a few hills and a rim of high ground are laid down before anything else, lakes are carved into it, and every place gets a flat pad. Placement then reads the same ground: points of interest go where the ground is gentle (relief under 8 studs within 32), and nothing is scattered on slopes over 34 degrees or in water. The layout stays 2D; heights are applied when it is built.
 
 ## 5. Points of interest and trails
 
@@ -133,7 +133,8 @@ Unload chunks by destroying their model; regenerate from the seed when players r
 - Same seed twice gives the same map; different seeds look different.
 - Wood, stone and food within 50 studs of spawn on every seed tried.
 - Every point of interest reachable; none closer than 80 or farther than 260 from its nearest neighbour.
-- No tree or rock on a trail or in a clearing.
+- No tree or rock on a trail or in a clearing, on a cliff or in water.
+- Steepest path under 20 degrees on main routes (the stats line shows it); every pad level.
 - Forests thin at the edges; no straight biome borders; no tree rows.
 - A landmark visible from spawn or from the first trail.
 - Build time acceptable with `YieldEvery`; part count within budget for phones.
