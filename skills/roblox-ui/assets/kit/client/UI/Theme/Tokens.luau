@@ -5,8 +5,8 @@
 --     transparency) is the DEFAULT theme. Components never read these directly: they read
 --     `ui.theme` (Theme/Theme.luau), which starts from these values and applies your overrides
 --     from Theme/GameTheme.luau. Restyle the game there, not here.
---   * System constants (HitTarget, Layers, Breakpoints, Scale) are read directly. They are about
---     devices and ergonomics, not looks, so themes can't change them.
+--   * System constants (HitTarget, Layers, Breakpoints, Scale, Overscan, ThumbZone) are read
+--     directly. They are about devices and ergonomics, not looks, so themes can't change them.
 --
 -- Sizes are in design units: 1 unit = 1 pixel at scale 1. Components turn units into pixels
 -- with `ui.px(n)` (Foundation/UiContext), which applies the device scale computed from `Scale`.
@@ -200,6 +200,21 @@ Tokens.Scale = {
 	Touch = { Reference = 720, Min = 1, Max = 1.25 } :: ScaleProfile,
 	Pointer = { Reference = 864, Min = 0.75, Max = 2 } :: ScaleProfile,
 	TenFoot = { Reference = 720, Min = 1.25, Max = 1.5 } :: ScaleProfile,
+}
+
+-- Share of the screen kept clear on each edge, by device. Some TVs crop the picture edge
+-- (overscan), so on a ten-foot interface every Safe / Device layer pads its content by 5% of the
+-- screen per edge (minus what the safe insets already clear). The room a layout gets (ui.room,
+-- ui.design) excludes it.
+Tokens.Overscan = {
+	TenFoot = 0.05,
+}
+
+-- Touch ergonomics: the share of the safe area's height, at the bottom, where the thumbs rest on
+-- the thumbstick (left) and the jump button (right). HUD clusters at the screen edges stay above
+-- it; anything that doesn't fit there overflows into a "More" button (Screens/HudScreen).
+Tokens.ThumbZone = {
+	Height = 1 / 3,
 }
 
 Tokens.Transparency = {

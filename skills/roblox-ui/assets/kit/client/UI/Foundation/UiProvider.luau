@@ -9,7 +9,9 @@
 --     the home indicator and the Roblox top bar are accounted for (ViewportSize alone is not);
 --   * the input with UserInputService.PreferredInput (falls back to last input type on older
 --     clients), which changes when a player picks up a gamepad or plugs in a keyboard;
---   * GuiService.ReducedMotionEnabled and GuiService.PreferredTransparency.
+--   * GuiService.ReducedMotionEnabled and GuiService.PreferredTransparency;
+--   * Roblox's own UI that takes room: the default chat window (Foundation/CoreUi) and the
+--     on-screen keyboard while a TextBox has focus on a phone or tablet.
 -- Everything is event-driven: nothing runs per frame, and consumers re-render only when a value
 -- they can see actually changed.
 --
@@ -23,6 +25,7 @@ local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local React = require(ReplicatedStorage.Packages.React)
+local CoreUi = require(script.Parent.CoreUi)
 local Responsive = require(script.Parent.Responsive)
 local Theme = require(script.Parent.Parent.Theme.Theme)
 local UiContext = require(script.Parent.UiContext)
@@ -36,6 +39,8 @@ export type Simulation = {
 	previewScale: number?, -- UIScale the preview applies on top
 	reducedMotion: boolean?,
 	preferredTransparency: number?,
+	chatWindow: UiContext.Rect?, -- the default chat window, relative to the safe area, pixels
+	keyboard: number?, -- on-screen keyboard height over the safe area, pixels (0 = hidden)
 }
 
 export type Props = {
@@ -52,6 +57,8 @@ type Environment = {
 	tenFoot: boolean,
 	reducedMotion: boolean,
 	preferredTransparency: number,
+	chatWindow: UiContext.Rect?, -- relative to the safe area, pixels
+	keyboard: number, -- pixels covered at the bottom of the safe area
 }
 
 -- Some properties are newer than some clients (and than older type definitions): read them
@@ -94,6 +101,27 @@ local function currentInput(): Responsive.InputMode
 	return "Pointer"
 end
 
+-- The chat window relative to the safe area. Both it and the probe report AbsolutePosition in
+-- the same space, so the difference is right whatever that space is.
+local function chatInSafeArea(probe: Frame?): UiContext.Rect?
+	local chat = CoreUi.chatWindow()
+	if chat == nil or probe == nil then
+		return nil
+	end
+	return { position = chat.position - probe.AbsolutePosition, size = chat.size }
+end
+
+-- How much of the safe area the on-screen keyboard covers. Its height is used as is (it is
+-- docked to the bottom edge), which overestimates by the home-indicator inset at most: content
+-- lifts a little more than needed rather than staying under the keys.
+local function keyboardHeight(): number
+	if readProperty(UserInputService, "OnScreenKeyboardVisible") ~= true then
+		return 0
+	end
+	local size = readProperty(UserInputService, "OnScreenKeyboardSize")
+	return if typeof(size) == "Vector2" then math.max(0, math.round((size :: Vector2).Y)) else 0
+end
+
 local function readEnvironment(probe: Frame?): Environment
 	local camera = Workspace.CurrentCamera
 	local viewport = if camera then camera.ViewportSize else Vector2.new(1280, 720)
@@ -106,7 +134,16 @@ local function readEnvironment(probe: Frame?): Environment
 		tenFoot = GuiService:IsTenFootInterface(),
 		reducedMotion = readProperty(GuiService, "ReducedMotionEnabled") == true,
 		preferredTransparency = if type(transparency) == "number" then transparency else 1,
+		chatWindow = chatInSafeArea(probe),
+		keyboard = keyboardHeight(),
 	}
+end
+
+local function sameRect(a: UiContext.Rect?, b: UiContext.Rect?): boolean
+	if a == nil or b == nil then
+		return a == b
+	end
+	return a.position == b.position and a.size == b.size
 end
 
 local function sameEnvironment(a: Environment, b: Environment): boolean
@@ -116,6 +153,8 @@ local function sameEnvironment(a: Environment, b: Environment): boolean
 		and a.tenFoot == b.tenFoot
 		and a.reducedMotion == b.reducedMotion
 		and a.preferredTransparency == b.preferredTransparency
+		and sameRect(a.chatWindow, b.chatWindow)
+		and a.keyboard == b.keyboard
 end
 
 local function useLiveEnvironment(enabled: boolean): Environment?
@@ -181,6 +220,21 @@ local function useLiveEnvironment(enabled: boolean): Environment?
 				table.insert(connections, connection)
 			end
 		end
+		-- The on-screen keyboard: its properties, plus TextBox focus in case a client doesn't
+		-- signal them (the keyboard opens and closes with focus).
+		for _, name in { "OnScreenKeyboardVisible", "OnScreenKeyboardSize" } do
+			local connection = watchProperty(UserInputService, name, refresh)
+			if connection then
+				table.insert(connections, connection)
+			end
+		end
+		table.insert(connections, UserInputService.TextBoxFocused:Connect(refresh))
+		table.insert(connections, UserInputService.TextBoxFocusReleased:Connect(refresh))
+		table.insert(connections, probe:GetPropertyChangedSignal("AbsolutePosition"):Connect(refresh))
+		for _, connection in CoreUi.watchChatWindow(refresh) do
+			table.insert(connections, connection)
+		end
+		local stopCoreUi = CoreUi.onChanged(refresh)
 		watchCamera()
 
 		return function()
@@ -190,6 +244,7 @@ local function useLiveEnvironment(enabled: boolean): Environment?
 			if cameraConnection then
 				cameraConnection:Disconnect()
 			end
+			stopCoreUi()
 			probeGui:Destroy()
 		end
 	end, { enabled })
@@ -210,6 +265,8 @@ local function simulatedEnvironment(simulation: Simulation): Environment
 		tenFoot = simulation.tenFoot == true,
 		reducedMotion = simulation.reducedMotion == true,
 		preferredTransparency = simulation.preferredTransparency or 1,
+		chatWindow = simulation.chatWindow,
+		keyboard = simulation.keyboard or 0,
 	}
 end
 
@@ -237,6 +294,8 @@ local function UiProvider(props: Props)
 			insets = insets,
 			topbar = topbar,
 			previewScale = previewScale,
+			chatWindow = environment.chatWindow,
+			keyboard = environment.keyboard,
 		})
 	end, {
 		environment.viewport,
@@ -251,6 +310,8 @@ local function UiProvider(props: Props)
 		insets or false, -- never nil inside a dependency array: a nil hole changes its length
 		topbar,
 		previewScale,
+		environment.chatWindow or false,
+		environment.keyboard,
 	})
 
 	return React.createElement(UiContext.Context.Provider, { value = ui }, props.children)

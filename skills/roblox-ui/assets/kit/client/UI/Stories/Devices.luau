@@ -5,11 +5,14 @@
 --   Devices.Matrix { device = "All", theme = "Game", render = function() return e(ShopScreen, ...) end }
 --
 -- Each preview runs a simulated UiProvider (size class, scale, input mode, insets), so the
--- components lay out exactly as on the device. Overlays mark the Roblox top bar and, on touch
--- devices, where the thumbstick and jump button sit; nothing interactive belongs under them.
+-- components lay out exactly as on the device. Overlays mark the Roblox top bar, the default
+-- chat window where it starts open (desktop), the TV overscan margin, and, on touch devices,
+-- where the thumbstick and jump button sit; nothing interactive belongs under them.
 --
--- Sizes and insets approximate current devices (iPhone 14 / iPad Air class, 1366x768 laptop,
--- 1080p monitor and TV). Confirm on real hardware or Studio's Device Emulator before shipping.
+-- Sizes and insets approximate current devices (iPhone 14 / iPad Air class, an iPad in split
+-- view, a small desktop window, 1366x768 laptop, 1080p and ultrawide monitors, a TV). The chat
+-- window rectangle approximates the default TextChatService window. Confirm on real hardware or
+-- Studio's Device Emulator before shipping.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -28,10 +31,16 @@ export type Device = {
 	tenFoot: boolean?,
 	insets: UiContext.Insets,
 	topbar: number,
+	chat: UiContext.Rect?, -- the default chat window, relative to the safe area, pixels
 }
 
 local function insets(top: number, bottom: number, left: number, right: number): UiContext.Insets
 	return { Top = top, Bottom = bottom, Left = left, Right = right }
+end
+
+-- Where the default chat window opens on desktop, relative to the safe area (approximate).
+local function chat(x: number, y: number, width: number, height: number): UiContext.Rect
+	return { position = Vector2.new(x, y), size = Vector2.new(width, height) }
 end
 
 local Devices = {}
@@ -42,8 +51,11 @@ Devices.List = {
 	{ name = "Small phone", size = Vector2.new(667, 375), input = "Touch", insets = insets(0, 0, 0, 0), topbar = 58 },
 	{ name = "Tablet landscape", size = Vector2.new(1180, 820), input = "Touch", insets = insets(0, 20, 0, 0), topbar = 58 },
 	{ name = "Tablet portrait", size = Vector2.new(820, 1180), input = "Touch", insets = insets(24, 20, 0, 0), topbar = 58 },
-	{ name = "Laptop", size = Vector2.new(1366, 768), input = "Pointer", insets = insets(0, 0, 0, 0), topbar = 58 },
-	{ name = "Desktop 1080p", size = Vector2.new(1920, 1080), input = "Pointer", insets = insets(0, 0, 0, 0), topbar = 58 },
+	{ name = "Tablet split view", size = Vector2.new(590, 820), input = "Touch", insets = insets(0, 20, 0, 0), topbar = 58 },
+	{ name = "Small window", size = Vector2.new(800, 600), input = "Pointer", insets = insets(0, 0, 0, 0), topbar = 58, chat = chat(8, 4, 400, 250) },
+	{ name = "Laptop", size = Vector2.new(1366, 768), input = "Pointer", insets = insets(0, 0, 0, 0), topbar = 58, chat = chat(8, 4, 400, 250) },
+	{ name = "Desktop 1080p", size = Vector2.new(1920, 1080), input = "Pointer", insets = insets(0, 0, 0, 0), topbar = 58, chat = chat(8, 4, 400, 250) },
+	{ name = "Ultrawide", size = Vector2.new(2560, 1080), input = "Pointer", insets = insets(0, 0, 0, 0), topbar = 58, chat = chat(8, 4, 400, 250) },
 	{ name = "Console TV", size = Vector2.new(1920, 1080), input = "Gamepad", tenFoot = true, insets = insets(0, 0, 0, 0), topbar = 58 },
 } :: { Device }
 
@@ -60,6 +72,26 @@ function Devices.find(query: string): { Device }
 		end
 	end
 	return if #found > 0 then found else Devices.List
+end
+
+local function outline(name: string, position: Vector2, size: Vector2)
+	return e("Frame", {
+		Position = UDim2.fromOffset(position.X, position.Y),
+		Size = UDim2.fromOffset(size.X, size.Y),
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.7,
+		ZIndex = 1000,
+	}, {
+		Label = e("TextLabel", {
+			Text = name,
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			TextColor3 = Color3.new(1, 1, 1),
+			TextTransparency = 0.3,
+			TextSize = 14,
+			ZIndex = 1001,
+		}),
+	})
 end
 
 local function zone(name: string, center: Vector2, diameter: number)
@@ -98,6 +130,10 @@ function Devices.Preview(props: {
 	local fit = math.min(props.box.X / device.size.X, (props.box.Y - 20) / device.size.Y, 1)
 	local i = device.insets
 	local touch = device.input == "Touch"
+	local safeOrigin = Vector2.new(i.Left, i.Top + device.topbar)
+	local safeSize = device.size - Vector2.new(i.Left + i.Right, i.Top + device.topbar + i.Bottom)
+	local overscan = Responsive.overscanFor(device.size, safeSize, device.tenFoot == true)
+	local hasOverscan = overscan.Left + overscan.Right + overscan.Top + overscan.Bottom > 0
 
 	return e("Frame", {
 		Size = UDim2.fromOffset(math.ceil(device.size.X * fit), math.ceil(device.size.Y * fit) + 20),
@@ -134,6 +170,22 @@ function Devices.Preview(props: {
 				BorderSizePixel = 0,
 				ZIndex = 999,
 			}),
+			Chat = if device.chat
+				then outline("chat", safeOrigin + device.chat.position, device.chat.size)
+				else nil,
+			Overscan = if hasOverscan
+				then e("Frame", {
+					Position = UDim2.fromOffset(safeOrigin.X + overscan.Left, safeOrigin.Y + overscan.Top),
+					Size = UDim2.fromOffset(
+						safeSize.X - overscan.Left - overscan.Right,
+						safeSize.Y - overscan.Top - overscan.Bottom
+					),
+					BackgroundTransparency = 1,
+					ZIndex = 999,
+				}, {
+					Edge = e("UIStroke", { Color = Color3.new(1, 1, 1), Transparency = 0.6, Thickness = 2 }),
+				})
+				else nil,
 			Thumbstick = if touch
 				then zone("move", Vector2.new(i.Left + 110, device.size.Y - i.Bottom - 110), 160)
 				else nil,
@@ -150,6 +202,7 @@ function Devices.Preview(props: {
 					insets = device.insets,
 					topbar = device.topbar,
 					previewScale = fit,
+					chatWindow = device.chat,
 				},
 			}, { App = props.render() }),
 		}),

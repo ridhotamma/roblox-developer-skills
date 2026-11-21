@@ -10,6 +10,13 @@
 --
 --   e(Modal, { open = shopOpen, title = "Shop", onClose = closeShop, footer = buyBar }, body)
 --
+-- While open it also keeps Roblox's own UI out of the way (Foundation/CoreUi): the backpack hotbar
+-- and the emotes menu are hidden (the hotbar would sit over a sheet's footer and its number keys
+-- would equip tools mid-purchase), and on phones the player list too. Chat stays: menus open over
+-- a running multiplayer game. Pass `coreGui = {}` to hide nothing, or your own list.
+-- When the on-screen keyboard is up (a TextBox in the body has focus on a phone or tablet), the
+-- sheet shrinks and the dialog rises so the focused field and the footer stay above the keys.
+--
 -- `scroll = false` when the body manages its own scrolling (e.g. a grid beside a details pane).
 -- Look (corners, colour, border, scrim, default size, header height, footer) comes from
 -- theme.components.Modal; on phones the sheet is always square-cornered and full-screen.
@@ -19,6 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local React = require(ReplicatedStorage.Packages.React)
 local Box = require(script.Parent.Parent.Primitives.Box)
 local Button = require(script.Parent.Parent.Primitives.Button)
+local CoreUi = require(script.Parent.Parent.Foundation.CoreUi)
 local Layer = require(script.Parent.Parent.Primitives.Layer)
 local Motion = require(script.Parent.Parent.Foundation.Motion)
 local Navigation = require(script.Parent.Parent.Foundation.Navigation)
@@ -39,8 +47,12 @@ export type Props = {
 	scroll: boolean?, -- default true
 	footer: any?, -- element pinned under the body (actions)
 	order: number?, -- layer; default Tokens.Layers.Modal
+	coreGui: { Enum.CoreGuiType }?, -- Roblox UI hidden while open; default below
 	children: any,
 }
+
+local HIDE_EVERYWHERE = { Enum.CoreGuiType.Backpack, Enum.CoreGuiType.EmotesMenu }
+local HIDE_ON_PHONES = { Enum.CoreGuiType.Backpack, Enum.CoreGuiType.EmotesMenu, Enum.CoreGuiType.PlayerList }
 
 -- An "X" drawn from two bars, so it needs no icon asset and no font glyph.
 local function CloseGlyph(props: { color: Color3 })
@@ -77,6 +89,10 @@ local function Modal(props: Props)
 
 	Navigation.useShortcut({ Enum.KeyCode.ButtonB }, props.onClose, props.open)
 	Navigation.useFocus(panelRef, props.open)
+	CoreUi.useHidden(props.coreGui or (if compact then HIDE_ON_PHONES else HIDE_EVERYWHERE), props.open)
+
+	-- Room left above the on-screen keyboard (all of it when the keyboard is down).
+	local keyboard = if props.open then ui.keyboard else 0
 
 	local shown = alpha:map(function(a: number)
 		return a > 0.001
@@ -86,20 +102,21 @@ local function Modal(props: Props)
 	local panelAnchor: Vector2
 	local panelPosition: any
 	if compact then
-		panelSize = UDim2.fromScale(1, 1)
+		panelSize = UDim2.new(1, 0, 1, -keyboard)
 		panelAnchor = Vector2.zero
 		panelPosition = alpha:map(function(a: number)
 			return UDim2.fromScale(0, Motion.lerp(1.05, 0, a))
 		end)
 	else
 		local margin = ui.space(style.margin) * 2
-		local width = math.min(ui.px(props.width or style.width), ui.safe.X - margin)
-		local height = math.min(ui.px(props.height or style.height), ui.safe.Y - margin)
+		local width = math.min(ui.px(props.width or style.width), ui.room.X - margin)
+		local height = math.min(ui.px(props.height or style.height), ui.room.Y - keyboard - margin)
 		panelSize = UDim2.fromOffset(width, height)
 		panelAnchor = Vector2.new(0.5, 0.5)
 		local rise = ui.space(style.margin)
+		local lift = math.round(keyboard / 2) -- centred in the room above the keyboard
 		panelPosition = alpha:map(function(a: number)
-			return UDim2.new(0.5, 0, 0.5, math.round(rise * (1 - a)))
+			return UDim2.new(0.5, 0, 0.5, math.round(rise * (1 - a)) - lift)
 		end)
 	end
 

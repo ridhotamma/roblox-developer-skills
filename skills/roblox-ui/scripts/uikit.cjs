@@ -54,8 +54,11 @@ function readTokens(file = TOKENS) {
   if (hitBlock) {
     for (const h of hitBlock[1].matchAll(/(Touch|Pointer|Gamepad)\s*=\s*(\d+)/g)) hitTarget[h[1]] = Number(h[2]);
   }
+  const overscanBlock = /Tokens\.Overscan\s*=\s*\{([^}]*)\}/.exec(src);
+  const overscanTenFoot = overscanBlock && /TenFoot\s*=\s*([\d.]+)/.exec(overscanBlock[1]);
   return {
     scale,
+    overscan: { tenFoot: overscanTenFoot ? Number(overscanTenFoot[1]) : 0 },
     compactShortSide: num('CompactShortSide'),
     expandedWidth: num('ExpandedWidth'),
     hitTarget,
@@ -65,7 +68,7 @@ function readTokens(file = TOKENS) {
 function readDevices(file = DEVICES) {
   const src = fs.readFileSync(file, 'utf8');
   const devices = [];
-  const re = /\{\s*name\s*=\s*"([^"]+)",\s*size\s*=\s*Vector2\.new\((\d+),\s*(\d+)\),\s*input\s*=\s*"(\w+)",\s*(tenFoot\s*=\s*true,\s*)?insets\s*=\s*insets\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\),\s*topbar\s*=\s*(\d+)\s*\}/g;
+  const re = /\{\s*name\s*=\s*"([^"]+)",\s*size\s*=\s*Vector2\.new\((\d+),\s*(\d+)\),\s*input\s*=\s*"(\w+)",\s*(tenFoot\s*=\s*true,\s*)?insets\s*=\s*insets\((\d+),\s*(\d+),\s*(\d+),\s*(\d+)\),\s*topbar\s*=\s*(\d+)[^}\n]*\}/g; // later fields (chat = ...) are story-only
   let m;
   while ((m = re.exec(src))) {
     devices.push({
@@ -93,16 +96,34 @@ function measure(device, tokens) {
     scale = Math.min(Math.max(short / profile.reference, profile.min), profile.max);
     scale = Math.round(scale * 100) / 100;
   }
-  const design = { x: safe.x / scale, y: safe.y / scale };
+  // TV overscan (Responsive.overscanFor): Tokens.Overscan of the screen per edge, minus what the
+  // safe insets already clear; the layout room excludes it, the scale doesn't.
+  const share = device.tenFoot ? (tokens.overscan ? tokens.overscan.tenFoot : 0) : 0;
+  const overscan = { top: 0, bottom: 0, left: 0, right: 0 };
+  if (share > 0) {
+    const side = Math.max(0, Math.round(device.size.x * share - (device.size.x - safe.x) / 2));
+    const edgeY = Math.round(device.size.y * share);
+    overscan.left = side;
+    overscan.right = side;
+    overscan.bottom = edgeY;
+    overscan.top = Math.max(0, edgeY - Math.round(device.size.y - safe.y));
+  }
+  const room = {
+    x: Math.max(0, safe.x - overscan.left - overscan.right),
+    y: Math.max(0, safe.y - overscan.top - overscan.bottom),
+  };
+  const design = { x: room.x / scale, y: room.y / scale };
   let sizeClass = 'Expanded';
   if (Math.min(design.x, design.y) < tokens.compactShortSide) sizeClass = 'Compact';
   else if (design.x < tokens.expandedWidth) sizeClass = 'Medium';
   return {
     safe,
+    overscan,
+    room,
     scale,
     design,
     sizeClass,
-    orientation: safe.y > safe.x ? 'Portrait' : 'Landscape',
+    orientation: room.y > room.x ? 'Portrait' : 'Landscape',
     hitTargetPx: Math.round((tokens.hitTarget[device.input] || 44) * scale),
   };
 }
@@ -472,11 +493,11 @@ function printDevices(opt) {
     const [top, bottom, left, right] = (opt.insets || '0,0,0,0').split(',').map(Number);
     devices = [{ name: 'Custom', size: { x, y }, input, tenFoot: Boolean(opt.tenFoot), insets: { top, bottom, left, right }, topbar: Number(opt.topbar ?? 58) }];
   }
-  console.log('| Device | Screen | Input | Safe area | Scale | Design units | Size class | Hit target |');
-  console.log('|---|---|---|---|---|---|---|---|');
+  console.log('| Device | Screen | Input | Safe area | Room | Scale | Design units | Size class | Hit target |');
+  console.log('|---|---|---|---|---|---|---|---|---|');
   for (const d of devices) {
     const r = measure(d, tokens);
-    console.log(`| ${d.name} | ${d.size.x} × ${d.size.y} | ${d.tenFoot ? 'Gamepad (TV)' : d.input} | ${r.safe.x} × ${r.safe.y} | ${r.scale.toFixed(2)} | ${Math.round(r.design.x)} × ${Math.round(r.design.y)} | ${r.sizeClass} | ${r.hitTargetPx} px |`);
+    console.log(`| ${d.name} | ${d.size.x} × ${d.size.y} | ${d.tenFoot ? 'Gamepad (TV)' : d.input} | ${r.safe.x} × ${r.safe.y} | ${r.room.x} × ${r.room.y} | ${r.scale.toFixed(2)} | ${Math.round(r.design.x)} × ${Math.round(r.design.y)} | ${r.sizeClass} | ${r.hitTargetPx} px |`);
   }
 }
 

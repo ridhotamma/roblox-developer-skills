@@ -25,7 +25,7 @@ Theme (palettes, scales, roundness, per-component styles)   Theme/GameTheme.luau
 | A UI foundation / "set up React UI" / a design system | Install the kit (below), show the layer diagram, then build their first real screen with it. Ask only what changes output: their palette or brand colours, and whether they already use another UI library. |
 | To restyle the UI: brand colours, rounder or sharper corners, flat buttons, borderless cards, a seasonal or high-contrast look | Edit `UI/Theme/GameTheme.luau` with overrides (see Theming below and `references/theming.md`), never component code; run `uikit.cjs contrast`; preview with the stories' Theme control. |
 | A specific screen (shop, inventory, quest log, settings, round results, loading, daily rewards) | Write down its states (empty, loading, error, success, not affordable, owned) and what changes per size class, generate it with `uikit.cjs new screen`, compose it from kit components, add a story, mount it in `App.luau`. Give the complete files. |
-| "UI is tiny on mobile / cut off / doesn't work with a controller" | Run `scripts/uiscan.cjs` on their source, ask for screenshots on a phone if possible, read findings with `references/audit-checklist.md`, and give a ranked fix plan with code. Usually: scale model, safe-area layers, Activated, hit targets, gamepad selection. |
+| "UI is tiny on mobile / cut off / hidden under the chat or hotbar / doesn't work with a controller" | Run `scripts/uiscan.cjs` on their source, ask for screenshots on a phone if possible, read findings with `references/audit-checklist.md`, and give a ranked fix plan with code. Usually: scale model, safe-area layers, what each size class shows (overflow into More), core UI collisions, Activated, hit targets, gamepad selection. |
 | To migrate Roact, Studio-built UI or plain Instance scripts to React | Use the migration path in `references/react-lua.md`: install the kit beside the old UI, move one screen at a time behind the same controller API, delete the old screen when the new one ships. Never a big-bang rewrite. |
 | A UX review (screenshots, a flow, "why don't players buy") | Use `references/ux-patterns.md`: check the flow against the patterns and the review checklist, and report issues by player impact with a concrete fix each. |
 | A single component (a slider, a timer pill, a quest card) | `uikit.cjs new component <Name>`, build it from primitives with theme references, add its story, show it on the device matrix. |
@@ -36,7 +36,7 @@ If the project is not in the `roblox-project-structure` layout, the kit still wo
 
 - **react-lua** (`jsdotlua/react` and `jsdotlua/react-roblox`, 17.2.1) from Wally: Roblox's own React port, the one the Roblox app is built with. Hooks, context, portals, plus Roblox extras: bindings (update Instance properties without re-rendering), `React.Event`, `React.Change`, `React.Tag`. `references/react-lua.md` covers the API, Luau gotchas and typing.
 - **The kit** adds no other dependencies: its own small atom store, spring motor and navigation hooks. For big games, Charm (atoms with server sync) and react-spring / ripple slot in later; the shapes match.
-- **UI Labs** (or Flipbook) Studio plugin for stories. Every kit screen has a story that renders it on eight simulated devices at once.
+- **UI Labs** (or Flipbook) Studio plugin for stories. Every kit screen has a story that renders it on eleven simulated devices at once.
 - roblox-ts teams use `@rbxts/react`, which is the same library; the patterns and the kit's structure carry over directly.
 
 Recommend React for any game with more than a HUD. If the user is committed to Fusion or Vide, the responsive model, theme structure and UX rules here still apply; only the component syntax differs.
@@ -57,7 +57,14 @@ Scale is clamped per input (`Tokens.Scale`): phones stay at 1 so 44 units is a 4
 | Laptop 1366x768 / Desktop 1080p | 0.82 / 1.18 | Expanded |
 | Console TV 1080p | 1.42 | Expanded |
 
-`node <skill>/scripts/uikit.cjs devices` prints the full table, or `--size 1024x768 --input touch` for any screen. `references/responsive-layout.md` has the safe-area layers, thumb zones, layout toolbox and the responsive patterns (reflow, master-detail to stack, sheet vs dialog, sticky action bar).
+`node <skill>/scripts/uikit.cjs devices` prints the full table (eleven presets, from a small phone and an iPad in split view to an ultrawide monitor and a TV), or `--size 1024x768 --input touch` for any screen. `references/responsive-layout.md` has the safe-area layers, thumb zones, layout toolbox and the responsive patterns (reflow, master-detail to stack, sheet vs dialog, sticky action bar).
+
+**What shows where** is the other half of responsive design, and the kit handles it explicitly:
+
+- `Show` renders a piece only where a rule matches (`{ sizeClass = "Expanded" }`, `{ input = "Gamepad" }`, `minHeight`...); `Responsive.matches(ui, rule)` gives the same answer as a `visible` value.
+- Strips that can run out of room (HUD menus, toolbars) compute their capacity (`Responsive.fit`) and move the lowest-priority items into a More button (`Responsive.overflow`). The HUD does it, keeping the touch column above the bottom third where the thumbs rest.
+- Roblox's own UI is accounted for: the default chat window (`ui.chatWindow`, which the HUD moves clear of), the backpack hotbar, player list and emotes menu (hidden only through `CoreUi.useHidden` while a menu is open, restoring exactly what it hid), and the on-screen keyboard (`ui.keyboard`, which Modal lifts its content above).
+- On a TV, layers keep 5% of each edge clear for overscan (`ui.overscan`, `ui.room`).
 
 ## Theming (design config)
 
@@ -88,10 +95,10 @@ return Theme.create({
 
 1. **Theme only.** No raw `Color3`, corner size, font or spring in a component: pass theme references (`color = "Accent"`, `radius = "L"`) or read `ui.theme.components.<Name>`. A component with a new knob gets a theme entry. Consistency and re-theming come free, and reviews get shorter.
 2. **Size with `ui.px(units)`** for anything that should be physically consistent (padding, text, buttons, icons); **Scale** for things that are a share of their parent (a column that is half the panel). Never `TextScaled`: it makes every label a different size and ignores the player's Text Size setting.
-3. **Change layout at size classes, not device names.** `Responsive.pick(ui.sizeClass, { Compact = ..., Expanded = ... })` mobile-first; components that can measure (Grid) adapt continuously.
-4. **Content goes in safe layers.** `Layer` with `insets = "Safe"` for anything readable or tappable; `"None"` only for backdrops and art. Layers own DisplayOrder (`Tokens.Layers`), so stacking never depends on mount order.
+3. **Change layout at size classes, not device names.** `Responsive.pick(ui.sizeClass, { Compact = ..., Expanded = ... })` mobile-first; components that can measure (Grid) adapt continuously. Decide what each size class *shows* the same way: `Show` for secondary pieces, priority plus a More button (`Responsive.overflow`) for strips that can run out of room. Never hide the only way to do something: move it.
+4. **Content goes in safe layers.** `Layer` with `insets = "Safe"` for anything readable or tappable; `"None"` only for backdrops and art. Layers own DisplayOrder (`Tokens.Layers`), so stacking never depends on mount order. On a TV they also keep the overscan margin clear; size things against `ui.room`, not the viewport.
 5. **Every interactive element works with every input:** `Activated` (not `MouseButton1Click`), at least `ui.hitTarget` (44 units) on touch and gamepad, selectable with a visible focus ring, reachable by gamepad when its menu opens (`Navigation.useFocus`), and every shortcut has a visible button. The kit's `Button` does all of it.
-6. **Respect the thumbs.** On touch the thumbstick owns the bottom-left and jump owns the bottom-right; HUD buttons go at the left edge or top, primary menu actions at the bottom of sheets where thumbs rest. Keep the HUD sparse: balance, two or three menu buttons, context prompts.
+6. **Respect the thumbs and Roblox's own UI.** On touch the thumbstick owns the bottom-left and jump owns the bottom-right; HUD buttons go at the left edge (above the bottom third, `Tokens.ThumbZone`) or top, primary menu actions at the bottom of sheets where thumbs rest. Keep the HUD sparse: balance, two or three menu buttons, context prompts. The default chat window opens at the top left on desktop (`ui.chatWindow`), the hotbar sits bottom centre and the player list top right: stay clear of them, hide them only with `CoreUi.useHidden` while a menu needs the room, and keep text fields above the on-screen keyboard (`ui.keyboard`).
 7. **Screens are pure.** Data in through props, intent out through callbacks (`onBuy(itemId)`). Only `UiController` talks to remotes and attributes. Every screen can then be previewed and tested without a server, and the server stays the only authority (a click is a request, never a fact).
 8. **Put state where it belongs:** `useState` for UI-only state inside one screen (selected tab); atoms for state shared across screens or fed by the game (coins, which menu is open); bindings for anything that changes every frame (bars, timers, animation). Never set React state per frame.
 9. **Effects clean up.** Every connection, bound action, timer and created Instance in `useEffect` is undone in the returned cleanup; dependency arrays never contain `nil` (use `x or false`).
@@ -99,7 +106,7 @@ return Theme.create({
 11. **Accessible by default:** text contrast 4.5:1 on its surface, background transparency multiplied by `GuiService.PreferredTransparency`, text that grows with `PreferredTextSize` (AutomaticSize, no TextScaled), colour never the only signal (rarity has a word too), sound never the only signal.
 12. **Built for translation:** buttons and labels hug their text, room for 30-50% longer strings, `localize = false` on names and numbers so auto-translation leaves them alone.
 13. **Order children with `layoutOrder`.** Keyed children have no order in Luau; Stacks and Grids sort by LayoutOrder.
-14. **See it on every device before calling it done.** A story with `Devices.Matrix` shows phone, tablet, laptop, desktop and TV side by side, with the top bar and thumb zones drawn on.
+14. **See it on every device before calling it done.** A story with `Devices.Matrix` shows phones, tablets (including split view), a small window, laptop, desktop, ultrawide and TV side by side, with the top bar, the desktop chat window, the TV overscan edge and the thumb zones drawn on.
 
 ## Installing the kit
 
@@ -113,8 +120,9 @@ It copies `assets/kit/client` into `src/client` (never overwriting without `--fo
 2. Declare `PurchaseItem = "Event", -- (itemId: string) ask to buy` in `shared/Net/init.luau` and handle it in a server Service that checks price, balance and ownership (without it the shop explains what is missing).
 3. Delete the scaffold's `Controllers/HudController.luau` and `UI/HudScreen.luau`: `UiController` replaces them.
 4. Install the UI Labs plugin and open the stories (`UI/Stories/UI.storybook`) to see every screen on every device.
-5. Replace `AppState.SAMPLE_ITEMS` with their catalogue (`UiController:SetItems`), and feed ownership with `UiController:SetOwned`.
-6. Put their brand into `UI/Theme/GameTheme.luau` and run `uikit.cjs contrast --project .`.
+5. Add their HUD menus to `hudActions` in `UI/App.luau` (id, text, onActivate, optional priority, hint and `show` rule); extras overflow into More on small screens.
+6. Replace `AppState.SAMPLE_ITEMS` with their catalogue (`UiController:SetItems`), and feed ownership with `UiController:SetOwned`.
+7. Put their brand into `UI/Theme/GameTheme.luau` and run `uikit.cjs contrast --project .`.
 
 The kit mirrors the `roblox-project-structure` layout (`client` maps to `StarterPlayerScripts.Client`); `UiController` is started by the scaffold's Loader and uses its `Net` module.
 
@@ -127,15 +135,17 @@ The kit mirrors the `roblox-project-structure` layout (`client` maps to `Starter
 | `client/UI/Theme/Theme.luau` | The theme schema and defaults for every component, `Theme.create(overrides, base)` with merging and validation, and the reference resolvers. |
 | `client/UI/Theme/GameTheme.luau` | The user's theme: overrides only, with commented examples. Never overwritten by the installer. |
 | `client/UI/Theme/Presets.luau` | Example themes built on GameTheme (Sharp, Soft, Arcade) and `Presets.get(name)` for stories. |
-| `client/UI/Foundation/Responsive.luau` | Pure maths: scale, size class, orientation, `pick`, grid columns. |
-| `client/UI/Foundation/UiContext.luau` | The `Ui` type and `useUi()`: metrics, input, accessibility settings, theme and palette, `px`, `color`, `space`, `stroke`, `corner`, `transparency`, `hitTarget`. |
-| `client/UI/Foundation/UiProvider.luau` | Measures the safe area (probe ScreenGui), PreferredInput, ReducedMotion and PreferredTransparency, event-driven; or simulates a device for stories. |
+| `client/UI/Foundation/Responsive.luau` | Pure maths: scale, size class, orientation, TV overscan and room, `pick`, grid columns, `fit` and `overflow` (what moves into More), `matches` (visibility rules). |
+| `client/UI/Foundation/UiContext.luau` | The `Ui` type and `useUi()`: metrics (including `room`, `overscan`), input, the chat window and keyboard (`chatWindow`, `keyboard`), accessibility settings, theme and palette, `px`, `color`, `space`, `stroke`, `corner`, `transparency`, `hitTarget`. |
+| `client/UI/Foundation/UiProvider.luau` | Measures the safe area (probe ScreenGui), PreferredInput, ReducedMotion, PreferredTransparency, the default chat window and the on-screen keyboard, event-driven; or simulates a device for stories. |
+| `client/UI/Foundation/CoreUi.luau` | Roblox's own UI: `useHidden(types, active)` (counted, restores only what it hid) and where the default chat window is. |
 | `client/UI/Foundation/Atom.luau` | Observable value plus `Atom.use(atom, selector)`. |
 | `client/UI/Foundation/Motion.luau` | `useSpring(target)` returning a binding; runs only while moving. |
 | `client/UI/Foundation/Navigation.luau` | `useShortcut(keys, handler, enabled)` and `useFocus(ref, active)` for gamepad and keyboard. |
 | `client/UI/Foundation/NumberFormat.luau` | `Grouped` (1,234) and `Short` (12.5K) for prices and balances. |
 | `client/UI/Primitives/Decorate.luau` | Shared style props (radius, stroke, padding, constraints, flex) to UI* modifiers. |
-| `client/UI/Primitives/Layer.luau` | One ScreenGui per layer with the right ScreenInsets; a Frame in stories. |
+| `client/UI/Primitives/Layer.luau` | One ScreenGui per layer with the right ScreenInsets and TV overscan padding; a Frame in stories. |
+| `client/UI/Primitives/Show.luau` | Renders children only where a visibility rule (size class, input, orientation, min size) matches, with a fallback. |
 | `client/UI/Primitives/Box.luau` | Token-styled surface. |
 | `client/UI/Primitives/Stack.luau` | Row / column with gap, alignment, wrap and flex fill (UIListLayout). |
 | `client/UI/Primitives/Grid.luau` | Auto-column grid from a minimum item width. |
@@ -144,15 +154,15 @@ The kit mirrors the `roblox-project-structure` layout (`client` maps to `Starter
 | `client/UI/Primitives/Button.luau` | Variants and sizes, hit target, hover / press / focus / disabled states, gamepad glyph hints, badges. |
 | `client/UI/Primitives/Scroller.luau` | ScrollingFrame with automatic canvas and input-aware scroll bar. |
 | `client/UI/Components/Card.luau` | The themed surface for grouped content; corners, colour, border and padding from `components.Card`. |
-| `client/UI/Components/Modal.luau` | Sheet on phones, dialog elsewhere; scrim, B to close, gamepad focus, header, footer. |
+| `client/UI/Components/Modal.luau` | Sheet on phones, dialog elsewhere; scrim, B to close, gamepad focus, header, footer; hides the hotbar, emotes (and player list on phones) while open; stays above the on-screen keyboard. |
 | `client/UI/Components/Tabs.luau` | Scrollable tab strip, LB / RB on gamepad. |
 | `client/UI/Components/Toasts.luau` | `Toasts.push(message, tone)` from anywhere, and the host that shows them. |
 | `client/UI/Components/ProgressBar.luau` | Number (springs) or binding (per frame) progress. |
 | `client/UI/Components/ItemTile.luau` | Grid tile: picture, name, rarity word and colour, price or Owned, select on gamepad focus. |
 | `client/UI/Components/CurrencyPill.luau` | Balance chip with count-up animation and a "+" to the shop. |
-| `client/UI/Screens/HudScreen.luau` | Responsive HUD that keeps thumb zones clear; Y / X shortcuts on gamepad. |
+| `client/UI/Screens/HudScreen.luau` | Responsive HUD from a list of actions: keeps thumb zones and the chat window clear, overflows by priority into a More flyout, `show` rules per action, gamepad shortcuts. |
 | `client/UI/Screens/ShopScreen.luau` | Tabs, auto-column grid, details column or pinned buy bar by size class. |
-| `client/UI/Stories/Devices.luau` | Device presets and `Devices.Matrix` / `Devices.Preview` with top bar and thumb-zone overlays. |
+| `client/UI/Stories/Devices.luau` | Eleven device presets and `Devices.Matrix` / `Devices.Preview` with top bar, chat window, TV overscan and thumb-zone overlays. |
 | `client/UI/Stories/UI.storybook.luau` | The storybook UI Labs lists. |
 | `client/UI/Stories/Button.story.luau`, `HudScreen.story.luau`, `ShopScreen.story.luau` | Stories on the device matrix with controls. |
 
@@ -166,7 +176,7 @@ node <skill>/scripts/uikit.cjs new component QuestCard --project ./my-game   # o
 Each writes the module in the kit's shape and a story on the device matrix. Then:
 
 1. **States first.** List what the player can see: empty, loading, error, normal, disabled actions (not affordable, owned, locked), and long text. Design each, not just the happy path.
-2. **Per size class.** Decide what changes on Compact (stack instead of columns, sheet instead of dialog, pinned action bar, secondary info hidden behind a tap). Write it with `Responsive.pick` or a branch on `ui.sizeClass`.
+2. **Per size class.** Decide what changes on Compact (stack instead of columns, sheet instead of dialog, pinned action bar, secondary info hidden behind a tap) and what is shown at all (`Show`, or priority + More for a strip of actions). Write it with `Responsive.pick`, `Show` or a branch on `ui.sizeClass`. A text field near the bottom subtracts `ui.keyboard` from its height.
 3. **Compose from the kit.** Stack and Grid for layout, Text for every string, Button for every action, Modal for every menu. Reach for a raw Instance only for something the kit doesn't do, still sized with `ui.px` and coloured from the palette.
 4. **Wire it.** Props in, callbacks out; add an "open" atom and actions in `AppState`, mount in `App`, and handle the network in `UiController`.
 5. **Preview and scan.** Story on all devices, then `uiscan.cjs` on the source.
@@ -195,7 +205,7 @@ Finds `TextScaled`, mouse-only button events, `TouchEnabled` "isMobile" checks, 
 ## References
 
 - `references/react-lua.md`: setup and mounting, elements and host props, events, change signals, refs and tags, children and keys, hooks with Luau gotchas, bindings, context, memo and re-render control, portals, strict typing, testing with Jest Lua, migrating from Roact, common errors.
-- `references/responsive-layout.md`: the device table, design units and scale profiles, size classes, input modes and ten-foot UI, safe areas and ScreenInsets, the top bar, mobile control zones, the layout toolbox (scale vs offset, AnchorPoint, flex lists, grids, AutomaticSize, constraints), responsive patterns, text sizing, and how to test.
+- `references/responsive-layout.md`: the device table, design units and scale profiles, size classes, input modes and ten-foot UI (overscan), safe areas and ScreenInsets, the top bar, mobile control zones, the layout toolbox (scale vs offset, AnchorPoint, flex lists, grids, AutomaticSize, constraints), responsive patterns, visibility (Show rules, priority and More overflow, Roblox's chat, hotbar and player list, the on-screen keyboard), text sizing, and how to test.
 - `references/theming.md`: how the theme maps to Tailwind / MUI / shadcn, recipes (brand colour, roundness, flat or pill buttons, borderless cards, variants, seasonal palettes, live switching, fonts), reference values, every theme and component key with its default, merge rules, the contrast check, and theming your own components.
 - `references/component-system.md`: the layers and folder layout, component API conventions, composition patterns, theming and tokens, state placement and data flow, adding components, stories and tests, performance of large UIs, anti-patterns.
 - `references/ux-patterns.md`: game UI principles, HUD layout per device, menus and navigation, shops and purchase flows, inventories, onboarding, notifications, feedback and juice, loading / empty / error states, settings, accessibility, localisation, gamepad navigation, and the UX review checklist and report format.

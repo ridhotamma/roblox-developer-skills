@@ -39,6 +39,9 @@ Landscape phone and desktop zones (safe area):
 - **Menu buttons** get an icon and a short label: icons alone are ambiguous to new players and labels translate.
 - **Readability over the world**: dark backing chips (the theme's `Pill` style, `transparency.Hud`) and outlined text; test over the brightest and darkest parts of the map.
 - **Portrait phones**: top row for status and menu buttons; the bottom third belongs to the thumbs.
+- **When the menu buttons don't fit**, the least important move into a More button, instead of shrinking, running off the edge or sliding under the thumbstick. Rank them (the kit's `priority`): the main loop's menu (Shop, Pets, Upgrade) stays, codes, settings and socials go first. A landscape phone holds about two buttons between the balance and the thumb zone, a portrait phone three in a row; desktop and tablets hold six or more.
+- **Some buttons belong to one kind of device**: a leaderboard on Expanded only, a controls legend on gamepad only (`show` rules). Leave out information, never the only way to do something.
+- **Roblox's own UI is part of the HUD's map**: the chat window opens top left on desktop (move the balance to its right or below it; the kit does), the player list sits top right, the hotbar bottom centre when the player has Tools, and the emotes menu in the centre. Hide them only while a menu needs the room, and restore exactly what was there.
 
 ## 3. Menus and navigation
 

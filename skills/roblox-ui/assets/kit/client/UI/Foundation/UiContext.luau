@@ -19,18 +19,25 @@ local Responsive = require(script.Parent.Responsive)
 local Theme = require(script.Parent.Parent.Theme.Theme)
 local Tokens = require(script.Parent.Parent.Theme.Tokens)
 
-export type Insets = { Top: number, Bottom: number, Left: number, Right: number }
+export type Insets = Responsive.Insets
+export type Rect = Responsive.Rect
 
 export type Ui = {
 	-- Screen (see Responsive.Metrics)
 	viewport: Vector2,
 	safe: Vector2,
+	room: Vector2, -- pixels a Safe layer's content gets: the safe area minus TV overscan
+	overscan: Insets, -- pixels Safe and Device layers pad on a TV (zero elsewhere)
 	design: Vector2,
 	scale: number,
 	sizeClass: Responsive.SizeClass,
 	orientation: Responsive.Orientation,
 	input: Responsive.InputMode,
 	tenFoot: boolean,
+
+	-- Roblox's own UI that takes room (Foundation/CoreUi), in pixels of a Safe layer's content:
+	chatWindow: Rect?, -- the default chat window, or nil when there is none
+	keyboard: number, -- height the on-screen keyboard covers at the bottom of the room; 0 when hidden
 
 	-- Player accessibility settings (Settings -> Accessibility in the Roblox menu)
 	reducedMotion: boolean, -- GuiService.ReducedMotionEnabled: skip or shorten animation
@@ -69,9 +76,26 @@ export type BuildOptions = {
 	insets: Insets?,
 	topbar: number?,
 	previewScale: number?,
+	chatWindow: Rect?, -- relative to the safe area's top-left, pixels
+	keyboard: number?, -- pixels the on-screen keyboard covers at the bottom of the safe area
 }
 
 local NO_INSETS: Insets = table.freeze({ Top = 0, Bottom = 0, Left = 0, Right = 0 })
+
+-- Safe-area pixels -> pixels of a Safe layer's content (which starts after the overscan), and
+-- dropped when it doesn't reach into the content at all.
+local function intoRoom(rect: Rect?, metrics: Responsive.Metrics): Rect?
+	if rect == nil then
+		return nil
+	end
+	local origin = Vector2.new(metrics.overscan.Left, metrics.overscan.Top)
+	local position = rect.position - origin
+	local finish = position + rect.size
+	if finish.X <= 0 or finish.Y <= 0 or position.X >= metrics.room.X or position.Y >= metrics.room.Y then
+		return nil
+	end
+	return { position = position, size = rect.size }
+end
 local FULL = UDim.new(0.5, 0)
 
 local UiContext = {}
@@ -96,12 +120,17 @@ function UiContext.build(metrics: Responsive.Metrics, options: BuildOptions): Ui
 	return {
 		viewport = metrics.viewport,
 		safe = metrics.safe,
+		room = metrics.room,
+		overscan = metrics.overscan,
 		design = metrics.design,
 		scale = scale,
 		sizeClass = metrics.sizeClass,
 		orientation = metrics.orientation,
 		input = metrics.input,
 		tenFoot = metrics.tenFoot,
+
+		chatWindow = intoRoom(options.chatWindow, metrics),
+		keyboard = math.clamp((options.keyboard or 0) - metrics.overscan.Bottom, 0, metrics.room.Y),
 
 		reducedMotion = options.reducedMotion == true,
 		preferredTransparency = preferred,

@@ -100,13 +100,13 @@ node <skill>/scripts/uikit.cjs new component QuestCard --project .
 2. **Which layer?** Game-agnostic → `primitive`; reusable with a purpose → `component`; something the player opens → `screen`.
 3. **Props first.** Write `export type Props` before the body: data in, callbacks out, design units, camelCase, defaults stated.
 4. **States.** Default, hover / pressed / focused (if interactive), disabled, loading, empty, error, long text, huge numbers.
-5. **Responsive.** What changes at Compact? Usually spacing (`Responsive.pick`) and what is hidden; the component should still work at any width its parent gives it.
+5. **Responsive.** What changes at Compact? Usually spacing (`Responsive.pick`) and what is hidden (`Show`, or `visible = Responsive.matches(ui, rule)` to keep state); a strip of actions computes its capacity and overflows into More (`Responsive.fit`, `Responsive.overflow`). The component should still work at any width its parent gives it, and never hide the only way to do something.
 6. **Story.** The generator makes one; add controls for every state.
 7. **Scan.** `uiscan.cjs` on the file.
 
 ## 7. Stories and tests
 
-- Every component and screen has a story (`Stories/<Name>.story.luau`) that renders it through `Devices.Matrix`, so reviewing a change means looking at eight devices at once. Use story controls (strings, numbers, booleans) for states: `Disabled`, `Coins`, `Open`, long text.
+- Every component and screen has a story (`Stories/<Name>.story.luau`) that renders it through `Devices.Matrix`, so reviewing a change means looking at eleven devices at once. Use story controls (strings, numbers, booleans) for states: `Disabled`, `Coins`, `Open`, long text.
 - Stories pass plain data and `print` callbacks; that only works because screens are pure.
 - Pure logic (formatting, sorting, reducers, `Responsive`) gets unit tests with Jest Lua; components get a few render tests for behaviour that matters (the Buy button is disabled when not affordable).
 - Keep stories in `UI/Stories` (they ship to clients but are never required at runtime), or map them to a separate Rojo folder if the team prefers.

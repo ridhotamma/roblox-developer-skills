@@ -2,7 +2,7 @@
 
 How the kit decides how big things are and where they go on every device, the Roblox layout tools underneath, and the patterns that turn one design into a phone, tablet, desktop and TV layout.
 
-Contents: 1 The devices · 2 Design units and scale · 3 Size classes · 4 Input modes and ten-foot UI · 5 Safe areas, ScreenInsets and the top bar · 6 Mobile control zones · 7 The layout toolbox · 8 Responsive patterns · 9 Text · 10 Testing
+Contents: 1 The devices · 2 Design units and scale · 3 Size classes · 4 Input modes and ten-foot UI · 5 Safe areas, ScreenInsets and the top bar · 6 Mobile control zones · 7 The layout toolbox · 8 Responsive patterns · 9 Visibility: what each device shows · 10 Text · 11 Testing
 
 ---
 
@@ -10,23 +10,28 @@ Contents: 1 The devices · 2 Design units and scale · 3 Size classes · 4 Input
 
 What the kit computes for its preview devices (`Stories/Devices.luau`). Regenerate with `node scripts/uikit.cjs devices` after changing `Tokens.Scale` or `Tokens.Breakpoints`; the selftest fails if this table and the code disagree.
 
-| Device | Screen | Input | Safe area | Scale | Design units | Size class | Hit target |
-|---|---|---|---|---|---|---|---|
-| Phone landscape | 844 × 390 | Touch | 750 × 311 | 1.00 | 750 × 311 | Compact | 44 px |
-| Phone portrait | 390 × 844 | Touch | 390 × 705 | 1.00 | 390 × 705 | Compact | 44 px |
-| Small phone | 667 × 375 | Touch | 667 × 317 | 1.00 | 667 × 317 | Compact | 44 px |
-| Tablet landscape | 1180 × 820 | Touch | 1180 × 742 | 1.03 | 1146 × 720 | Expanded | 45 px |
-| Tablet portrait | 820 × 1180 | Touch | 820 × 1078 | 1.14 | 719 × 946 | Medium | 50 px |
-| Laptop | 1366 × 768 | Pointer | 1366 × 710 | 0.82 | 1666 × 866 | Expanded | 20 px |
-| Desktop 1080p | 1920 × 1080 | Pointer | 1920 × 1022 | 1.18 | 1627 × 866 | Expanded | 28 px |
-| Console TV | 1920 × 1080 | Gamepad (TV) | 1920 × 1022 | 1.42 | 1352 × 720 | Expanded | 62 px |
+| Device | Screen | Input | Safe area | Room | Scale | Design units | Size class | Hit target |
+|---|---|---|---|---|---|---|---|---|
+| Phone landscape | 844 × 390 | Touch | 750 × 311 | 750 × 311 | 1.00 | 750 × 311 | Compact | 44 px |
+| Phone portrait | 390 × 844 | Touch | 390 × 705 | 390 × 705 | 1.00 | 390 × 705 | Compact | 44 px |
+| Small phone | 667 × 375 | Touch | 667 × 317 | 667 × 317 | 1.00 | 667 × 317 | Compact | 44 px |
+| Tablet landscape | 1180 × 820 | Touch | 1180 × 742 | 1180 × 742 | 1.03 | 1146 × 720 | Expanded | 45 px |
+| Tablet portrait | 820 × 1180 | Touch | 820 × 1078 | 820 × 1078 | 1.14 | 719 × 946 | Medium | 50 px |
+| Tablet split view | 590 × 820 | Touch | 590 × 742 | 590 × 742 | 1.00 | 590 × 742 | Medium | 44 px |
+| Small window | 800 × 600 | Pointer | 800 × 542 | 800 × 542 | 0.75 | 1067 × 723 | Medium | 18 px |
+| Laptop | 1366 × 768 | Pointer | 1366 × 710 | 1366 × 710 | 0.82 | 1666 × 866 | Expanded | 20 px |
+| Desktop 1080p | 1920 × 1080 | Pointer | 1920 × 1022 | 1920 × 1022 | 1.18 | 1627 × 866 | Expanded | 28 px |
+| Ultrawide | 2560 × 1080 | Pointer | 2560 × 1022 | 2560 × 1022 | 1.18 | 2169 × 866 | Expanded | 28 px |
+| Console TV | 1920 × 1080 | Gamepad (TV) | 1920 × 1022 | 1728 × 968 | 1.42 | 1217 × 682 | Expanded | 62 px |
 
 What the numbers mean:
 
 - Phones and tablets report their screen in **points** (an iPhone in landscape is about 844 × 390), not physical pixels, so 44 units at scale 1 is a 44-point thumb target, the size Apple and Roblox recommend.
 - Desktops report real pixels, from 1280 × 720 laptops to 4K monitors. Consoles lay UI out at about 1920 × 1080 whatever the TV is.
 - The safe area is what is left after notches, the home indicator and the Roblox top bar. On a phone in landscape that is often only ~310 points tall: the room a layout really has is smaller than "a phone screen" suggests.
-- Insets in the presets approximate an iPhone 14 / iPad Air class device and a 58-point top bar; check real devices (section 10).
+- **Room** is the safe area minus TV overscan (section 4): what a Safe layer's content gets, and what design units and the size class are measured from. Off TV it equals the safe area.
+- The presets cover the extremes where things clip first: a small phone, an iPad in split view (Medium, portrait, touch), a small desktop window (Medium with a pointer), and an ultrawide monitor (very wide Expanded).
+- Insets in the presets approximate an iPhone 14 / iPad Air class device and a 58-point top bar; check real devices (section 11).
 
 ## 2. Design units and scale
 
@@ -80,7 +85,9 @@ Orientation is separate (`ui.orientation`): a phone in portrait is Compact and P
 
 Never infer input from screen size or the other way round: a Surface laptop is touch and pointer, an iPad can have a keyboard, a phone can have a controller. `TouchEnabled` alone says nothing about how someone is playing right now.
 
-Ten-foot (console) rules: the larger scale handles text and target size; also keep important content away from the outer ~5% of the screen (some TVs overscan), make every screen fully navigable with the D-pad, open menus with selection already inside them, and close them with B.
+Ten-foot (console) rules: the larger scale handles text and target size; important content stays away from the outer 5% of each edge (some TVs crop it: overscan); every screen is fully navigable with the D-pad; menus open with selection already inside them and close with B.
+
+The kit applies the overscan margin itself: on a ten-foot interface, Safe and Device layers pad their content by `Tokens.Overscan.TenFoot` (5%) of the screen per edge, minus what the safe insets already clear (the top bar covers the top). `ui.overscan` has the padding and `ui.room` the space left; the scale is still computed from the whole safe area, so a TV keeps its ten-foot scale and the layout gets about 1217 × 682 units.
 
 ## 5. Safe areas, ScreenInsets and the top bar
 
@@ -136,7 +143,8 @@ So on touch: keep the bottom-left and bottom-right corners free of HUD, put freq
 | Navigation | Scrollable tab strip | Tab strip (or a sidebar on very wide screens) | `Tabs` |
 | Progressive disclosure | Name + price on the tile, the rest on tap | More stats visible on the tile or the details column | `ItemTile` + details |
 | Sticky primary action | Bottom bar under the thumb | Inside the details column | `ShopScreen` `BuyBar` |
-| HUD clusters | Left-edge column (landscape) or top row (portrait), bottom corners free | Left-edge column, larger | `HudScreen` |
+| HUD clusters | Left-edge column (landscape) or top row (portrait), bottom corners free, extras in More | Left-edge column, larger | `HudScreen` |
+| Show / hide | Secondary panels and hover hints left out (`Show`) | Shown | `Show`, `Responsive.matches` |
 
 ```lua
 local ui = UiContext.useUi()
@@ -150,7 +158,60 @@ return e(Stack, { direction = direction, gap = "L", align = "Stretch" }, {
 
 Keep the number of layout variants small: usually Compact and "everything else", sometimes a Medium tweak. Each variant is a layout someone has to test.
 
-## 9. Text
+## 9. Visibility: what each device shows
+
+Layout changes are half of responsive design; the other half is deciding what exists on each device at all, and what gives way when room runs out. Four tools, from the most specific:
+
+**Show rules.** `Show` (Primitives/Show) renders its children only where a rule matches:
+
+```lua
+e(Show, { on = { sizeClass = { "Medium", "Expanded" } } }, { Stats = e(StatsPanel, { layoutOrder = 2 }) })
+e(Show, { on = { input = "Gamepad" } }, { Legend = e(ControlsLegend) })
+e(Show, { on = { sizeClass = "Expanded" }, fallback = e(StatsSummary) }, { Full = e(StatsTable) })
+```
+
+Rules (`Responsive.Rule`) take `sizeClass`, `input`, `orientation`, `tenFoot`, and `minWidth` / `minHeight` in design units; every field given must match. Room and input stay separate questions: hide a column on `{ sizeClass = "Compact" }`, hide a hover hint on `{ input = { "Touch", "Gamepad" } }`, never on "mobile". `Show` unmounts; to keep state while hidden, pass `visible = Responsive.matches(ui, rule)` to the element instead.
+
+Hiding is for secondary information. The only way to do something is never hidden on a size class or input: it moves (behind a tap, into a More menu, into a details sheet).
+
+**Priority and overflow.** A strip of buttons (HUD menus, a toolbar, a tab row) computes how many it holds and moves the rest into a More button, instead of running off the screen or under the thumbs:
+
+```lua
+local capacity = Responsive.fit(bandLength, buttonHeight, gap)              -- pixels in, a count out
+local shown, hidden = Responsive.overflow(actions, capacity, function(action, index)
+	return action.priority or index                                           -- lower stays longer
+end)
+```
+
+When everything fits nothing moves; otherwise More takes one slot and the most important items keep the rest, in their original order. The kit's HUD does this: each `HudScreen.Action` has an optional `priority` and `show` rule, the column on touch stays above the bottom third (`Tokens.ThumbZone`), and overflow opens a flyout that works with touch, mouse and gamepad (B closes it; shortcuts of actions inside it still work). Give strip items a fixed size so the capacity is known before layout.
+
+With the kit's HUD (44-unit buttons, 88 units wide on Compact and Medium, 120 on Expanded):
+
+| Device | HUD strip | Buttons it holds (More included) |
+|---|---|---|
+| Phone landscape / small phone | Left column between the balance and the thumb zone | 2 |
+| Phone portrait | Row under the balance | 3 |
+| Tablet split view / tablet portrait | Row under the balance | 5 / 7 |
+| Tablet landscape, small window, laptop, desktop, TV | Left column (below the chat window on desktop) | 6 or more |
+
+So the kit's two default buttons (Shop, Daily) fit everywhere; a third action moves the lowest-priority ones into More on landscape phones.
+
+**Roblox's own UI.** Core UI draws above every ScreenGui and owns parts of the screen:
+
+| Core UI | Where | What the kit does |
+|---|---|---|
+| Top bar (menu, chat, other buttons) | Top strip | Safe layers start below it (section 5) |
+| Chat window (TextChatService) | Top left; open by default on desktop, opened from the chat button on phones | `ui.chatWindow` is its rectangle in a Safe layer's pixels (from `ChatWindowConfiguration.AbsolutePosition` / `AbsoluteSize`); the HUD moves the balance to its right and starts the column below it |
+| Player list | Top right on desktop; from the menu on phones | Keep the top-right corner for non-interactive status; Modal hides it while a sheet is open on phones |
+| Backpack hotbar | Bottom centre, when the player has Tools | Modal hides it while open (it would cover a sheet's footer, and number keys would equip tools mid-purchase) |
+| Emotes menu | Centre, while open | Modal hides it while open |
+| Thumbstick and jump | Bottom left and right on touch | HUD stays above `Tokens.ThumbZone`; full-screen sheets cover them |
+
+Hide core UI only through `CoreUi.useHidden(types, active)` (Foundation/CoreUi): it counts requests per type, so two menus never fight, and it only restores what it hid. A blind `StarterGui:SetCoreGuiEnabled(type, true)` on close re-enables a Backpack that a custom inventory turned off for good. Pass `coreGui = {}` to a Modal to hide nothing.
+
+**The on-screen keyboard.** On phones and tablets a focused TextBox raises a keyboard over the bottom ~40% of the screen. `ui.keyboard` is the height it covers at the bottom of the room (0 when down; from `UserInputService.OnScreenKeyboardVisible` / `OnScreenKeyboardSize`, refreshed on TextBox focus). The kit's Modal shrinks the sheet (Compact) or lifts the dialog by it, so a search box or code field and the footer stay visible. Anything else with a text field near the bottom (a chat-like input, a gift note) does the same: subtract `ui.keyboard` from the height it lays out in. Previews pass `keyboard` in the simulation to check it.
+
+## 10. Text
 
 - Sizes come from the theme's type scale (`ui.theme.type`) through `ui.px`, so every Body label is the same size on a screen. Captions (12 units) are the floor for anything the player must read.
 - Long text: `width = UDim.new(1, 0)` on the kit's Text wraps and grows downward; `truncate = true` for single-line names in tight spaces (with the full name in the details view).
@@ -159,11 +220,12 @@ Keep the number of layout variants small: usually Compact and "everything else",
 - Translated text runs 30-50% longer than English for some languages: hug content, don't fix widths around English strings.
 - RichText only for your own strings; player-provided text with RichText on can inject tags.
 
-## 10. Testing
+## 11. Testing
 
-1. **Stories on the device matrix** while building: every screen on phone (both orientations), small phone, tablet, laptop, desktop and TV at once, with the top bar and thumb zones drawn on.
+1. **Stories on the device matrix** while building: every screen on phone (both orientations), small phone, tablet (both orientations and split view), small window, laptop, desktop, ultrawide and TV at once, with the top bar, the desktop chat window, the TV overscan edge and the thumb zones drawn on.
 2. **Studio's Device Emulator** (Test → Device): pick phones and tablets, rotate, and play. It applies real safe areas and touch input emulation.
 3. **Resize the Studio window** during Play to check Pointer reflow between Medium and Expanded.
 4. **A real phone** through the Roblox app (publish to a private place, or Team Test): touch-target feel, text legibility and performance only show up there.
 5. **A controller on PC** (or a console): open every menu and complete every flow without touching the mouse.
-6. `node scripts/uikit.cjs devices --size WxH --input touch|pointer|gamepad` to see what the kit will do on a specific screen.
+6. **Core UI on**: play with chat open, a Tool in the backpack and the player list shown, and check nothing of yours sits under them; focus every TextBox on a phone and check the field stays above the keyboard.
+7. `node scripts/uikit.cjs devices --size WxH --input touch|pointer|gamepad [--tenfoot]` to see what the kit will do on a specific screen.

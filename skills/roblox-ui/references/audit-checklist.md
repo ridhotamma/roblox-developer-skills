@@ -45,12 +45,13 @@ The scanner is a pattern scan on source. It can't see layouts authored in Studio
 
 Collect evidence first: the scanner output, the Explorer tree of `StarterGui` / `PlayerGui`, screenshots or a video on a phone, and the main flows (open shop, buy, equip, claim reward).
 
-1. **Device pass.** Studio Device Emulator on a small phone (667 × 375), a notched phone in landscape and portrait, a tablet, and a resized desktop window. For each screen: clipping, overlap with the top bar / notch / thumb zones, text size, whether it is a shrunken desktop layout.
-2. **Input pass.** Complete every flow with only touch, only mouse and keyboard, and only a controller. Note dead ends (menus you can't enter or leave), missing focus, hover-only info, tiny targets.
-3. **Accessibility pass.** Largest Text Size, Reduced Motion on, Background Transparency lowered: does anything overflow, flash, or become unreadable? Check contrast of text over the world and over panels.
-4. **Clarity pass.** For each screen: is the primary action obvious, are prices and states readable, does every action give feedback, does the player know why something is disabled?
-5. **Code pass.** Where does UI state live, who fires remotes, how many LocalScripts touch the same ScreenGui, are there per-frame loops updating UI, are connections cleaned up.
-6. **Performance pass.** Open each menu with the MicroProfiler on a low-end phone; look for hitches on open and per-frame UI work (`roblox-performance`).
+1. **Device pass.** Studio Device Emulator on a small phone (667 × 375), a notched phone in landscape and portrait, a tablet (and in split view), a resized desktop window, an ultrawide window, and a console / ten-foot view. For each screen: clipping, overlap with the top bar / notch / thumb zones, text size, whether it is a shrunken desktop layout.
+2. **Visibility pass.** For each screen and the HUD, per size class: what is shown, what is left out, and where the left-out actions went (a More button, a details sheet). Look for buttons that run off the edge or under the thumbs when a game adds one more menu, actions that exist on desktop but not on phones (or the reverse), and secondary panels taking a phone's room. Then play with Roblox's own UI on: chat window open (top left on desktop), a Tool in the backpack (hotbar bottom centre), the player list (top right), the emotes menu, and a TextBox focused on a phone (on-screen keyboard). Nothing interactive of the game's should sit under them; TV content stays out of the outer 5% of each edge.
+3. **Input pass.** Complete every flow with only touch, only mouse and keyboard, and only a controller. Note dead ends (menus you can't enter or leave), missing focus, hover-only info, tiny targets.
+4. **Accessibility pass.** Largest Text Size, Reduced Motion on, Background Transparency lowered: does anything overflow, flash, or become unreadable? Check contrast of text over the world and over panels.
+5. **Clarity pass.** For each screen: is the primary action obvious, are prices and states readable, does every action give feedback, does the player know why something is disabled?
+6. **Code pass.** Where does UI state live, who fires remotes, how many LocalScripts touch the same ScreenGui, are there per-frame loops updating UI, are connections cleaned up.
+7. **Performance pass.** Open each menu with the MicroProfiler on a low-end phone; look for hitches on open and per-frame UI work (`roblox-performance`).
 
 ## 3. Report format
 

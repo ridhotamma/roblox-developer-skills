@@ -39,13 +39,28 @@ local function Screens(props: Props)
 		state.shopOpen:set(false)
 	end, { state })
 
+	-- The HUD's menu buttons, most important first. What doesn't fit on a small screen moves
+	-- into a More button (priority decides what stays); `show` rules drop an action where it
+	-- doesn't belong. Add your game's menus here.
+	local hudActions: { HudScreen.Action } = React.useMemo(function(): { HudScreen.Action }
+		return {
+			{ id = "Shop", text = "Shop", variant = "Primary", hint = Enum.KeyCode.ButtonY, onActivate = openShop },
+			{
+				id = "Daily",
+				text = "Daily",
+				hint = Enum.KeyCode.ButtonX,
+				badge = dailyReady == true,
+				onActivate = props.actions.claimDaily,
+			},
+		}
+	end, { openShop, dailyReady, props.actions } :: { any })
+
 	return e(React.Fragment, nil, {
 		Hud = e(HudScreen, {
 			coins = coins,
-			dailyReady = dailyReady,
+			actions = hudActions,
 			shortcuts = not shopOpen,
 			onOpenShop = openShop,
-			onClaimDaily = props.actions.claimDaily,
 		}),
 		Shop = e(ShopScreen, {
 			open = shopOpen,

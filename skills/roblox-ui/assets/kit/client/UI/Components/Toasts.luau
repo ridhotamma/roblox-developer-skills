@@ -92,7 +92,7 @@ function Toasts.Host()
 	local ui = UiContext.useUi()
 	local style = ui.theme.components.Toast
 	local list = Atom.use(queue)
-	local width = math.min(ui.px(style.maxWidth), ui.safe.X - ui.space("L") * 2)
+	local width = math.min(ui.px(style.maxWidth), ui.room.X - ui.space("L") * 2)
 
 	local items: { [string]: any } = {}
 	for _, toast in list do

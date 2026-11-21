@@ -11,6 +11,10 @@
 --   "None"   the whole screen. Backdrops, scrims and loading art only; never put text or
 --            buttons here, phones will cut them off.
 --
+-- On a TV, Safe and Device layers also keep Tokens.Overscan of the screen clear on each edge
+-- (ui.overscan), because some TVs crop the picture. Children are laid out in that inner area,
+-- whose size is ui.room.
+--
 -- In a story the UI renders inside a plugin widget where ScreenGuis can't draw, so a Layer
 -- becomes a full-size Frame that applies the simulated insets instead.
 
@@ -39,6 +43,11 @@ local SCREEN_INSETS: { [Insets]: Enum.ScreenInsets } = {
 	None = Enum.ScreenInsets.None,
 }
 
+local function padsOverscan(ui: UiContext.Ui, insets: Insets): boolean
+	local o = ui.overscan
+	return (insets == "Safe" or insets == "Device") and (o.Top + o.Bottom + o.Left + o.Right) > 0
+end
+
 local function simulatedFrame(props: Props, ui: UiContext.Ui, insets: Insets)
 	local i = ui.insets
 	local top, bottom, left, right = 0, 0, 0, 0
@@ -48,6 +57,10 @@ local function simulatedFrame(props: Props, ui: UiContext.Ui, insets: Insets)
 		top, bottom, left, right = i.Top, i.Bottom, i.Left, i.Right
 	elseif insets == "Topbar" then
 		top, left, right = i.Top, i.Left, i.Right
+	end
+	if padsOverscan(ui, insets) then
+		local o = ui.overscan
+		top, bottom, left, right = top + o.Top, bottom + o.Bottom, left + o.Left, right + o.Right
 	end
 	local height = if insets == "Topbar" then UDim.new(0, ui.topbar) else UDim.new(1, -(top + bottom))
 	return e("Frame", {
@@ -68,6 +81,17 @@ local function Layer(props: Props)
 		return simulatedFrame(props, ui, insets)
 	end
 
+	local children = props.children
+	if padsOverscan(ui, insets) then
+		local o = ui.overscan
+		children = e("Frame", {
+			Name = "Overscan",
+			Position = UDim2.fromOffset(o.Left, o.Top),
+			Size = UDim2.new(1, -(o.Left + o.Right), 1, -(o.Top + o.Bottom)),
+			BackgroundTransparency = 1,
+		}, props.children)
+	end
+
 	return e("ScreenGui", {
 		-- react-lua names Instances after their key (or the nearest ancestor's); an explicit Name
 		-- keeps PlayerGui readable when several screens use the same component.
@@ -78,7 +102,7 @@ local function Layer(props: Props)
 		ResetOnSpawn = false, -- React owns this UI; respawning must not delete it
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Enabled = if props.enabled == nil then true else props.enabled,
-	}, props.children)
+	}, children)
 end
 
 return Layer
