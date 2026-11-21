@@ -361,11 +361,11 @@ local function start(seat: VehicleSeat, model: Model)
 				for key, value in state do
 					sent[key] = value
 				end
-				remote:FireServer(model, state)
+				remote:FireServer(model, state) -- perf:ignore remote-in-frame (only on change, at most CONTROL_HZ a second)
 			end
 			if kind == "Motorcycle" and t.Crashed and not bailed then
 				bailed = true
-				remote:FireServer(model, { Bail = true })
+				remote:FireServer(model, { Bail = true }) -- perf:ignore remote-in-frame (once per crash)
 				local character = player.Character
 				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 				local rootPart = character and character:FindFirstChild("HumanoidRootPart")

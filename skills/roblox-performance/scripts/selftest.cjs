@@ -339,7 +339,7 @@ for (const f of luau) {
   if (rel.startsWith(path.join('assets', 'kit'))) check(`strict mode: ${rel}`, src.startsWith('--!strict'));
 }
 
-const skillMd = fs.readFileSync(path.join(SKILL, 'SKILL.md'), 'utf8');
+const skillMd = fs.readFileSync(path.join(SKILL, 'SKILL.md'), 'utf8').replace(/\r\n/g, '\n'); // CRLF checkouts (core.autocrlf)
 const referenced = new Set([...skillMd.matchAll(/`((?:references|scripts|assets)\/[^`\s]+)`/g)].map((m) => m[1]));
 for (const ref of referenced) {
   const clean = ref.replace(/[),.:]+$/, '');

@@ -138,7 +138,7 @@ for (const [name, fn] of Object.entries(expectOther)) {
 // Kit's generated VehicleSpecs.luau is in sync with the specs folder.
 const kitFile = path.join(__dirname, '..', 'assets', 'kit', 'shared', 'Vehicle', 'VehicleSpecs.luau');
 const fresh = R.toLuau(specs);
-check('kit VehicleSpecs.luau matches specs/ (re-run: node rveh.cjs luau specs --out ...)', fs.readFileSync(kitFile, 'utf8') === fresh);
+check('kit VehicleSpecs.luau matches specs/ (re-run: node rveh.cjs luau specs --out ...)', fs.readFileSync(kitFile, 'utf8').replace(/\r\n/g, '\n') === fresh.replace(/\r\n/g, '\n'));
 check('luau export has every spec', specs.every((s) => fresh.includes(`\t${s.name} = table.freeze({`)));
 check('luau export keys are PascalCase', fresh.includes('FrequencyFront') && fresh.includes('TorqueCurve') && !fresh.includes('frequencyFront'));
 
