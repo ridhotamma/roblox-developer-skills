@@ -15,6 +15,7 @@
 local Rng = require("./Rng")
 local Scatter = require("./Scatter")
 local Catalog = require("./LayoutCatalog")
+local TerrainGen = require("./TerrainGen")
 
 local WorldGen = {}
 
@@ -24,6 +25,10 @@ export type Options = {
 	lakes: number?, -- default 2
 	pois: number?, -- points of interest besides the spawn camp
 	name: string?,
+	terrain: boolean?, -- default true: hills, a rim of high ground, carved lakes, pads, trail beds
+	flat: boolean?, -- same as terrain = false: the flat blockout map
+	relief: number?, -- height of the rolling ground in studs (default 9)
+	hills: number?, -- broad hills on top of it (default 3)
 }
 
 local function lerp(a: number, b: number, t: number): number
@@ -69,7 +74,11 @@ function WorldGen.Generate(options: Options?): any
 			table.insert(items, it)
 		end
 	end
-	table.insert(items, { kind = "ground", role = "floor", pos = { c, -1, c }, size = { S, 1, S }, color = "grass", material = "Grass" })
+	-- terrain (default): the layout carries a TerrainGen spec and LayoutBuilder writes it as Terrain
+	local useT = o.terrain ~= false and not o.flat
+	if not useT then
+		table.insert(items, { kind = "ground", role = "floor", pos = { c, -1, c }, size = { S, 1, S }, color = "grass", material = "Grass" })
+	end
 
 	-- 1. water: everything else works around it
 	local lakes: { { number } } = {}
@@ -86,8 +95,10 @@ function WorldGen.Generate(options: Options?): any
 		end
 		if ok then
 			table.insert(lakes, { x, z, r })
-			table.insert(items, { kind = "shore", role = "decor", shape = "cylinder", pos = { round(x), 0, round(z) }, size = { 2 * r + 12, 0.15, 2 * r + 12 }, color = "sand", material = "Sand" })
-			table.insert(items, { kind = "water", role = "decor", shape = "cylinder", pos = { round(x), 0, round(z) }, size = { 2 * r, 0.3, 2 * r }, color = "water", material = "Glass" })
+			if not useT then
+				table.insert(items, { kind = "shore", role = "decor", shape = "cylinder", pos = { round(x), 0, round(z) }, size = { 2 * r + 12, 0.15, 2 * r + 12 }, color = "sand", material = "Sand" })
+				table.insert(items, { kind = "water", role = "decor", shape = "cylinder", pos = { round(x), 0, round(z) }, size = { 2 * r, 0.3, 2 * r }, color = "water", material = "Glass" })
+			end
 			table.insert(zones, { id = "lake" .. #lakes, label = "Lake", kind = "water", circle = { round(x), round(z), round(r) } })
 		end
 	end
@@ -99,12 +110,45 @@ function WorldGen.Generate(options: Options?): any
 		end
 		return false
 	end
+	local spec: any, T1: TerrainGen.Sampler? = nil, nil
+	if useT then
+		spec = { seed = seed, bounds = { 0, 0, S, S }, relief = if o.relief ~= nil then o.relief else 9, scale = 230, edge = { height = 44, width = 70 }, features = {} }
+		for i, l in lakes do
+			table.insert(spec.features, { type = "lake", id = "lake" .. i, at = { round(l[1]), round(l[2]) }, radius = round(l[3]), depth = 7, shore = 10 })
+		end
+		-- a few broad hills, clear of the spawn and the lakes
+		local hills: { { number } } = {}
+		local wantHills, hillTries = if o.hills ~= nil then o.hills else 3, 0
+		while #hills < wantHills and hillTries < 40 do
+			hillTries += 1
+			local r = rng:Range(50, 95)
+			local x, z = rng:Range(r + 20, S - r - 20), rng:Range(r + 20, S - r - 20)
+			local h = rng:Range(10, 22)
+			local ok = hypot(x - c, z - c) >= r + 70 and not inLake(x, z, r + 25)
+			for _, q in hills do
+				if hypot(q[1] - x, q[2] - z) < q[3] + r then
+					ok = false
+				end
+			end
+			if ok then
+				table.insert(hills, { x, z, r })
+				table.insert(spec.features, { type = "hill", at = { round(x), round(z) }, radius = round(r), height = round(h, 10) })
+			end
+		end
+		table.insert(spec.features, { type = "patches", material = "LeafyGrass", scale = 170, octaves = 3, above = 0.52 })
+		table.insert(spec.features, { type = "patches", material = "Rock", offset = { 913, -577 }, scale = 130, octaves = 2, above = 0.62 })
+		local t1 = TerrainGen.Sample(spec)
+		for i, b in t1.bodies do
+			spec.features[i].level = b.level
+		end
+		T1 = t1
+	end
 
 	-- 2. points of interest, 6 to 15 seconds of walking apart
 	local P: { any } = { { id = "camp", label = "Spawn camp", x = c, z = c, r = 24, t = "camp" } }
 	local want = o.pois or math.max(4, math.floor(S * S / 60000 + 0.5))
 	local cand = Scatter.Poisson(rng, 70, 70, S - 70, S - 70, function(x, z)
-		return if inLake(x, z, 34) or hypot(x - c, z - c) < 130 then 0 else 150
+		return if inLake(x, z, 34) or hypot(x - c, z - c) < 130 or (T1 and T1:Relief(x, z, 32) > 8) then 0 else 150
 	end, { rMin = 150 })
 	for i = 1, math.min(want, #cand) do
 		local t = TYPES[(i - 1) % #TYPES + 1]
@@ -112,7 +156,7 @@ function WorldGen.Generate(options: Options?): any
 	end
 	for i, l in lakes do
 		local a = math.atan2(c - l[2], c - l[1])
-		table.insert(P, { id = "dock" .. i, label = "Dock", x = round(l[1] + math.cos(a) * (l[3] - 6)), z = round(l[2] + math.sin(a) * (l[3] - 6)), r = 14, t = "Dock", a = a })
+		table.insert(P, { id = "dock" .. i, label = "Dock", x = round(l[1] + math.cos(a) * (l[3] - 6)), z = round(l[2] + math.sin(a) * (l[3] - 6)), r = 14, t = "Dock", a = a, lake = i })
 	end
 	local occupied = Scatter.Occupied()
 	for _, p in P do
@@ -120,6 +164,9 @@ function WorldGen.Generate(options: Options?): any
 		table.insert(pois, { id = p.id, label = p.label, pos = if dock then { round(p.x + math.cos(p.a) * 20), round(p.z + math.sin(p.a) * 20) } else { p.x, p.z } })
 		if not dock then
 			table.insert(zones, { id = p.id, label = p.label, circle = { p.x, p.z, p.r }, open = true, main = true })
+			if useT then
+				table.insert(spec.features, { type = "flatten", id = p.id, at = { p.x, p.z }, radius = p.r, blend = 18 })
+			end
 		end
 		local rot = rng:Int(0, 3) * 90 + rng:Int(-20, 20)
 		if p.t == "camp" or p.t == "Old camp" then
@@ -141,7 +188,7 @@ function WorldGen.Generate(options: Options?): any
 			end
 			table.insert(items, { kind = "pedestal", pos = { p.x, 0, p.z }, group = p.id })
 		elseif dock then
-			table.insert(items, { kind = "dock", pos = { p.x, 0, p.z }, rot = norm(math.deg(math.atan2(math.cos(p.a), math.sin(p.a))) + 180), group = p.id })
+			table.insert(items, { kind = "dock", pos = { p.x, if useT then spec.features[p.lake].level else 0, p.z }, abs = if useT then true else nil, rot = norm(math.deg(math.atan2(math.cos(p.a), math.sin(p.a))) + 180), group = p.id })
 		end
 		occupied:Add(p.x, p.z, p.r)
 	end
@@ -232,8 +279,11 @@ function WorldGen.Generate(options: Options?): any
 		end
 		return false
 	end
+	-- the ground as it will be (pads and trail beds included), so nothing lands on a cliff
+	local T2: TerrainGen.Sampler? = if useT then TerrainGen.Sample(spec, paths) else nil
 	local function free(x: number, z: number, margin: number): boolean
 		return x > 8 and z > 8 and x < S - 8 and z < S - 8 and not inLake(x, z, 7 + margin) and not nearPath(x, z, 5.5 + margin) and not occupied:Any(x, z, margin)
+			and (T2 == nil or T2:Slope(x, z) < 34)
 	end
 	local function forest(x: number, z: number): number
 		return noise(x, z, 170, 3)
@@ -254,10 +304,24 @@ function WorldGen.Generate(options: Options?): any
 		drop(if k % 2 == 1 then "pine" else "oak", { x = c + math.cos(a) * d, z = c + math.sin(a) * d })
 	end
 	do
+		-- the rocks and the bush step round the spawn (no extra random numbers) until they miss the trees above
 		local a = rng:Range(0, 6.28)
+		for _ = 1, 12 do
+			if not occupied:Any(c + math.cos(a) * 44, c + math.sin(a) * 44, 12) then
+				break
+			end
+			a += 0.5
+		end
 		push(setItems("rocks", round(c + math.cos(a) * 44), round(c + math.sin(a) * 44), rng:Int(0, 359), "start_rocks"))
 		occupied:Add(c + math.cos(a) * 44, c + math.sin(a) * 44, 9)
-		drop("berry_bush", { x = c + math.cos(a + 2.2) * 38, z = c + math.sin(a + 2.2) * 38 }, 1)
+		local b = a + 2.2
+		for _ = 1, 12 do
+			if not occupied:Any(c + math.cos(b) * 38, c + math.sin(b) * 38, 4) then
+				break
+			end
+			b += 0.5
+		end
+		drop("berry_bush", { x = c + math.cos(b) * 38, z = c + math.sin(b) * 38 }, 1)
 	end
 
 	-- 5. resources before decoration, so they get the good spots and stay evenly spread
@@ -278,6 +342,9 @@ function WorldGen.Generate(options: Options?): any
 		local group = "rocks" .. #items
 		push(setItems("rocks", round(p.x), round(p.z), rng:Int(0, 359), group))
 		occupied:Add(p.x, p.z, 12)
+		if useT then
+			table.insert(spec.features, { type = "outcrop", at = { round(p.x), round(p.z) }, radius = 9, height = 3 })
+		end
 	end
 
 	-- 6. trees: dense in forest, thinning at its edge, a few lone ones in the meadows
@@ -311,7 +378,7 @@ function WorldGen.Generate(options: Options?): any
 	return {
 		name = o.name or "Wilderness", type = "wilderness", seed = seed,
 		spawn = { c, 0, c + 9 }, bounds = { min = { 0, 0 }, max = { S, S } },
-		zones = zones, pois = pois, paths = paths, items = items,
+		zones = zones, pois = pois, paths = paths, items = items, terrain = spec,
 	}
 end
 

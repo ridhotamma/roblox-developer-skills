@@ -9,6 +9,11 @@
 -- Swap blockout shapes for real art by passing Prefabs: a Folder whose children are named after
 -- kinds ("chair", "oak"...). A prefab is cloned and pivoted to the object's spot (its front must
 -- face -Z and its pivot must sit at the centre of its base).
+--
+-- A layout with a `terrain` spec (WorldGen maps, specs with a terrain block) gets real Terrain:
+-- Build writes it with TerrainGen, sets every object on the ground (structures on the lowest point
+-- of their footprint, groups on one shared base), paints trails into the ground instead of laying
+-- strips, and returns the sampler so game code can ask for heights: local map, ground = Build(...)
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -18,7 +23,9 @@ export type Options = {
 	Parent: Instance?,
 	Origin: CFrame?, -- where the layout's (0, 0, 0) goes
 	Prefabs: Instance?,
-	SnapToGround: boolean?, -- raycast each ground object down onto terrain or parts under it
+	SnapToGround: boolean?, -- raycast each ground object down onto terrain or parts under it (layouts without a terrain spec)
+	Terrain: boolean?, -- write the layout's terrain spec into workspace.Terrain (default true when it has one)
+	TerrainGen: any?, -- the TerrainGen module, when it isn't next to this one
 	YieldEvery: number?, -- task.wait() after this many objects (big maps at runtime)
 	Zones: boolean?, -- build invisible zone volumes (default true)
 	Catalog: any?, -- require(LayoutCatalog): needed for WorldGen / ObbyGen layouts
@@ -87,7 +94,7 @@ local function folder(root: Instance, name: string): Instance
 	return f :: Instance
 end
 
-function LayoutBuilder.Build(layout: any, options: Options?): Model
+function LayoutBuilder.Build(layout: any, options: Options?): (Model, any)
 	local opt: Options = options or {}
 	local origin = opt.Origin or CFrame.new()
 	local kinds = layout.kinds or {}
@@ -100,6 +107,65 @@ function LayoutBuilder.Build(layout: any, options: Options?): Model
 
 	local catalog: any = opt.Catalog or {}
 	local catalogKinds = catalog.kinds or catalog
+
+	-- terrain first, so objects can be set on it
+	local sampler: any = nil
+	if layout.terrain then
+		local TG = opt.TerrainGen or require("./TerrainGen")
+		sampler = TG.Sample(layout.terrain, layout.paths, layout)
+		if math.abs(origin.LookVector.Z + 1) > 1e-3 then
+			warn("LayoutBuilder: Terrain can't be rotated; build terrain layouts with an Origin that only moves")
+		end
+		if opt.Terrain ~= false then
+			TG.Write(sampler, { Origin = origin.Position, YieldEvery = if opt.YieldEvery then 4 else nil })
+		end
+	end
+	local baked = layout.bakedHeight == true
+	local groundY: { [number]: number } = {}
+	if sampler and not baked then
+		local own, groupMin = {}, {}
+		for index, raw in layout.items do
+			local gy = 0
+			if raw.kind == nil then
+				gy = sampler:Height(raw[3], raw[5])
+			elseif not raw.abs then
+				local info = catalog.info and catalog.info[raw.kind]
+				local role = raw.role or (info and info.role) or "prop"
+				local x, z = raw.pos[1], raw.pos[3]
+				local rule = raw.ground or (info and info.ground)
+				if rule == "water" then
+					gy = sampler:Water(x, z) or sampler:Height(x, z)
+				elseif role == "nature" and rule == nil then
+					gy = sampler:Height(x, z)
+				else
+					local fw, fd, sc = 4, 4, raw.scale or 1
+					if raw.foot then
+						fw, fd = raw.foot[1], raw.foot[2]
+					elseif info and raw.size then
+						fw, fd = info.foot[1] * raw.size[1] / info.size[1], info.foot[2] * raw.size[3] / info.size[3]
+					elseif info then
+						fw, fd = info.foot[1] * sc, info.foot[2] * sc
+					elseif raw.size then
+						fw, fd = raw.size[1], raw.size[3]
+					else
+						fw, fd = 4 * sc, 4 * sc
+					end
+					if rule == "high" then
+						gy = math.max(table.unpack(sampler:Samples(x, z, fw, fd, raw.rot or 0)))
+					else
+						gy = sampler:Ground(x, z, fw, fd, raw.rot or 0)
+					end
+				end
+				if raw.group then
+					groupMin[raw.group] = math.min(groupMin[raw.group] or math.huge, gy)
+				end
+			end
+			own[index] = gy
+		end
+		for index, raw in layout.items do
+			groundY[index] = if raw.kind ~= nil and raw.group and not raw.abs then groupMin[raw.group] else own[index]
+		end
+	end
 	local count = 0
 	for index, raw in layout.items do
 		-- normalise the two item forms into: parts + scale factors + id, role, kind, position
@@ -138,8 +204,9 @@ function LayoutBuilder.Build(layout: any, options: Options?): Model
 		if opt.Skip and opt.Skip[role] then
 			continue
 		end
+		y += groundY[index] or 0
 		local cf = origin * CFrame.new(x, y, z) * CFrame.Angles(0, math.rad(rot), 0)
-		if opt.SnapToGround and role ~= "platform" and role ~= "hazard" and role ~= "floor" and y < 1 then
+		if opt.SnapToGround and not sampler and role ~= "platform" and role ~= "hazard" and role ~= "floor" and y < 1 then
 			local hit = workspace:Raycast(cf.Position + Vector3.new(0, 500, 0), Vector3.new(0, -1000, 0), rayParams)
 			if hit then
 				cf = cf.Rotation + Vector3.new(cf.X, hit.Position.Y + y, cf.Z)
@@ -190,7 +257,8 @@ function LayoutBuilder.Build(layout: any, options: Options?): Model
 		end
 	end
 
-	for _, path in layout.paths or {} do
+	-- with terrain, trails are painted into the ground; without it they are flat strips
+	for _, path in if sampler then {} else layout.paths or {} do
 		local f = folder(root, "Paths")
 		local width, y = path.width or 6, path.y or 0.05
 		local hex = if path.kind == "trail" then "B89466" else "D9CDB4"
@@ -224,11 +292,14 @@ function LayoutBuilder.Build(layout: any, options: Options?): Model
 			if zone.circle then
 				part.Shape = Enum.PartType.Cylinder
 				part.Size = Vector3.new(24, zone.circle[3] * 2, zone.circle[3] * 2)
-				part.CFrame = origin * CFrame.new(zone.circle[1], 12 + (zone.y or 0), zone.circle[2]) * CFrame.Angles(0, 0, math.rad(90))
+				local gy = if sampler and not baked then sampler:Height(zone.circle[1], zone.circle[2]) else 0
+				part.CFrame = origin * CFrame.new(zone.circle[1], 12 + (zone.y or 0) + gy, zone.circle[2]) * CFrame.Angles(0, 0, math.rad(90))
 			else
 				local r = zone.rect
 				part.Size = Vector3.new(r[3] - r[1], 24, r[4] - r[2])
-				part.CFrame = origin * CFrame.new((r[1] + r[3]) / 2, 12, (r[2] + r[4]) / 2)
+				local cx, cz = (r[1] + r[3]) / 2, (r[2] + r[4]) / 2
+				local gy = if sampler and not baked then sampler:Height(cx, cz) else 0
+				part.CFrame = origin * CFrame.new(cx, 12 + (zone.y or 0) + gy, cz)
 			end
 			part.Transparency = 1
 			part.Anchored = true
@@ -245,10 +316,11 @@ function LayoutBuilder.Build(layout: any, options: Options?): Model
 	end
 
 	if layout.spawn then
-		root:SetAttribute("Spawn", origin * Vector3.new(layout.spawn[1], layout.spawn[2], layout.spawn[3]))
+		local gy = if sampler and not baked then sampler:Height(layout.spawn[1], layout.spawn[3]) else 0
+		root:SetAttribute("Spawn", origin * Vector3.new(layout.spawn[1], layout.spawn[2] + gy, layout.spawn[3]))
 	end
 	root.Parent = opt.Parent or workspace
-	return root
+	return root, sampler
 end
 
 return LayoutBuilder

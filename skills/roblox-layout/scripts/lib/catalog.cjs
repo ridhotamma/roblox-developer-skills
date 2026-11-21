@@ -102,13 +102,15 @@ K.ruin_wall = { size: [10, 8, 2], role: "prop", parts: [B(-2.5, 4, 0, 5, 8, 2, "
 K.pillar = { size: [3, 12, 3], role: "prop", parts: [B(0, 0.5, 0, 3, 1, 3, "stone", "Cobblestone"), C(0, 6, 0, 2.2, 10, "stone", "Marble"), B(0, 11.5, 0, 3, 1, 3, "stone", "Cobblestone")] };
 K.watchtower = { size: [10, 34, 10], role: "building", clear: { f: 4 }, parts: [...legs(8.6, 8.6, 22, 1, "woodDark"), B(0, 22.5, 0, 10, 1, 10, "wood", "WoodPlanks"), B(0, 24.5, -4.75, 10, 3, 0.5, "wood", "WoodPlanks"), B(0, 24.5, 4.75, 10, 3, 0.5, "wood", "WoodPlanks"), B(-4.75, 24.5, 0, 0.5, 3, 10, "wood", "WoodPlanks"), B(4.75, 24.5, 0, 0.5, 3, 10, "wood", "WoodPlanks"), ...legs(9, 9, 6, 0.6, "woodDark").map(p => { p.p[1] += 26; return p; }), B(0, 32.5, 0, 12, 1, 12, "accent", "WoodPlanks"), B(0, 33.4, 0, 8, 1, 8, "accent", "WoodPlanks"), B(0, 11, -4.4, 1.6, 22, 0.5, "wood", "WoodPlanks")] };
 K.cabin = { size: [18, 15, 14], role: "building", clear: { f: 5 }, parts: [B(0, 5, 0, 18, 10, 14, "wood", "WoodPlanks"), W(0, 12.5, -3.5, 19, 5, 7.5, "accent", "WoodPlanks"), W(0, 12.5, 3.5, 19, 5, 7.5, "accent", "WoodPlanks", 180), B(0, 3.75, -7.05, 4.5, 7.5, 0.3, "woodDark", "Wood"), B(-5.5, 5.5, -7.05, 3.4, 3.4, 0.3, "glass", "Glass"), B(5.5, 5.5, -7.05, 3.4, 3.4, 0.3, "glass", "Glass"), B(6, 14, 3, 2, 6, 2, "stone", "Cobblestone")] };
-K.dock = { size: [8, 1.6, 24], role: "floor", walkable: true, parts: [B(0, 1.3, 0, 8, 0.5, 24, "wood", "WoodPlanks"), ...[-10, -3, 4, 11].flatMap(z => [C(-3.6, 0.4, z, 0.9, 2.4, "woodDark", "Wood"), C(3.6, 0.4, z, 0.9, 2.4, "woodDark", "Wood")])] };
+K.dock = { size: [8, 1.6, 24], role: "floor", walkable: true, ground: "water", parts: [B(0, 1.3, 0, 8, 0.5, 24, "wood", "WoodPlanks"), ...[-10, -3, 4, 11].flatMap(z => [C(-3.6, 0.4, z, 0.9, 2.4, "woodDark", "Wood"), C(3.6, 0.4, z, 0.9, 2.4, "woodDark", "Wood")])] };
 // street
 K.lamp_post = { size: [1.2, 14, 1.2], foot: [1, 1], role: "light", parts: [C(0, 0.4, 0, 1.2, 0.8, "dark", "Metal"), C(0, 6.5, 0, 0.45, 12, "dark", "Metal"), B(0, 12.6, -1.2, 0.4, 0.4, 3, "dark", "Metal"), B(0, 12.2, -2.4, 1.2, 0.5, 1.6, "light", "Neon")] };
 K.street_tree = { size: [8, 14, 8], foot: [1.6, 1.6], role: "nature", parts: [B(0, 0.15, 0, 4, 0.3, 4, "dirt", "Ground"), C(0, 3.4, 0, 1.2, 6.2, "trunk", "Wood"), S(0, 9.4, 0, 7.6, "leaf", "Grass"), S(1.4, 11.2, 0.8, 4.6, "leafAlt", "Grass")] };
 K.trash_can = { size: [1.8, 3, 1.8], role: "prop", parts: [C(0, 1.4, 0, 1.8, 2.8, "dark", "Metal"), C(0, 2.9, 0, 2, 0.3, "metal", "Metal")] };
 K.planter = { size: [6, 2.6, 3], role: "prop", parts: [B(0, 0.8, 0, 6, 1.6, 3, "stone", "Concrete"), S(-1.6, 2, 0, 2.2, "leaf", "Grass"), S(0.2, 2.2, 0, 2.4, "leafAlt", "Grass"), S(1.8, 1.9, 0, 2, "leafDark", "Grass")] };
 K.fountain = { size: [16, 7, 16], role: "prop", clear: { f: 5, b: 5, l: 5, r: 5 }, parts: [C(0, 0.8, 0, 16, 1.6, "stone", "Marble"), C(0, 1.5, 0, 14, 0.4, "water", "Glass"), C(0, 2.6, 0, 2.4, 3.6, "stone", "Marble"), C(0, 4.6, 0, 6, 0.6, "stone", "Marble"), C(0, 5, 0, 5, 0.3, "water", "Glass"), S(0, 6, 0, 1.6, "water", "Glass")] };
+// a footbridge: sits on the higher bank (ground: "high") so it spans a river instead of sinking into it
+K.bridge = { size: [8, 3.2, 26], role: "floor", walkable: true, ground: "high", parts: [B(0, 0.5, 0, 8, 0.6, 26, "wood", "WoodPlanks"), B(-3.7, 2.4, 0, 0.4, 0.4, 26, "woodDark", "Wood"), B(3.7, 2.4, 0, 0.4, 0.4, 26, "woodDark", "Wood"), ...[-12, -6, 0, 6, 12].flatMap(z => [B(-3.7, 1.5, z, 0.5, 2, 0.5, "woodDark", "Wood"), B(3.7, 1.5, z, 0.5, 2, 0.5, "woodDark", "Wood")])] };
 K.fence = { size: [8, 3.6, 0.6], role: "wall", parts: [B(-3.7, 1.8, 0, 0.6, 3.6, 0.6, "woodDark", "Wood"), B(3.7, 1.8, 0, 0.6, 3.6, 0.6, "woodDark", "Wood"), B(0, 2.7, 0, 8, 0.5, 0.3, "wood", "WoodPlanks"), B(0, 1.2, 0, 8, 0.5, 0.3, "wood", "WoodPlanks")] };
 // obby
 K.checkpoint = { size: [6, 0.4, 6], role: "marker", walkable: true, parts: [C(0, 0.2, 0, 6, 0.4, "check", "Neon"), C(0, 0.25, 0, 4, 0.4, "white", "SmoothPlastic")] };
@@ -169,7 +171,7 @@ function resolve(raw, kinds, pal, i) {
     id: raw.id || `${raw.kind || "part"}_${i}`, kind: raw.kind || "part", label: raw.label, x: pos[0], y: pos[1], z: pos[2], rot: raw.rot || 0,
     w: size[0], h: size[1], d: size[2], fw: foot[0], fd: foot[1], scale: sc, role,
     walkable: raw.walkable !== undefined ? raw.walkable : (k.walkable !== undefined ? k.walkable : role === "floor" || role === "decor" || role === "marker"),
-    clear: Object.assign({}, k.clear, raw.clear), group: raw.group, zone: raw.zone, tags: raw.tags || [], anchor: raw.anchor || k.anchor, space: k.space,
+    clear: Object.assign({}, k.clear, raw.clear), group: raw.group, zone: raw.zone, tags: raw.tags || [], abs: !!raw.abs, ground: raw.ground || k.ground, _scatter: raw._scatter, anchor: raw.anchor || k.anchor, space: k.space,
     color: rp.length ? rp.reduce((m, q) => (q.z[0] * q.z[1] * q.z[2] > m.z[0] * m.z[1] * m.z[2] ? q : m)).c : "#B0B0B0", parts: rp, custom: !!(raw.parts || raw.size || !kinds[raw.kind]),
   };
 }
@@ -252,7 +254,13 @@ function expand(layout) {
       const s = raw.scatter, kinds = s.kinds || [s.kind], S2 = s.seed ? G.rng(s.seed) : R;
       const rc = s.circle ? [s.circle[0] - s.circle[2], s.circle[1] - s.circle[2], s.circle[0] + s.circle[2], s.circle[1] + s.circle[2]] : s.rect;
       const pts = G.poisson(S2, rc[0], rc[1], rc[2], rc[3], (x, z) => (s.circle && Math.hypot(x - s.circle[0], z - s.circle[1]) > s.circle[2]) ? 0 : (s.avoid || []).some(a => Math.hypot(x - a[0], z - a[1]) < a[2]) ? 0 : (s.spacing || 12), { rMin: s.spacing || 12, max: s.max });
-      for (const p of pts) out.push({ kind: S2.pick(kinds), pos: [G.round(p.x), s.y || 0, G.round(p.z)], rot: Math.round(S2.range(0, 360)), scale: G.round(S2.range(0.85, 1.2)) });
+      // on terrain: also keep off the paths, and drop points that land in water or on cliffs (in load)
+      const avoidPaths = s.avoidPaths !== undefined ? s.avoidPaths : !!layout.terrain, segs = [];
+      if (avoidPaths) for (const pa of layout.paths || []) for (let q = 1; q < (pa.points || []).length; q++) segs.push([pa.points[q - 1], pa.points[q], (pa.width || 6) / 2 + 3]);
+      for (const p of pts) {
+        if (segs.some(sg => G.segPoint([p.x, p.z], sg[0], sg[1]).d < sg[2])) { S2.pick(kinds); S2.range(0, 360); S2.range(0.85, 1.2); continue; }
+        out.push({ kind: S2.pick(kinds), pos: [G.round(p.x), s.y || 0, G.round(p.z)], rot: Math.round(S2.range(0, 360)), scale: G.round(S2.range(0.85, 1.2)), _scatter: layout.terrain ? (s.maxSlope || 35) : undefined });
+      }
     } else out.push(raw);
   }
   return out;
@@ -273,7 +281,17 @@ function load(layout) {
     if (!isFinite(b[0])) b = [0, 0, 10, 10];
     const pad = layout.type === "obby" ? 12 : 4; b = [b[0] - pad, b[1] - pad, b[2] + pad, b[3] + pad];
   }
-  return { layout, items, raws, bounds: b, pal, kinds };
+  // terrain: build the ground, then give every object its ground height (gy). it.y stays relative
+  // to the ground so the checker reasons the same way with or without terrain.
+  let terrain = null;
+  if (layout.terrain) {
+    const T = require("./terrain.cjs");
+    terrain = T.build(layout.terrain, layout.paths, { seed: layout.seed, bounds: { min: [b[0], b[1]], max: [b[2], b[3]] } });
+    for (let i = items.length - 1; i >= 0; i--) { const it = items[i]; if (it._scatter && (terrain.wet(it.x, it.z) || terrain.slope(it.x, it.z) > it._scatter)) items.splice(i, 1); }
+    T.groundHeights(terrain, items).forEach((gy, i) => { items[i].gy = gy; });
+  }
+  for (const it of items) if (it.gy === undefined) it.gy = 0;
+  return { layout, items, raws, bounds: b, pal, kinds, terrain };
 }
 
 module.exports = { K, SETS, PALETTES, BASE, palette, hex, resolve, setItems, setBounds, wallItems, expand, load, kindsOf, parts: { B, C, S, W } };

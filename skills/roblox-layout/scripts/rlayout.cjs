@@ -48,6 +48,8 @@ function exportAll(L, dir, formats) {
   if (formats.includes("rbxmx")) write(path.join(dir, name + ".rbxmx"), X.toRbxmx(L));
   if (formats.includes("script")) write(path.join(dir, name + ".lua"), X.toScript(L));
   if (formats.includes("module")) write(path.join(dir, name + ".module.luau"), X.toModule(L));
+  // a model file can't hold terrain: the .rbxmx route gets a command-bar script that builds it
+  if (L.terrain && (formats.includes("rbxmx") || formats.includes("terrain"))) write(path.join(dir, name + ".terrain.lua"), X.toTerrainScript(L));
 }
 
 function main() {
@@ -104,7 +106,7 @@ function main() {
   new <type> [options] [-o layout.json]   generate a layout spec
   check <layout.json> [--json] [--all]    spacing report: tight, loose, blocked, unreachable
   preview <layout.json> [-o file.html]    3D + plan preview with the report built in
-  export <layout.json> [--out dir] [--format rbxmx,script,module]
+  export <layout.json> [--out dir] [--format rbxmx,script,module,terrain]
   build <type> [options] --out dir        all of the above in one go
   kinds [name] | sets | palettes          the object catalog
   jump [rise ...] [--speed n --height n]  jump reach table for obbies
@@ -112,7 +114,9 @@ function main() {
 types: ${Object.keys(GENERATORS).join(", ")}
 options: --seed n  --name s  --palette p  --width n --depth n --height n  (rooms)
          --stages n --jumps n --easy 0..1 --hard 0..1  (obby)   --plots n  (tycoon)
-         --blocks-x n --blocks-z n  (city)   --size n --pois n --lakes n  (wilderness)`);
+         --blocks-x n --blocks-z n  (city)   --size n --pois n --lakes n --hills n --relief n --flat  (wilderness)
+terrain: a layout with a "terrain" block gets real Roblox Terrain (hills, lakes, rivers, pads, fields,
+         outcrops); see references/terrain.md. Exports add <Name>.terrain.lua for the .rbxmx route.`);
   }
 }
 if (require.main === module) { try { main(); } catch (e) { console.error("error: " + e.message); process.exit(2); } }

@@ -1,0 +1,67 @@
+{
+  "name": "Valley",
+  "type": "wilderness",
+  "palette": "rustic",
+  "seed": 7,
+  "spawn": [190, 0, 172],
+  "focus": [330, 30, 300],
+  "bounds": { "min": [0, 0], "max": [420, 420] },
+  "terrain": {
+    "relief": 6,
+    "scale": 180,
+    "edge": { "height": 36, "width": 50 },
+    "snow": 48,
+    "features": [
+      { "type": "mountain", "at": [340, 70], "radius": 95, "height": 62 },
+      { "type": "mesa", "at": [70, 80], "radius": 48, "height": 22 },
+      { "type": "hill", "at": [330, 320], "radius": 70, "height": 16 },
+      { "type": "flatten", "id": "tower_pad", "at": [330, 320], "radius": 9, "blend": 8 },
+      { "type": "lake", "id": "lake", "at": [110, 320], "radius": 48, "depth": 8, "shore": 10 },
+      { "type": "river", "id": "river", "points": [[300, 150], [255, 200], [210, 250], [175, 295], [150, 312]], "width": 12, "depth": 4, "bank": 8, "joins": "lake" },
+      { "type": "flatten", "id": "village", "at": [190, 150], "radius": 42, "blend": 16 },
+      { "type": "paint", "material": "Cobblestone", "at": [190, 150], "radius": 11 },
+      { "type": "field", "at": [95, 175], "size": [64, 44], "rot": 12, "rows": 4 },
+      { "type": "outcrop", "at": [125, 90], "radius": 9, "height": 4 },
+      { "type": "outcrop", "at": [152, 58], "radius": 7, "height": 3 },
+      { "type": "patches", "material": "LeafyGrass", "scale": 120, "above": 0.56 }
+    ]
+  },
+  "zones": [
+    { "id": "village", "label": "Village", "circle": [190, 150, 42], "open": true, "main": true },
+    { "id": "fields", "label": "Fields", "circle": [95, 175, 30], "open": true },
+    { "id": "lake", "label": "Lake", "kind": "water", "circle": [110, 320, 48] }
+  ],
+  "pois": [
+    { "id": "tower", "label": "Watchtower", "pos": [330, 300] },
+    { "id": "dock", "label": "Dock", "pos": [115, 258] },
+    { "id": "mesa", "label": "Mesa", "pos": [118, 120] }
+  ],
+  "paths": [
+    { "id": "to_tower", "kind": "trail", "width": 7, "points": [[190, 150], [235, 215], [285, 275], [325, 312]] },
+    { "id": "to_dock", "kind": "trail", "width": 7, "points": [[190, 150], [150, 215], [115, 262]] },
+    { "id": "to_field", "kind": "trail", "width": 7, "points": [[190, 150], [150, 162], [130, 168]] }
+  ],
+  "items": [
+    { "kind": "campfire", "pos": [190, 0, 150] },
+    { "kind": "bench", "pos": [190, 0, 160], "rot": 180 },
+    { "kind": "bench", "pos": [181, 0, 144], "rot": 60 },
+    { "kind": "cabin", "pos": [190, 0, 122], "rot": 180 },
+    { "kind": "cabin", "pos": [160, 0, 140], "rot": 290 },
+    { "kind": "cabin", "pos": [222, 0, 140], "rot": 70 },
+    { "kind": "lamp_post", "pos": [176, 0, 168] },
+    { "kind": "lamp_post", "pos": [204, 0, 168] },
+    { "row": { "kind": "fence", "from": [62.97, 159.27], "to": [117.75, 147.62], "count": 7, "rot": 12 } },
+
+    { "kind": "bridge", "pos": [238.1, 0, 218.8], "rot": 40 },
+    { "kind": "dock", "pos": [110, 0, 282], "rot": 180 },
+    { "kind": "watchtower", "pos": [330, 0, 320], "rot": 200 },
+
+    { "set": "rocks", "pos": [125, 0, 90], "rot": 30 },
+    { "set": "rocks", "pos": [152, 0, 58], "rot": 140 },
+    { "kind": "ore_node", "pos": [137, 0, 100], "rot": 210 },
+
+    { "scatter": { "kinds": ["oak", "pine", "pine", "birch"], "rect": [24, 24, 396, 396], "spacing": 15, "maxSlope": 32, "seed": 11,
+        "avoid": [[190, 150, 60], [95, 175, 46], [330, 320, 20], [110, 278, 16], [238, 218, 18], [125, 90, 14], [152, 58, 12]] } },
+    { "scatter": { "kinds": ["flowers"], "circle": [250, 120, 60], "spacing": 12, "seed": 4, "avoid": [[190, 150, 56]] } }
+  ]
+}

@@ -48,7 +48,10 @@ function edt(blocked, w, h) {
 
 function check(L, opts = {}) {
   const { layout, items, bounds } = L, type = PROFILES[layout.type] ? layout.type : "custom";
-  const P = Object.assign({}, PROFILES[type], layout.rules || {}, opts.rules || {});
+  // terrain limits: cliff = slope (degrees) a player can't walk up, slopeDrop = studs the ground may
+  // rise under a structure before it looks buried, steepTrail = steepest comfortable path (degrees)
+  const P = Object.assign({ cliff: 55, slopeDrop: 1.5, steepTrail: 30 }, PROFILES[type], layout.rules || {}, opts.rules || {});
+  const T = L.terrain;
   const issues = [], stats = { items: items.length, type };
   const add = (sev, code, msg, at, ids, fix, lean) => issues.push({ sev, code, msg, at: at && [G.round(at[0], 10), G.round(at[1], 10)], ids: ids || [], fix, lean });
   const byId = new Map(items.map(it => [it.id, it]));
@@ -122,13 +125,17 @@ function check(L, opts = {}) {
       }
   };
   const floors = items.filter(it => it.role === "floor");
+  // decks (bridges, docks): walkable floors that carry players over water and steep ground
+  const deck = new Uint8Array(gw * gh); for (const it of items) if (it.walkable && it.role === "floor" && it.kind !== "ground") raster(it, deck, 1);
   const hasFloor = floors.length > 0 && (type === "interior" || type === "building" || type === "tycoon");
   if (hasFloor) floors.forEach(it => raster(it, floor, 1)); else floor.fill(1);
   for (const it of solids) { raster(it, blocked, 1); if (it.role !== "wall" && it.role !== "window") raster(it, furn, 1); }
   for (let j = 0; j < gh; j++) for (let i = 0; i < gw; i++) {
     const k = j * gw + i, x = bx0 + (i + 0.5) * cell, z = bz0 + (j + 0.5) * cell;
     if (!floor[k]) blocked[k] = 1;
+    else if (deck[k]) continue;
     else if (waterZones.some(zn => inZone(zn, x, z))) { blocked[k] = 1; floor[k] = 0; }
+    else if (T && (T.wet(x, z) || T.slope(x, z) > P.cliff)) { blocked[k] = 1; floor[k] = 0; }
   }
   const d2 = edt(blocked, gw, gh), width = new Float64Array(gw * gh);
   for (let i = 0; i < gw * gh; i++) width[i] = blocked[i] ? 0 : Math.max(0, 2 * Math.sqrt(d2[i]) * cell - cell);
@@ -183,6 +190,40 @@ function check(L, opts = {}) {
   if (isFinite(minRoute)) stats.narrowestRoute = G.round(minRoute, 10);
   stats.longestWalkSeconds = G.round(longest / speed, 10);
   if ((type === "interior" || type === "building") && longest / speed > 12) add("info", "long-walk", `farthest point is a ${f1(longest / speed)} s walk from the entrance`, null, [], "bring the most-used things closer to the door, or shrink the room", "loose");
+
+  // ---- 2b. terrain: things on slopes or under water, paths too steep to climb comfortably ----
+  if (T) {
+    const flatOnly = new Set(["nature", "decor", "marker", "light", "ceiling", "lintel", "platform", "hazard"]), big = new Set(["building", "floor", "wall", "window", "furniture", "structure"]), seen = new Set();
+    for (const it of items) {
+      if (it.abs) continue;
+      if (!it.walkable && T.wet(it.x, it.z)) { add("error", "underwater", `${it.id} is under water (${f1(T.water(it.x, it.z) - T.height(it.x, it.z))} studs deep)`, [it.x, it.z], [it.id], "move it onto dry ground, or move the lake / river away from it", "tight"); continue; }
+      if (flatOnly.has(it.role)) continue;
+      const drop = Math.max(...T.samples(it.x, it.z, it.fw, it.fd, it.rot)) - it.gy, key = it.group || it.id;
+      if (drop <= P.slopeDrop || seen.has(key)) continue;
+      seen.add(key);
+      add(big.has(it.role) ? "warn" : "info", "on-slope", `${it.group ? "group " + it.group : it.id} sits on a slope: the ground rises ${f1(drop)} studs under it, so its uphill side is buried`, [it.x, it.z], [it.id],
+        `flatten a pad under it: { "type": "flatten", "at": [${Math.round(it.x)}, ${Math.round(it.z)}], "radius": ${Math.ceil(Math.max(it.fw, it.fd) / 2 + 3)} } in terrain.features`, null);
+    }
+    let steepest = 0;
+    for (const pa of layout.paths || []) {
+      const pts = pa.points || [], sm = [];
+      for (let q = 1; q < pts.length; q++) {
+        const a = pts[q - 1], b = pts[q], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 4));
+        for (let s = q === 1 ? 0 : 1; s <= n; s++) { const x = a[0] + (b[0] - a[0]) * s / n, z = a[1] + (b[1] - a[1]) * s / n; sm.push(T.wet(x, z) ? null : [x, z, T.height(x, z)]); }
+      }
+      let worst = 0, at = null;
+      for (let s = 2; s < sm.length; s++) {
+        const p = sm[s - 2], q = sm[s]; if (!p || !q) continue;
+        const d = Math.hypot(q[0] - p[0], q[1] - p[1]); if (d < 1) continue;
+        const deg = Math.atan(Math.abs(q[2] - p[2]) / d) * 180 / Math.PI; if (deg > worst) { worst = deg; at = [q[0], q[1]]; }
+      }
+      steepest = Math.max(steepest, worst);
+      if (worst > P.steepTrail) add("warn", "steep-path", `${pa.id || pa.kind || "path"} climbs at ${Math.round(worst)} degrees in places (keep paths under ${P.steepTrail}, main routes under 20)`, at, [],
+        "run it along the slope instead of straight up (switchbacks), lower the hill it crosses, or move it round the hill", null);
+    }
+    const ts = T.stats();
+    stats.terrain = { min: ts.min, max: ts.max, water: ts.water, steepestPath: Math.round(steepest) };
+  }
 
   // ---- 3. looseness: coverage and empty floor ----
   let floorCells = 0, furnCells = 0;
@@ -323,6 +364,7 @@ function text(rep, max = 40) {
   if (s.widestEmpty !== undefined) bits.push(`widest empty ${s.widestEmpty}`);
   if (s.longestWalkSeconds) bits.push(`longest walk ${s.longestWalkSeconds} s`);
   if (s.poiSpacing) bits.push(`POI spacing ${s.poiSpacing[0]}-${s.poiSpacing[1]}`);
+  if (s.terrain) bits.push(`ground ${s.terrain.min} to ${s.terrain.max}, steepest path ${s.terrain.steepestPath} deg`);
   if (s.jumps !== undefined) bits.push(`${s.jumps} jumps, max ${s.maxJumpsBetweenCheckpoints} between checkpoints`);
   if (bits.length) out.push("  " + bits.join(" | ") + (s.jumps === undefined ? " (studs)" : ""));
   if (s.curve) out.push("  difficulty by stage: " + s.curve.map(c => `${c.stage}:${c.difficulty}`).join("  "));

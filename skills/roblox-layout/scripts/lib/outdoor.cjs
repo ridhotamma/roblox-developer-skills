@@ -2,6 +2,7 @@
 "use strict";
 const G = require("./geom.cjs");
 const C = require("./catalog.cjs");
+const T = require("./terrain.cjs");
 const { B, W } = C.parts;
 const norm = r => ((Math.round(r) % 360) + 360) % 360;
 
@@ -196,35 +197,55 @@ class Occupied {
 }
 function wilderness(o = {}) {
   const seed = o.seed || 1, R = G.rng(seed), N = G.noise2(seed), S = o.size || 640, c = S / 2, items = [], zones = [], pois = [], paths = [];
-  items.push({ kind: "ground", role: "floor", pos: [c, -1, c], size: [S, 1, S], color: "grass", material: "Grass" });
+  // terrain (default): hills, a rim of high ground, carved lakes with real water, pads under every
+  // place, trails with a level bed. terrain: false (--flat) gives the flat blockout map instead.
+  const useT = o.terrain !== false && !o.flat;
+  if (!useT) items.push({ kind: "ground", role: "floor", pos: [c, -1, c], size: [S, 1, S], color: "grass", material: "Grass" });
   // water first: everything else works around it
   const lakes = [];
   for (let k = 0, tries = 0; k < (o.lakes === undefined ? 2 : o.lakes) && tries < 60; tries++) {
     const r = R.range(42, 68), x = R.range(r + 30, S - r - 30), z = R.range(r + 30, S - r - 30);
     if (Math.hypot(x - c, z - c) < r + 90 || lakes.some(l => Math.hypot(l[0] - x, l[1] - z) < l[2] + r + 60)) continue;
     lakes.push([x, z, r]); k++;
-    items.push({ kind: "shore", role: "decor", shape: "cylinder", pos: [G.round(x), 0, G.round(z)], size: [2 * r + 12, 0.15, 2 * r + 12], color: "sand", material: "Sand" }, { kind: "water", role: "decor", shape: "cylinder", pos: [G.round(x), 0, G.round(z)], size: [2 * r, 0.3, 2 * r], color: "water", material: "Glass" });
+    if (!useT) items.push({ kind: "shore", role: "decor", shape: "cylinder", pos: [G.round(x), 0, G.round(z)], size: [2 * r + 12, 0.15, 2 * r + 12], color: "sand", material: "Sand" }, { kind: "water", role: "decor", shape: "cylinder", pos: [G.round(x), 0, G.round(z)], size: [2 * r, 0.3, 2 * r], color: "water", material: "Glass" });
     zones.push({ id: `lake${k}`, label: "Lake", kind: "water", circle: [G.round(x), G.round(z), G.round(r)] });
   }
   const inLake = (x, z, m = 0) => lakes.some(l => Math.hypot(l[0] - x, l[1] - z) < l[2] + m);
+  let spec = null, T1 = null;
+  if (useT) {
+    spec = { seed, bounds: [0, 0, S, S], relief: o.relief === undefined ? 9 : o.relief, scale: 230, edge: { height: 44, width: 70 }, features: [] };
+    lakes.forEach((l, i) => spec.features.push({ type: "lake", id: `lake${i + 1}`, at: [G.round(l[0]), G.round(l[1])], radius: G.round(l[2]), depth: 7, shore: 10 }));
+    // a few broad hills, clear of the spawn and the lakes
+    const hills = [];
+    for (let k = 0, tries = 0; k < (o.hills === undefined ? 3 : o.hills) && tries < 40; tries++) {
+      const r = R.range(50, 95), x = R.range(r + 20, S - r - 20), z = R.range(r + 20, S - r - 20), h = R.range(10, 22);
+      if (Math.hypot(x - c, z - c) < r + 70 || inLake(x, z, r + 25) || hills.some(q => Math.hypot(q[0] - x, q[1] - z) < q[2] + r)) continue;
+      hills.push([x, z, r]); k++;
+      spec.features.push({ type: "hill", at: [G.round(x), G.round(z)], radius: G.round(r), height: G.round(h, 10) });
+    }
+    spec.features.push({ type: "patches", material: "LeafyGrass", scale: 170, octaves: 3, above: 0.52 }, { type: "patches", material: "Rock", offset: [913, -577], scale: 130, octaves: 2, above: 0.62 });
+    T1 = T.build(spec);
+    T1.bodies.forEach((b, i) => { spec.features[i].level = b.level; });
+  }
   // points of interest: 6 to 15 seconds of walking apart
   const TYPES = [["Watchtower", 14], ["Ruins", 22], ["Cabin", 20], ["Quarry", 20], ["Shrine", 16], ["Old camp", 20]];
   const P = [{ id: "camp", label: "Spawn camp", x: c, z: c, r: 24, t: "camp" }];
   const want = o.pois || Math.max(4, Math.round(S * S / 60000));
-  const cand = G.poisson(R, 70, 70, S - 70, S - 70, (x, z) => (inLake(x, z, 34) || Math.hypot(x - c, z - c) < 130) ? 0 : 150, { rMin: 150 });
+  const cand = G.poisson(R, 70, 70, S - 70, S - 70, (x, z) => (inLake(x, z, 34) || Math.hypot(x - c, z - c) < 130 || (T1 && T1.relief(x, z, 32) > 8)) ? 0 : 150, { rMin: 150 });
   cand.slice(0, want).forEach((p, i) => { const t = TYPES[i % TYPES.length]; P.push({ id: `poi${i + 1}`, label: t[0], x: G.round(p.x), z: G.round(p.z), r: t[1] + 6, t: t[0] }); });
-  lakes.forEach((l, i) => { const a = Math.atan2(c - l[1], c - l[0]), x = l[0] + Math.cos(a) * (l[2] - 6), z = l[1] + Math.sin(a) * (l[2] - 6); P.push({ id: `dock${i + 1}`, label: "Dock", x: G.round(x), z: G.round(z), r: 14, t: "Dock", a }); });
+  lakes.forEach((l, i) => { const a = Math.atan2(c - l[1], c - l[0]), x = l[0] + Math.cos(a) * (l[2] - 6), z = l[1] + Math.sin(a) * (l[2] - 6); P.push({ id: `dock${i + 1}`, label: "Dock", x: G.round(x), z: G.round(z), r: 14, t: "Dock", a, lake: i }); });
   const occ = new Occupied();
   for (const p of P) {
     pois.push({ id: p.id, label: p.label, pos: p.t === "Dock" ? [G.round(p.x + Math.cos(p.a) * 20), G.round(p.z + Math.sin(p.a) * 20)] : [p.x, p.z] });
     if (p.t !== "Dock") zones.push({ id: p.id, label: p.label, circle: [p.x, p.z, p.r], open: true, main: true });
+    if (useT && p.t !== "Dock") spec.features.push({ type: "flatten", id: p.id, at: [p.x, p.z], radius: p.r, blend: 18 });
     const rot = R.int(0, 3) * 90 + R.int(-20, 20), set = (name, extra) => items.push(...C.setItems(name, p.x, 0, p.z, rot, p.id).map(it => Object.assign(it, extra)));
     if (p.t === "camp") set("camp"); else if (p.t === "Ruins") set("ruins"); else if (p.t === "Old camp") set("camp");
     else if (p.t === "Watchtower") items.push({ kind: "watchtower", pos: [p.x, 0, p.z], rot: norm(rot), group: p.id });
     else if (p.t === "Cabin") { items.push({ kind: "cabin", pos: [p.x, 0, p.z], rot: norm(Math.atan2(p.x - c, p.z - c) * 180 / Math.PI), group: p.id }); }
     else if (p.t === "Quarry") { set("rocks"); items.push({ kind: "ore_node", pos: [p.x + 11, 0, p.z - 8], rot: 200, group: p.id }, { kind: "ore_node", pos: [p.x - 12, 0, p.z - 6], rot: 140, group: p.id }, { kind: "crate", pos: [p.x - 4, 0, p.z + 12], rot: 25, group: p.id }); }
     else if (p.t === "Shrine") { for (let a = 0; a < 360; a += 60) items.push({ kind: "pillar", pos: [G.round(p.x + Math.cos(G.rad(a)) * 11), 0, G.round(p.z + Math.sin(G.rad(a)) * 11)], group: p.id }); items.push({ kind: "pedestal", pos: [p.x, 0, p.z], group: p.id }); }
-    else if (p.t === "Dock") items.push({ kind: "dock", pos: [p.x, 0, p.z], rot: norm(Math.atan2(Math.cos(p.a), Math.sin(p.a)) * 180 / Math.PI + 180), group: p.id });
+    else if (p.t === "Dock") items.push({ kind: "dock", pos: [p.x, useT ? spec.features[p.lake].level : 0, p.z], abs: useT || undefined, rot: norm(Math.atan2(Math.cos(p.a), Math.sin(p.a)) * 180 / Math.PI + 180), group: p.id });
     occ.add(p.x, p.z, p.r);
   }
   // trails: a spanning tree so everything is connected, plus a couple of loops so it isn't a dead-end maze
@@ -243,22 +264,28 @@ function wilderness(o = {}) {
     for (let s = 1; s < pts.length; s++) segs.push([pts[s - 1], pts[s]]);
   });
   const nearPath = (x, z, m) => segs.some(s => G.segPoint([x, z], s[0], s[1]).d < m);
-  const free = (x, z, m) => x > 8 && z > 8 && x < S - 8 && z < S - 8 && !inLake(x, z, 7 + m) && !nearPath(x, z, 5.5 + m) && !occ.any(x, z, m);
+  // the ground as it will be (pads and trail beds included), so nothing lands on a cliff
+  const T2 = useT ? T.build(spec, paths) : null;
+  const free = (x, z, m) => x > 8 && z > 8 && x < S - 8 && z < S - 8 && !inLake(x, z, 7 + m) && !nearPath(x, z, 5.5 + m) && !occ.any(x, z, m) && (!T2 || T2.slope(x, z) < 34);
   const forest = (x, z) => N(x, z, 170, 3), rocky = (x, z) => N(x + 913, z - 577, 130, 2);
   const drop = (kind, p, extra) => { items.push(Object.assign({ kind, pos: [G.round(p.x, 10), 0, G.round(p.z, 10)], rot: R.int(0, 359), scale: G.round(R.range(0.82, 1.24)) }, extra)); occ.add(p.x, p.z, (extra && extra.r) || 2.5); if (extra) delete extra.r; };
   // a fair start: wood, stone and food within a few seconds of spawn
   for (let k = 0; k < 4; k++) { const a = R.range(0, 6.28), d = 34 + k * 5; drop(k % 2 ? "pine" : "oak", { x: c + Math.cos(a) * d, z: c + Math.sin(a) * d }); }
-  { const a = R.range(0, 6.28); items.push(...C.setItems("rocks", G.round(c + Math.cos(a) * 44), 0, G.round(c + Math.sin(a) * 44), R.int(0, 359), "start_rocks")); occ.add(c + Math.cos(a) * 44, c + Math.sin(a) * 44, 9); drop("berry_bush", { x: c + Math.cos(a + 2.2) * 38, z: c + Math.sin(a + 2.2) * 38 }, { scale: 1 }); }
+  { // the rocks and the bush step round the spawn (no extra random numbers) until they miss the trees above
+    let a = R.range(0, 6.28); for (let t = 0; t < 12 && occ.any(c + Math.cos(a) * 44, c + Math.sin(a) * 44, 12); t++) a += 0.5;
+    items.push(...C.setItems("rocks", G.round(c + Math.cos(a) * 44), 0, G.round(c + Math.sin(a) * 44), R.int(0, 359), "start_rocks")); occ.add(c + Math.cos(a) * 44, c + Math.sin(a) * 44, 9);
+    let b = a + 2.2; for (let t = 0; t < 12 && occ.any(c + Math.cos(b) * 38, c + Math.sin(b) * 38, 4); t++) b += 0.5;
+    drop("berry_bush", { x: c + Math.cos(b) * 38, z: c + Math.sin(b) * 38 }, { scale: 1 }); }
   // resources before decoration, so they get the good spots
   for (const p of G.poisson(R, 20, 20, S - 20, S - 20, (x, z) => (rocky(x, z) > 0.55 && free(x, z, 5)) ? 64 : 0, { rMin: 64 })) drop("ore_node", p, { scale: 1, r: 7 });
   for (const p of G.poisson(R, 20, 20, S - 20, S - 20, (x, z) => { const f = forest(x, z); return f > 0.4 && f < 0.56 && free(x, z, 4) ? 56 : 0; }, { rMin: 56 })) drop("berry_bush", p, { scale: 1, r: 6 });
-  for (const p of G.poisson(R, 20, 20, S - 20, S - 20, (x, z) => (rocky(x, z) > 0.6 && free(x, z, 9)) ? 36 : 0, { rMin: 36 })) { items.push(...C.setItems("rocks", G.round(p.x), 0, G.round(p.z), R.int(0, 359), `rocks${items.length}`)); occ.add(p.x, p.z, 12); }
+  for (const p of G.poisson(R, 20, 20, S - 20, S - 20, (x, z) => (rocky(x, z) > 0.6 && free(x, z, 9)) ? 36 : 0, { rMin: 36 })) { items.push(...C.setItems("rocks", G.round(p.x), 0, G.round(p.z), R.int(0, 359), `rocks${items.length}`)); occ.add(p.x, p.z, 12); if (useT) spec.features.push({ type: "outcrop", at: [G.round(p.x), G.round(p.z)], radius: 9, height: 3 }); }
   // trees: dense in forest, a few lone ones in meadows, thinning at the edge between
   const treeR = (x, z) => { if (!free(x, z, 2.5)) return 0; const f = forest(x, z); return f > 0.5 ? G.lerp(19, 10.5, G.clamp((f - 0.5) / 0.22, 0, 1)) : f > 0.43 ? 28 : 44; };
   for (const p of G.poisson(R, 10, 10, S - 10, S - 10, treeR, { rMin: 10.5, rMax: 44, tries: Math.ceil(S * S / 22) })) { const f = forest(p.x, p.z), sp = N(p.x - 300, p.z + 200, 240, 1); drop(f < 0.5 && R.chance(0.4) ? "birch" : sp > 0.52 ? "pine" : "oak", p); }
   for (const p of G.poisson(R, 10, 10, S - 10, S - 10, (x, z) => { const f = forest(x, z); return f > 0.4 && f < 0.54 && free(x, z, 3) ? 13 : 0; }, { rMin: 13 })) drop("bush", p);
   for (const p of G.poisson(R, 10, 10, S - 10, S - 10, (x, z) => (forest(x, z) < 0.44 && free(x, z, 0.5)) ? 11 : 0, { rMin: 11 })) items.push({ kind: "flowers", pos: [G.round(p.x, 10), 0, G.round(p.z, 10)], rot: R.int(0, 359) });
-  return { name: o.name || "Wilderness", type: "wilderness", seed, palette: "rustic", spawn: [c, 0, c + 9], focus: [P[1] ? P[1].x : c, 10, P[1] ? P[1].z : c - 50], bounds: { min: [0, 0], max: [S, S] }, zones, pois, paths, items };
+  return { name: o.name || "Wilderness", type: "wilderness", seed, palette: "rustic", spawn: [c, 0, c + 9], focus: [P[1] ? P[1].x : c, 10, P[1] ? P[1].z : c - 50], bounds: { min: [0, 0], max: [S, S] }, zones, pois, paths, items, ...(useT ? { terrain: spec } : {}) };
 }
 
 module.exports = { obby, tycoon, city, wilderness, OBBY_PATTERNS };
