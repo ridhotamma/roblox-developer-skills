@@ -13,7 +13,7 @@ export const CLIPS = [{"name":"Open","loop":false,"duration":0.9},{"name":"Close
 export async function loadTreasureChest(parent, url = new URL('./TreasureChest.glb', import.meta.url).href) {
   const gltf = await new GLTFLoader().loadAsync(url);
   const root = gltf.scene;
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.flatShading = true; o.frustumCulled = !o.isSkinnedMesh; } });
+  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = !o.isSkinnedMesh; } });
   if (parent) parent.add(root);
   const mixer = new THREE.AnimationMixer(root);
   const actions = Object.fromEntries(gltf.animations.map(c => [c.name, mixer.clipAction(c)]));

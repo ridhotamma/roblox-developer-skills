@@ -3,6 +3,7 @@
 'use strict';
 const path = require('path'), fs = require('fs'), os = require('os');
 const M = require('./lib/math.cjs'), G = require('./lib/geometry.cjs'), MD = require('./lib/model.cjs'), CK = require('./lib/checks.cjs');
+const RB = require('./lib/roblox.cjs');
 const RN = require('./lib/render.cjs'), EX = require('./lib/export.cjs'), RF = require('./lib/reference.cjs'), PV = require('./lib/preview.cjs');
 let fails = 0;
 const ok = (c, msg) => { console.log((c ? 'ok   ' : 'FAIL ') + msg); if (!c) fails++; };
@@ -180,9 +181,10 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   // skins: a weightless root joint above the bones, and every vertex still follows the same dominant bone
   const bin = glb.subarray(28 + glb.readUInt32LE(12)), view = (i, T) => { const a = json.accessors[i], v = json.bufferViews[a.bufferView]; return new T(bin.buffer.slice(bin.byteOffset + v.byteOffset, bin.byteOffset + v.byteOffset + v.byteLength)); };
   const bodyNode = json.nodes.find(n => n.name === 'BodyMesh'), skin = json.skins[bodyNode.skin], prim = json.meshes[bodyNode.mesh].primitives[0];
-  const J = view(prim.attributes.JOINTS_0, Uint8Array), W = view(prim.attributes.WEIGHTS_0, Float32Array), body = m.byName.get('Body');
+  const J = view(prim.attributes.JOINTS_0, Uint8Array), W = view(prim.attributes.WEIGHTS_0, Float32Array), body = m.byName.get('Body'), I = view(prim.indices, Uint16Array);
   let same = true, onRoot = 0; const order = [].concat(...body.mesh.tris);
-  order.forEach((k, v) => {
+  order.forEach((k, corner) => {
+    const v = I[corner];
     let best = 0; for (let c = 1; c < 4; c++) if (W[v * 4 + c] > W[v * 4 + best]) best = c;
     if (W.slice(v * 4, v * 4 + 4).some((w, c) => w > 1e-6 && J[v * 4 + c] === 0)) onRoot++;
     const want = body.skinBones[body.weights[k].indexOf(Math.max(...body.weights[k]))].name;
@@ -204,6 +206,39 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const html = PV.previewHtml([{ name: 'T', title: 'T', description: '', glb: Buffer.alloc(16), clips: [], checks: [], dims: [1, 1, 1], tris: 0, parts: 0, ground: true, refs: [] }]);
   ok(html.includes('window.THREE') && html.includes('const THREE = window.THREE') && !/cdn\.jsdelivr\.net/.test(html), 'preview.html embeds three.js and needs no CDN');
   ok(html.includes('window.RMODEL') && html.includes('type="module"'), 'preview.html carries the models and the viewer module');
+}
+// 5b. shading and performance: smoothing by angle, indexed meshes, merged static parts, collision classes
+{
+  const verts = (mesh, a) => RB.renderVertices({ mesh, smoothAngle: a });
+  const ico = G.SHAPES.sphere({ radius: 1, detail: 0 }), cyl = G.SHAPES.cylinder({ radius: 1, height: 1, segments: 8 }), box = G.SHAPES.box({ size: [1, 1, 1] });
+  ok(verts(ico, 0) === 60 && verts(ico, 60) === 12, 'a smoothed icosphere shares its 12 vertices (flat needs 60)');
+  const cn = G.cornerNormals(cyl, 60), flat = G.cornerNormals(cyl, 0);
+  ok(cyl.tris.every((t, ti) => Math.abs(flat[ti][0][1]) < 0.99 || cn[ti].every(n => Math.abs(n[1]) > 0.999999)) && verts(cyl, 60) < verts(cyl, 0), 'a smoothed cylinder shades its sides round and keeps its cap edges hard');
+  ok(verts(box, 60) === 24, 'edges sharper than the smoothing angle stay hard (a box stays crisp)');
+  const spec = sh => ({ name: 'Sh', ground: false, parts: [{ name: 'Ball', shape: 'sphere', radius: 0.5, detail: 0, shading: sh }] });
+  ok(MD.compile(spec('smooth')).byName.get('Ball').smoothAngle === 60 && MD.compile(spec(30)).byName.get('Ball').smoothAngle === 30 && MD.compile(spec(undefined)).byName.get('Ball').smoothAngle === 0, 'shading: "smooth" = 60°, a number is the angle, flat is the default');
+  ok(MD.compile(spec('glossy')).errors.some(e => /shading must be/.test(e)), 'an unknown shading value is a spec error');
+  const ball = EX.toGlb(MD.compile(spec('smooth'))), bj = JSON.parse(ball.toString('utf8', 20, 20 + ball.readUInt32LE(12)));
+  ok(bj.accessors[bj.meshes[0].primitives[0].attributes.POSITION].count === 12 && bj.accessors[bj.meshes[0].primitives[0].indices].count === 60, 'the .glb is indexed: a smooth icosphere is 12 vertices, 60 indices');
+  ok(/^vn /m.test(EX.toObj(MD.compile(spec('smooth'))).obj) && /^f \d+\/\/\d+/m.test(EX.toObj(MD.compile(spec('smooth'))).obj), 'the .obj carries the normals');
+  // merging: the chest's static parts become a few meshes; the lid group stays separate so it can still open
+  const chest = MD.compile(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'examples', 'treasure_chest.json'), 'utf8')));
+  const plan = RB.meshPlan(chest), rb = EX.robloxGlbs(chest)[0].buf, rj = JSON.parse(rb.toString('utf8', 20, 20 + rb.readUInt32LE(12)));
+  ok(plan.length < 10 && rj.meshes.length === plan.length && plan.some(p => p.name === 'Lid'), `the chest's ${chest.nodes.filter(n => n.mesh).length} parts import as ${plan.length} MeshParts, with the animated lid kept apart`);
+  ok(!EX.validateGlb(rb).length && !EX.validateRoblox(rb).length, 'the merged Roblox file is valid');
+  const mergedTris = rj.meshes.reduce((s, x) => s + rj.accessors[x.primitives[0].indices].count / 3, 0), allTris = chest.nodes.filter(n => n.mesh).reduce((s, n) => s + n.mesh.tris.length, 0);
+  ok(mergedTris === allTris, 'merging keeps every triangle');
+  ok(RB.mergeGroups(chest).every(g => !g.members.some(m => chest.clips.some(c => c.animated.has(m) && m !== g.frame))), 'no animated part is merged into a static group');
+  // collision classes from size and shape, and the Studio script that applies them
+  const one = p => RB.collisionClass(MD.compile({ name: 'C', parts: [Object.assign({ name: 'P' }, p)] }).byName.get('P'));
+  ok(one({ shape: 'box', size: [1, 1, 1] }) === 'box' && one({ shape: 'sphere', radius: 0.5, detail: 1 }) === 'hull' && one({ shape: 'box', size: [1, 1, 1], hollow: 0.1 }) === 'default', 'collision: a box is Box, a ball is Hull, an open crate is Default');
+  ok(one({ shape: 'box', size: [0.05, 0.05, 0.05] }) === 'none' && one({ shape: 'box', size: [0.05, 0.05, 0.05], collision: 'hull' }) === 'hull', 'small parts are decoration (no collision) unless the spec says otherwise');
+  const lua = RB.setupScript(chest);
+  ok(plan.every(p => lua.includes(`["${p.name}"]`)) && /Enum\.CollisionFidelity\[s\[1\]\]/.test(lua) && /CanCollide = s\[2\]/.test(lua), 'the Studio setup script lists every MeshPart with its collision');
+  const perf = CK.run(chest).find(r => r.id === 'performance');
+  ok(perf && perf.status === 'pass' && /GPU vertices/.test(perf.msg) && new RegExp(`→ ${plan.length} Roblox MeshParts`).test(perf.msg), 'the performance line reports GPU vertices and Roblox MeshParts');
+  const pebbles = { name: 'Peb', parts: [{ name: 'Big', shape: 'box', size: [1, 0.2, 1], at: [0, 0.1, 0] }].concat(Array.from({ length: 6 }, (_, i) => ({ name: 'Pebble' + i, shape: 'sphere', radius: 0.012, detail: 1, at: [-0.4 + i * 0.15, 0.21, 0] }))) };
+  ok(CK.run(MD.compile(pebbles)).some(r => r.id === 'performance' && r.status === 'warn' && /under ~10 px/.test(r.msg)), 'a model whose triangles are mostly too small to see is reported');
 }
 // 6. rendering and reference tracing round-trip
 {

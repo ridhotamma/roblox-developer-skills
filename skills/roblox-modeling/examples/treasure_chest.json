@@ -196,6 +196,7 @@
   {
    "name": "HandleL",
    "shape": "torus",
+   "shading": "smooth",
    "radius": 0.055,
    "tube": 0.012,
    "segments": [
@@ -321,6 +322,7 @@
   {
    "name": "Coin1",
    "shape": "cylinder",
+   "shading": "smooth",
    "radius": 0.03,
    "height": 0.007,
    "segments": 8,
@@ -343,6 +345,7 @@
   {
    "name": "Coin2",
    "shape": "cylinder",
+   "shading": "smooth",
    "radius": 0.03,
    "height": 0.007,
    "segments": 8,

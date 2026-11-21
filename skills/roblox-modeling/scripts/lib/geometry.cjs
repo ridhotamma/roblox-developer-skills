@@ -275,6 +275,35 @@ function edgeReport(mesh) {
   for (const c of cnt.values()) { if (c.n === 1) open++; else if (c.n > 2) nonManifold++; else if (c.fwd !== 1) flipped++; }
   return { open, nonManifold, flipped };
 }
+// Per-corner normals with smoothing by angle, the way smoothing groups / Blender's Auto Smooth work: an edge is
+// hard when the two faces on it bend more than `angle` degrees, and a corner averages every face around its vertex
+// it can reach without crossing a hard edge (weighted by corner angle). angle 0 = flat (each corner gets its face
+// normal), so hard edges stay hard and round surfaces shade round. Returns [[n0, n1, n2] per triangle]. Positions
+// are compared welded, so seams in the index list do not break the smoothing.
+function cornerNormals(mesh, angle) {
+  const P = mesh.pos, T = mesh.tris;
+  const fn = T.map(t => { const n = cross(sub(P[t[1]], P[t[0]]), sub(P[t[2]], P[t[0]])), L = len(n); return L < 1e-14 ? [0, 0, 0] : mul(n, 1 / L); });
+  if (!(angle > 0)) return T.map((t, i) => [fn[i], fn[i], fn[i]]);
+  const key = p => p.map(v => Math.round(v / 1e-6)).join(','), id = P.map(key), around = new Map();
+  T.forEach((t, ti) => t.forEach((v, c) => {
+    const p = P[v], a = sub(P[t[(c + 1) % 3]], p), b = sub(P[t[(c + 2) % 3]], p), la = len(a), lb = len(b);
+    const w = la < 1e-14 || lb < 1e-14 ? 0 : Math.acos(Math.max(-1, Math.min(1, dot(a, b) / (la * lb))));
+    const k = id[v]; if (!around.has(k)) around.set(k, []); around.get(k).push({ ti, c, w });
+  }));
+  const cosA = Math.cos(angle * D2R) - 1e-9, out = T.map(() => [null, null, null]);
+  for (const fan of around.values()) {
+    // the faces around one vertex, joined across the soft edges they share (the other vertex of an edge in common)
+    const others = fan.map(({ ti, c }) => [id[T[ti][(c + 1) % 3]], id[T[ti][(c + 2) % 3]]]), up = fan.map((_, i) => i);
+    const find = i => (up[i] === i ? i : (up[i] = find(up[i])));
+    for (let i = 0; i < fan.length; i++) for (let j = i + 1; j < fan.length; j++) {
+      if (!others[i].some(o => others[j].includes(o))) continue;
+      if (dot(fn[fan[i].ti], fn[fan[j].ti]) >= cosA) up[find(i)] = find(j);
+    }
+    const sum = new Map(); fan.forEach((f, i) => { const r = find(i); sum.set(r, add(sum.get(r) || [0, 0, 0], mul(fn[f.ti], f.w))); });
+    fan.forEach((f, i) => { const s = sum.get(find(i)), L = len(s); out[f.ti][f.c] = L < 1e-14 ? fn[f.ti] : mul(s, 1 / L); });
+  }
+  return out;
+}
 // Smallest and largest corner angle of a triangle, in degrees.
 function triAngles(P, t) {
   const p = t.map(i => P[i]), out = [];
@@ -381,5 +410,5 @@ function convexPlanes(mesh, tol) {
   return planes;
 }
 
-module.exports = { SHAPES, weld, flip, outward, signedVolume, triangulate2D, capPolygon, ringsMesh, hull, edgeReport, triAngles, selfIntersections, bounds, convexPlanes, triArea, triNormalRaw, AX,
+module.exports = { SHAPES, weld, flip, outward, signedVolume, triangulate2D, capPolygon, ringsMesh, hull, edgeReport, triAngles, selfIntersections, cornerNormals, bounds, convexPlanes, triArea, triNormalRaw, AX,
   closestOnTri, closestOnMesh, pointTriDist, distToMesh, insideByRay };

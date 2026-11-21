@@ -5,6 +5,7 @@
 - **Silhouette first.** At game distance only the outline and the two or three big colour areas read. Get the outline right against the reference before adding any detail part.
 - **Few segments, chosen on purpose.** Cylinders 6-8 sides (5 for chunky), spheres `detail 0` (20 triangles) or `1` (80), lofts 6-8 sides, lathes 6-10. More segments stop looking low-poly and cost triangles.
 - **Facets are the shading.** Flat shading lights each face differently; a shape needs enough distinct facets to catch light (a 4-sided loft looks like a box, 6-8 reads as round).
+- **Smooth what should read round, keep hard what is hard.** `"shading": "smooth"` (edges under 60° shade round, sharper edges stay hard, like smoothing groups / Auto Smooth) on eyes, fruit, coins, pipes, handles, soft bodies: they read round with fewer segments (a `detail 0` icosphere looks like a ball) and use fewer GPU vertices, since a hard edge splits every vertex on it. Keep `flat` (the default) for the faceted style, crystals, rocks and boxes, and stay consistent: one model mixing faceted and smooth bodies of the same kind looks unfinished. 30-45° keeps more facets visible; 60° rounds a 6-8 sided cylinder.
 - **Bevel the big edges** with `chamfer` on boxes (2-5% of the size). Sharp 90° boxes look like placeholders.
 - **3-6 colours per object**, from a palette: a main colour, a darker variant for secondary parts, an accent (gold, red), near-black for holes / pupils. Avoid pure black and white.
 - **Exaggerate a little** for stylised games: bigger heads, eyes, handles, locks, thicker rims (10-30%). Keep the overall size true.
@@ -52,6 +53,14 @@ Fins, wings, ears, leaves, straps and limbs are plates or stubs growing out of a
 **House / building prop**: hollow walls are unnecessary unless it opens; `box` walls with `chamfer`, roof as two `box` slabs rotated or an `extrude` of the gable outline in `zy`, door and windows as slightly raised boxes (2-5 mm proud of the wall, never flush: flush = z-fighting).
 
 **Lantern / lamp**: `lathe` frame, glass as a `cylinder` with `material.emissive`, handle `torus` with `arc: 180`.
+
+## Performance (Roblox and mobile)
+
+- **Draw calls, not just triangles.** Every MeshPart (every unique mesh asset) is a draw call. The Roblox file merges the parts that never move relative to each other into one MeshPart per moving frame and material class (metal / matte / glowing), with colours kept as vertex colours, so the example chest's 21 parts import as 7. Parts that move together should share one animated parent, so their children merge with it.
+- **Reuse, don't re-import.** Import a model once and clone it in Studio: clones share the MeshId (one asset, instanced). Importing the same file twice makes separate assets.
+- **Collision is separate from looks.** `<Name>.roblox.lua` sets CollisionFidelity per MeshPart: Box for box-like parts, Hull for convex ones, Default for concave ones (and for merged groups), none (CanCollide off) for decoration under 15 cm. Override per part with `collision`; use `precise` only where players touch the exact shape, it is the costliest.
+- **Spend triangles where they show.** Triangles under ~10 px on screen cost as much as big ones and only add aliasing (the `performance` line lists them). Fewer segments on small round parts, plus `shading: "smooth"`, look rounder and cost less.
+- **Level of detail is automatic in Roblox** (`RenderFidelity` Automatic: full detail under 250 studs, lower to 500, lowest beyond), so model the full-detail version and keep the silhouette in the big shapes.
 
 ## Pitfalls (and which test catches them)
 

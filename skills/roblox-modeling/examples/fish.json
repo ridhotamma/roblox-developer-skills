@@ -447,6 +447,7 @@
    "parent": "Head",
    "shape": "sphere",
    "detail": 0,
+   "shading": "smooth",
    "radius": 0.0105,
    "at": [
     -0.0135,
@@ -461,6 +462,7 @@
    "parent": "Head",
    "shape": "sphere",
    "detail": 0,
+   "shading": "smooth",
    "radius": 0.0062,
    "at": [
     -0.0205,

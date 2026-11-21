@@ -13,7 +13,7 @@ export const CLIPS = [{"name":"Swim","loop":true,"duration":1},{"name":"Idle","l
 export async function loadFish(parent, url = new URL('./Fish.glb', import.meta.url).href) {
   const gltf = await new GLTFLoader().loadAsync(url);
   const root = gltf.scene;
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.flatShading = true; o.frustumCulled = !o.isSkinnedMesh; } });
+  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = !o.isSkinnedMesh; } });
   if (parent) parent.add(root);
   const mixer = new THREE.AnimationMixer(root);
   const actions = Object.fromEntries(gltf.animations.map(c => [c.name, mixer.clipAction(c)]));

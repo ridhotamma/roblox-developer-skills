@@ -88,7 +88,7 @@ function b64(s) { const bin = atob(s), u = new Uint8Array(bin.length); for (let 
 async function load(i) {
   if (cache[i]) return cache[i];
   const gltf = await loader.parseAsync(b64(D[i].glb), '');
-  gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; o.material.flatShading = true; o.material.needsUpdate = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
+  gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = o.receiveShadow = true; if (o.isSkinnedMesh) o.frustumCulled = false; } });
   status.loaded++; status.models[D[i].name] = { clips: gltf.animations.map(a => a.name), meshes: 0, skinned: 0 };
   gltf.scene.traverse(o => { if (o.isMesh) status.models[D[i].name].meshes++; if (o.isSkinnedMesh) status.models[D[i].name].skinned++; });
   return (cache[i] = gltf);

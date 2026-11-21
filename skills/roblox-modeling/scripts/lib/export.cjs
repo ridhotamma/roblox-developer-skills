@@ -1,14 +1,17 @@
 'use strict';
-// Exporters: binary glTF 2.0 (.glb, with node hierarchy, flat-shaded meshes, PBR colours, skins and animations),
+// Exporters: binary glTF 2.0 (.glb, with node hierarchy, indexed meshes with flat or smoothed normals, PBR colours, skins and animations),
 // Wavefront .obj/.mtl (static rest pose), a Blender import script and a three.js loader module.
 const M = require('./math.cjs');
 const MD = require('./model.cjs');
+const G = require('./geometry.cjs');
+const RB = require('./roblox.cjs');
 const { sub, cross, unit, mul } = M;
 
 // ---- glTF --------------------------------------------------------------------------------------
 // opts.vertexColors: write each part's colour as COLOR_0 and make the base colour white (glTF multiplies the two),
 //   so parts merged into one mesh keep their colours (Roblox allows one material per mesh).
 // opts.clips: names of the clips to include (default: all).
+// opts.merge: merge parts that never move relative to each other into one mesh per frame / material class (Roblox).
 function toGltf(model, opts) {
   opts = opts || {};
   const bin = [], bufferViews = [], accessors = [];
@@ -31,46 +34,73 @@ function toGltf(model, opts) {
     if (n.material.emissive) m.emissiveFactor = n.material.emissive.map(M.srgbToLinear);
     materials.push(m); matKey.set(k, materials.length - 1); return materials.length - 1;
   };
-  const nodes = model.nodes.map(n => { const L = MD.localTRS(n, null), o = { name: n.name }; if (M.len(L.t) > 0) o.translation = L.t; return o; });
-  model.nodes.forEach((n, i) => { const kids = n.kids.map(k => k.index); if (kids.length) nodes[i].children = kids; });
+  // opts.merge: static parts merged per frame (see roblox.cjs). Merged parts disappear from the node tree; a kept
+  // node under one is re-parented to the nearest kept ancestor, with the dropped nodes' rest offsets folded in (rest
+  // poses are translation only, and merged parts never move, so this is exact).
+  const groups = opts.merge ? RB.mergeGroups(model) : [];
+  const removed = new Set(groups.flatMap(g => g.members.filter(m => !(g.onFrame && m === g.frame))));
+  const kept = model.nodes.filter(n => !removed.has(n)), newIndex = new Map(kept.map((n, i) => [n, i]));
+  const keptParent = n => { let p = n.parent; while (p && removed.has(p)) p = p.parent; return p; };
+  const extra = n => { let t = [0, 0, 0]; for (let p = n.parent; p && removed.has(p); p = p.parent) t = M.add(t, MD.localTRS(p, null).t); return t; };
+  const nodes = kept.map(n => { const t = M.add(MD.localTRS(n, null).t, extra(n)), o = { name: n.name }; if (M.len(t) > 0) o.translation = t; return o; });
+  kept.forEach((n, i) => { const kids = kept.filter(k => keptParent(k) === n).map(k => newIndex.get(k)); if (kids.length) nodes[i].children = kids; });
   const meshes = [], skins = [], extraRoots = [];
-  model.nodes.forEach((n, i) => {
-    if (!n.mesh) return;
-    const P = [], N = [], J = [], Wt = [], Col = [], vcol = n.color.map(M.srgbToLinear);
-    const local = n.skin ? (p => p) : (p => sub(p, n.pivot));        // skinned meshes live in model space; rigid ones around their pivot
-    // The skin's root joint is the node above its top bone (usually the model root) and carries no weight:
-    // Roblox's importer rejects influences on the root joint. Joint 0 is that root, the bones follow from 1.
-    const root = n.skin ? skinRoot(n.skinBones) : null, off = root ? 1 : 0;
-    for (const t of n.mesh.tris) {
-      const A = n.mesh.pos[t[0]], B = n.mesh.pos[t[1]], C = n.mesh.pos[t[2]], nn = unit(cross(sub(B, A), sub(C, A)));
-      for (const k of t) {
-        P.push(...local(n.mesh.pos[k])); N.push(...nn); if (opts.vertexColors) Col.push(...vcol);
-        if (n.skin) { const w = n.weights[k], idx = w.map((v, j) => [v, j]).sort((a, b) => b[0] - a[0]).slice(0, 4); while (idx.length < 4) idx.push([0, -1]); const s = idx.reduce((q, x) => q + x[0], 0) || 1; J.push(...idx.map(x => (x[0] > 0 ? x[1] + off : 0))); Wt.push(...idx.map(x => x[0] / s)); }
-      }
+  // one indexed primitive from several parts: corners that share position, normal, colour and weights share a
+  // vertex. Normals follow each part's shading (flat, or smoothed under its angle).
+  const prim = (parts, origin, jointsOf) => {
+    const P = [], N = [], C = [], J = [], Wt = [], I = [], seen = new Map();
+    for (const n of parts) {
+      const nrm = G.cornerNormals(n.mesh, n.smoothAngle || 0), col = n.color.map(M.srgbToLinear);
+      n.mesh.tris.forEach((t, ti) => t.forEach((k, c) => {
+        const p = sub(n.mesh.pos[k], origin), nn = nrm[ti][c], jw = jointsOf ? jointsOf(n, k) : null;
+        const key = [...p, ...nn].map(v => Math.round(v * 1e6)).join(',') + (opts.vertexColors ? '|' + col.join(',') : '') + (jw ? '|' + jw.j.join(',') + '|' + jw.w.map(v => v.toFixed(5)).join(',') : '');
+        let vi = seen.get(key);
+        if (vi == null) { vi = P.length / 3; seen.set(key, vi); P.push(...p); N.push(...nn); if (opts.vertexColors) C.push(...col); if (jw) { J.push(...jw.j); Wt.push(...jw.w); } }
+        I.push(vi);
+      }));
     }
     const attributes = { POSITION: accessor(P, 'VEC3', 5126, 34962, true), NORMAL: accessor(N, 'VEC3', 5126, 34962) };
-    if (opts.vertexColors) attributes.COLOR_0 = accessor(Col, 'VEC3', 5126, 34962);
-    if (n.skin) { attributes.JOINTS_0 = accessor(J, 'VEC4', 5121, 34962); attributes.WEIGHTS_0 = accessor(Wt, 'VEC4', 5126, 34962); }
-    meshes.push({ name: n.name, primitives: [{ attributes, material: material(n), mode: 4 }] });
+    if (opts.vertexColors) attributes.COLOR_0 = accessor(C, 'VEC3', 5126, 34962);
+    if (jointsOf) { attributes.JOINTS_0 = accessor(J, 'VEC4', 5121, 34962); attributes.WEIGHTS_0 = accessor(Wt, 'VEC4', 5126, 34962); }
+    return { attributes, indices: accessor(I, 'SCALAR', P.length / 3 > 65535 ? 5125 : 5123, 34963), mode: 4 };
+  };
+  const onFrame = new Map(groups.filter(g => g.onFrame).map(g => [g.frame, g]));
+  kept.forEach((n, i) => {
+    if (!n.mesh) return;
     if (n.skin) {
+      // The skin's root joint is the node above its top bone (usually the model root) and carries no weight:
+      // Roblox's importer rejects influences on the root joint. Joint 0 is that root, the bones follow from 1.
+      const root = skinRoot(n.skinBones), off = root ? 1 : 0;
+      const jointsOf = (part, k) => { const w = part.weights[k], idx = w.map((v, j) => [v, j]).sort((a, b) => b[0] - a[0]).slice(0, 4); while (idx.length < 4) idx.push([0, -1]); const s = idx.reduce((q, x) => q + x[0], 0) || 1; return { j: idx.map(x => (x[0] > 0 ? x[1] + off : 0)), w: idx.map(x => x[0] / s) }; };
+      meshes.push({ name: n.name, primitives: [Object.assign(prim([n], [0, 0, 0], jointsOf), { material: material(n) })] });   // skinned meshes live in model space
       // glTF skinned meshes ignore their node transform, so the mesh goes on its own node at the scene root
       const joints = (root ? [root] : []).concat(n.skinBones), ibm = []; joints.forEach(b => ibm.push(...M.mat4Translate(mul(b.pivot, -1))));
-      skins.push({ name: n.name + 'Skin', joints: joints.map(b => b.index), inverseBindMatrices: accessor(ibm, 'MAT4', 5126), skeleton: joints[0].index });
-      const meshNode = { name: n.name + 'Mesh', mesh: meshes.length - 1, skin: skins.length - 1 };
-      extraRoots.push(meshNode);
-    } else nodes[i].mesh = meshes.length - 1;
+      skins.push({ name: n.name + 'Skin', joints: joints.map(b => newIndex.get(b)), inverseBindMatrices: accessor(ibm, 'MAT4', 5126), skeleton: newIndex.get(joints[0]) });
+      extraRoots.push({ name: n.name + 'Mesh', mesh: meshes.length - 1, skin: skins.length - 1 });
+      return;
+    }
+    const parts = onFrame.has(n) ? onFrame.get(n).members : [n];          // rigid meshes live around their pivot
+    meshes.push({ name: n.name, primitives: [Object.assign(prim(parts, n.pivot), { material: material(n) })] });
+    nodes[i].mesh = meshes.length - 1;
   });
+  for (const g of groups.filter(x => !x.onFrame)) {                    // merged static parts: a new child of their frame
+    meshes.push({ name: g.name, primitives: [Object.assign(prim(g.members, g.frame.pivot), { material: material(g.members[0]) })] });
+    const fi = newIndex.get(g.frame); nodes.push({ name: g.name, mesh: meshes.length - 1 });
+    (nodes[fi].children = nodes[fi].children || []).push(nodes.length - 1);
+  }
   const extraStart = nodes.length; nodes.push(...extraRoots);
   // animations: baked, linear
   const animations = model.clips.filter(c => !opts.clips || opts.clips.includes(c.name)).map(clip => {
     const bake = MD.bakeClip(model, clip), input = accessor(bake.times, 'SCALAR', 5126, null, true), channels = [], samplers = [];
     for (const nd of bake.nodes) {
-      const d = bake.data.get(nd);
-      for (const [pathName, arr, type] of [['translation', d.t, 'VEC3'], ['rotation', d.q, 'VEC4'], ['scale', d.s, 'VEC3']]) {
+      if (!newIndex.has(nd)) continue;                                   // a merged (never animated) part
+      const d = bake.data.get(nd), ex = extra(nd);
+      for (const [pathName, arr0, type] of [['translation', d.t, 'VEC3'], ['rotation', d.q, 'VEC4'], ['scale', d.s, 'VEC3']]) {
+        const arr = pathName === 'translation' ? arr0.map(v => M.add(v, ex)) : arr0;
         if (pathName === 'scale' && arr.every(s => Math.abs(s[0] - 1) + Math.abs(s[1] - 1) + Math.abs(s[2] - 1) < 1e-6)) continue;
-        if (pathName === 'translation' && arr.every(v => M.dist(v, arr[0]) < 1e-7) && M.dist(arr[0], MD.localTRS(nd, null).t) < 1e-7) continue;
+        if (pathName === 'translation' && arr.every(v => M.dist(v, arr[0]) < 1e-7) && M.dist(arr[0], M.add(MD.localTRS(nd, null).t, ex)) < 1e-7) continue;
         samplers.push({ input, output: accessor(arr.flat(), type, 5126), interpolation: 'LINEAR' });
-        channels.push({ sampler: samplers.length - 1, target: { node: nd.index, path: pathName } });
+        channels.push({ sampler: samplers.length - 1, target: { node: newIndex.get(nd), path: pathName } });
       }
     }
     return { name: clip.name, channels, samplers, extras: { loop: clip.loop, duration: clip.duration, markers: clip.markers } };
@@ -116,7 +146,15 @@ function validateGlb(buf) {
     if (v.byteOffset % 4) errs.push(`bufferView ${a.bufferView}: not 4-byte aligned`);
     if (a.componentType === 5126) { const f = new Float32Array(bin.buffer.slice(bin.byteOffset + v.byteOffset, bin.byteOffset + v.byteOffset + v.byteLength)); if (f.some(x => !Number.isFinite(x))) errs.push(`accessor ${i}: non-finite floats`); }
   });
-  (g.meshes || []).forEach((m, i) => m.primitives.forEach(p => { const a = g.accessors[p.attributes.POSITION]; if (!a.min || !a.max) errs.push(`mesh ${i}: POSITION needs min/max`); if (a.count % 3) errs.push(`mesh ${i}: vertex count not a multiple of 3`); }));
+  (g.meshes || []).forEach((m, i) => m.primitives.forEach(p => {
+    const a = g.accessors[p.attributes.POSITION]; if (!a.min || !a.max) errs.push(`mesh ${i}: POSITION needs min/max`);
+    if (p.indices == null) { if (a.count % 3) errs.push(`mesh ${i}: vertex count not a multiple of 3`); return; }
+    const ix = g.accessors[p.indices]; if (ix.count % 3) errs.push(`mesh ${i}: index count not a multiple of 3`);
+    if (ix.type !== 'SCALAR' || ![5121, 5123, 5125].includes(ix.componentType)) errs.push(`mesh ${i}: indices must be unsigned SCALAR`);
+    if (ix.componentType === 5123 && a.count > 65536) errs.push(`mesh ${i}: 16-bit indices for ${a.count} vertices`);
+    const v = g.bufferViews[ix.bufferView], T = ix.componentType === 5125 ? Uint32Array : Uint16Array, arr = new T(bin.buffer.slice(bin.byteOffset + v.byteOffset, bin.byteOffset + v.byteOffset + ix.count * T.BYTES_PER_ELEMENT));
+    if (arr.some(k => k >= a.count)) errs.push(`mesh ${i}: index out of range`);
+  }));
   const parents = new Map(); (g.nodes || []).forEach((n, i) => (n.children || []).forEach(c => { if (parents.has(c)) errs.push(`node ${c} has two parents`); parents.set(c, i); }));
   (g.animations || []).forEach(an => an.samplers.forEach((s, k) => { const inp = g.accessors[s.input]; if (!inp.min || !inp.max) errs.push(`animation ${an.name} sampler ${k}: input needs min/max`); if (g.accessors[s.output].count !== inp.count) errs.push(`animation ${an.name} sampler ${k}: input/output count differ`); }));
   (g.skins || []).forEach((s, i) => { if (g.accessors[s.inverseBindMatrices].count !== s.joints.length) errs.push(`skin ${i}: inverseBindMatrices count != joints`); });
@@ -129,8 +167,8 @@ function validateGlb(buf) {
 // per clip (the same rig with that one clip). Node animations of unrigged parts are not imported by Roblox, so a
 // model without skins gets the model file only (animate it from a script, see integration.md).
 function robloxGlbs(model) {
-  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [] }) }];
-  if (model.nodes.some(n => n.mesh && n.skin)) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name] }) });
+  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [], merge: true }) }];
+  if (model.nodes.some(n => n.mesh && n.skin)) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name], merge: true }) });
   return out;
 }
 // Roblox's mesh rules on a .glb: at most one animation, at most 20,000 triangles and 4 influences per vertex in a
@@ -141,7 +179,7 @@ function validateRoblox(buf) {
   if ((g.animations || []).length > 1) errs.push(`${g.animations.length} animations in one file (Roblox imports one track per file)`);
   const skinOf = new Map(); (g.nodes || []).forEach(n => { if (n.mesh != null && n.skin != null) skinOf.set(n.mesh, n.skin); });
   (g.meshes || []).forEach((m, mi) => m.primitives.forEach(p => {
-    const tris = g.accessors[p.attributes.POSITION].count / 3; if (tris > 20000) errs.push(`mesh ${m.name}: ${tris} triangles (Roblox limit 20,000)`);
+    const tris = (p.indices != null ? g.accessors[p.indices].count : g.accessors[p.attributes.POSITION].count) / 3; if (tris > 20000) errs.push(`mesh ${m.name}: ${tris} triangles (Roblox limit 20,000)`);
     if (p.attributes.COLOR_0 == null) errs.push(`mesh ${m.name}: no vertex colours`);
     if (p.attributes.JOINTS_0 != null) {
       const J = read(p.attributes.JOINTS_0), W = read(p.attributes.WEIGHTS_0); let onRoot = 0;
@@ -155,12 +193,15 @@ function validateRoblox(buf) {
 
 // ---- OBJ -----------------------------------------------------------------------------------------
 function toObj(model) {
-  const rest = MD.posedMeshes(model, null, 0); let v = 1; const o = [`# ${model.title} - rest pose, metres, +Y up, front +Z (roblox-modeling skill)`, `mtllib ${model.name}.mtl`], mtl = [];
+  const rest = MD.posedMeshes(model, null, 0); let v = 1, vn = 1; const o = [`# ${model.title} - rest pose, metres, +Y up, front +Z (roblox-modeling skill)`, `mtllib ${model.name}.mtl`], mtl = [];
   rest.forEach((m, i) => {
     const mn = `${m.node.name}_mat`; mtl.push(`newmtl ${mn}`, `Kd ${m.node.color.map(c => c.toFixed(4)).join(' ')}`, 'Ka 0 0 0', 'Ks 0.05 0.05 0.05', 'Ns 10', 'illum 2', '');
     o.push(`o ${m.node.name}`, `usemtl ${mn}`, 's off');
     m.pos.forEach(p => o.push(`v ${p.map(x => M.num(x, 5)).join(' ')}`));
-    m.tris.forEach(t => o.push(`f ${t.map(k => k + v).join(' ')}`)); v += m.pos.length;
+    // normals per corner (flat, or smoothed under the part's angle), shared where equal
+    const nrm = G.cornerNormals({ pos: m.pos, tris: m.tris }, m.node.smoothAngle || 0), nk = new Map(), ni = [];
+    m.tris.forEach((t, ti) => ni.push(t.map((_, c) => { const q = nrm[ti][c].map(x => M.num(x, 4)).join(' '); if (!nk.has(q)) { nk.set(q, vn + nk.size); o.push(`vn ${q}`); } return nk.get(q); })));
+    m.tris.forEach((t, ti) => o.push(`f ${t.map((k, c) => `${k + v}//${ni[ti][c]}`).join(' ')}`)); v += m.pos.length; vn += nk.size;
   });
   return { obj: o.join('\n') + '\n', mtl: mtl.join('\n') };
 }
@@ -171,7 +212,7 @@ function blenderScript(model) {
   return `# ${model.title} - Blender import script (roblox-modeling skill)
 # Run inside Blender:  Scripting tab > Open > this file > Run Script
 # or headless:          blender --background --python ${model.name}.blender.py -- [out.blend]
-# Imports ${model.name}.glb from the same folder, keeps the low-poly flat shading, puts every animation
+# Imports ${model.name}.glb from the same folder, keeps its shading (the file's normals: faceted or smoothed per part), puts every animation
 # (${clips.join(', ') || 'none'}) on its own NLA strip so you can switch between them, and optionally saves a .blend.
 import bpy, os, sys
 
@@ -184,11 +225,7 @@ def main():
         raise SystemExit("missing " + GLB)
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=GLB)
-    new = [o for o in bpy.data.objects if o not in before]
-    for o in new:
-        if o.type == "MESH":
-            for p in o.data.polygons:
-                p.use_smooth = False          # faceted low-poly look
+    new = [o for o in bpy.data.objects if o not in before]   # the importer keeps the file's normals (hard and smooth edges)
     scene = bpy.context.scene
     scene.render.fps = ${model.fps}
     # one NLA track per clip, muted except the first (best effort: the importer's action layout differs between Blender versions)
@@ -237,7 +274,7 @@ export const CLIPS = ${JSON.stringify(clips)};
 export async function load${model.name}(parent, url = new URL('./${model.name}.glb', import.meta.url).href) {
   const gltf = await new GLTFLoader().loadAsync(url);
   const root = gltf.scene;
-  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.material.flatShading = true; o.frustumCulled = !o.isSkinnedMesh; } });
+  root.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = !o.isSkinnedMesh; } });
   if (parent) parent.add(root);
   const mixer = new THREE.AnimationMixer(root);
   const actions = Object.fromEntries(gltf.animations.map(c => [c.name, mixer.clipAction(c)]));

@@ -1,7 +1,7 @@
 # Low-poly fish - Blender import script (roblox-modeling skill)
 # Run inside Blender:  Scripting tab > Open > this file > Run Script
 # or headless:          blender --background --python Fish.blender.py -- [out.blend]
-# Imports Fish.glb from the same folder, keeps the low-poly flat shading, puts every animation
+# Imports Fish.glb from the same folder, keeps its shading (the file's normals: faceted or smoothed per part), puts every animation
 # (Swim, Idle, Die) on its own NLA strip so you can switch between them, and optionally saves a .blend.
 import bpy, os, sys
 
@@ -14,11 +14,7 @@ def main():
         raise SystemExit("missing " + GLB)
     before = set(bpy.data.objects)
     bpy.ops.import_scene.gltf(filepath=GLB)
-    new = [o for o in bpy.data.objects if o not in before]
-    for o in new:
-        if o.type == "MESH":
-            for p in o.data.polygons:
-                p.use_smooth = False          # faceted low-poly look
+    new = [o for o in bpy.data.objects if o not in before]   # the importer keeps the file's normals (hard and smooth edges)
     scene = bpy.context.scene
     scene.render.fps = 30
     # one NLA track per clip, muted except the first (best effort: the importer's action layout differs between Blender versions)

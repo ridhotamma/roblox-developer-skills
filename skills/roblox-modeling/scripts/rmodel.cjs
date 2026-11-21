@@ -5,6 +5,7 @@
 const fs = require('fs'), path = require('path');
 const MD = require('./lib/model.cjs'), CK = require('./lib/checks.cjs'), RN = require('./lib/render.cjs'), EX = require('./lib/export.cjs'), RF = require('./lib/reference.cjs'), PV = require('./lib/preview.cjs');
 const G = require('./lib/geometry.cjs');
+const RB = require('./lib/roblox.cjs');
 
 const HELP = `rmodel - low-poly model builder
 
@@ -48,6 +49,7 @@ function cmdBuild(files, o) {
       if (rerr.length) { console.log(`${r.name} FAILED ROBLOX CHECKS:\n  ` + rerr.join('\n  ')); failed++; }
       fs.writeFileSync(path.join(out, r.name), r.buf); written.push(r.name);
     }
+    if (model.targets.includes('roblox')) { fs.writeFileSync(path.join(out, model.name + '.roblox.lua'), RB.setupScript(model)); written.push(model.name + '.roblox.lua'); }
     const { obj, mtl } = EX.toObj(model); fs.writeFileSync(path.join(out, model.name + '.obj'), obj); fs.writeFileSync(path.join(out, model.name + '.mtl'), mtl); written.push(model.name + '.obj', model.name + '.mtl');
     fs.writeFileSync(path.join(out, model.name + '.blender.py'), EX.blenderScript(model)); written.push(model.name + '.blender.py');
     fs.writeFileSync(path.join(out, model.name + '.three.js'), EX.threeModule(model)); written.push(model.name + '.three.js');

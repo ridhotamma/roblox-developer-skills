@@ -5,6 +5,7 @@ const path = require('path');
 const M = require('./math.cjs');
 const G = require('./geometry.cjs');
 const MD = require('./model.cjs');
+const RB = require('./roblox.cjs');
 const { sub, dot, len } = M;
 const { pointTriDist, distToMesh, insideByRay } = G;
 const ROBLOX_MESH_TRIS = 20000;   // per-mesh triangle limit of Roblox's 3D Importer (per MeshPart)
@@ -131,6 +132,24 @@ function run(model, opts) {
       add('geometry', 'fail', `${n.name}: cuts through itself (${si.count} crossing triangle pair${si.count > 1 ? 's' : ''}, near ${at.join(', ')}) — the surface folds into its own inside; space the stations / profile points out, keep each ring inside its neighbours' offsets, or split it into separate parts`); geomOk = false;
     }
     const bs = G.bounds(m.pos).size; if (Math.min(...bs) < size * 0.002) add('geometry', 'warn', `${n.name}: paper-thin (${Math.min(...bs).toFixed(4)} m) — flickers and vanishes edge-on`);
+  }
+  // 1a. performance: what the GPU and Roblox end up with. Vertices after hard-edge splits, MeshParts after merging
+  // static parts (each one is a draw call), and detail too small to see: triangles under ~10 px² when the model is
+  // 200 px tall on screen (a prop at play distance) cost the same as big ones and only add aliasing.
+  {
+    const parts = rest.map(m => m.node), verts = parts.reduce((s, n) => s + RB.renderVertices(n), 0);
+    const S = Math.max(...B.size) || 1, px = 200 / S, tiny = new Map();
+    for (const n of parts) { const k = n.mesh.tris.filter(t => G.triArea(n.mesh.pos, t) * px * px < 10).length; if (k) tiny.set(n.name, k); }
+    const tinyAll = [...tiny.values()].reduce((s, k) => s + k, 0), share = tinyAll / (tris || 1);
+    const tinyTxt = tiny.size ? `; small detail: ${[...tiny].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, c]) => `${k} ${c}`).join(', ')} triangles under ~10 px at 200 px tall (${(share * 100).toFixed(0)}% of the model)` : '';
+    let rbx = '';
+    if (model.targets.includes('roblox')) {
+      const plan = RB.meshPlan(model), groups = plan.filter(p => p.members.length > 1);
+      rbx = `, ${parts.length} parts → ${plan.length} Roblox MeshParts / draw calls${groups.length ? ` (${groups.length} merged group${groups.length > 1 ? 's' : ''} of static parts)` : ''}`;
+      if (plan.length > 25) add('performance', 'warn', `${plan.length} MeshParts after merging static parts: each is a draw call. Parent decoration to fewer frames, give parts that move together one animated parent, or split the model into separately placed assets`);
+    }
+    add('performance', 'pass', `${tris} triangles, ${verts} GPU vertices (${(verts / (tris || 1)).toFixed(2)} per triangle: hard edges split vertices, smoothed parts share them)${rbx}${tinyTxt}`);
+    if (share > 0.25) add('performance', 'warn', `${(share * 100).toFixed(0)}% of the triangles are under ~10 px when the model is 200 px tall on screen — budget spent on detail nobody sees; lower segments / detail on ${[...tiny.keys()].slice(0, 4).join(', ')}, or drop the tiniest parts`);
   }
   if (geomOk) add('geometry', 'pass', `${rest.length} parts watertight${openParts ? ` (except ${openParts} declared open surface${openParts > 1 ? 's' : ''})` : ''}, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections`);
 

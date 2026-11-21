@@ -6,9 +6,9 @@ const M = require('./math.cjs');
 const G = require('./geometry.cjs');
 const { add, sub, mul, D2R } = M;
 
-const PART_KEYS = new Set(('name parent pivot shape at rot scale color material mirror mirrorName jitter seed skin bind hidden note openSurface ' +
+const PART_KEYS = new Set(('name parent pivot shape at rot scale color material mirror mirrorName jitter seed skin bind hidden note openSurface shading collision ' +
   'size taper taperAt chamfer hollow open radius height segments axis squash phase detail ico stagger tube arc profile stations sides outline depth plane points vertices faces').split(' '));
-const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags targets'.split(' '));
+const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags targets shading'.split(' '));
 const EASE = {
   linear: t => t, step: t => (t < 1 ? 0 : 1), in: t => t * t, out: t => 1 - (1 - t) * (1 - t), inOut: t => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t)),
   sine: t => 0.5 - 0.5 * Math.cos(Math.PI * t), backOut: t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
@@ -35,6 +35,22 @@ function contactCentroid(mesh, target, tol) {
   return mul(c, 1 / idx.length);
 }
 
+// "shading": "flat" (default: every face lit on its own, the faceted low-poly look), "smooth" (edges under 60° shade
+// round) or a number of degrees (the auto-smooth angle). Returns the angle; 0 = flat.
+function shadingAngle(v, where, E) {
+  if (v == null || v === 'flat') return 0;
+  if (v === 'smooth') return 60;
+  if (typeof v === 'number' && v >= 0 && v <= 180) return v;
+  E.push(`${where}: shading must be "flat", "smooth" or an angle in degrees (0-180)`); return 0;
+}
+// "collision": how the part collides in Roblox. auto (default: chosen from its size and shape), none (decoration:
+// CanCollide off), box, hull, default, precise (PreciseConvexDecomposition, the costliest).
+const COLLISIONS = ['auto', 'none', 'box', 'hull', 'default', 'precise'];
+function collisionOf(v, where, E) {
+  if (v == null) return 'auto';
+  if (COLLISIONS.includes(v)) return v;
+  E.push(`${where}: collision must be one of ${COLLISIONS.join(', ')}`); return 'auto';
+}
 function buildPartMesh(p, parentMesh, E, W) {
   const gen = G.SHAPES[p.shape];
   if (!gen) { E.push(`part "${p.name}": unknown shape "${p.shape}" (use ${Object.keys(G.SHAPES).join(', ')}, or "none" for an empty pivot/bone)`); return null; }
@@ -247,7 +263,8 @@ function compile(spec) {
     if (p._mirrored && (p.pivot || !mesh)) pivot = [-pivot[0], pivot[1], pivot[2]];   // mesh bounds are already mirrored
     p._mesh = mesh;
     const node = { name: p.name, parentName: p.parent || rootName, pivot, mesh, kids: [], src: p._src, mirrored: !!p._mirrored, hidden: !!p.hidden,
-      color: color(p.color, palette, E, where), material: Object.assign({ roughness: 0.85, metalness: 0, emissive: null }, p.material || {}), skin: p.skin || null, bind: p.bind || null, shape: p.shape || 'none', loopsAdded, openSurface: !!p.openSurface };
+      color: color(p.color, palette, E, where), material: Object.assign({ roughness: 0.85, metalness: 0, emissive: null }, p.material || {}), skin: p.skin || null, bind: p.bind || null, shape: p.shape || 'none', loopsAdded, openSurface: !!p.openSurface,
+      smoothAngle: shadingAngle(p.shading != null ? p.shading : spec.shading, where, E), collision: collisionOf(p.collision, where, E) };
     if (node.material.emissive) node.material.emissive = color(node.material.emissive, palette, E, where + ' emissive');
     nodes.push(node); byName.set(node.name, node);
   }

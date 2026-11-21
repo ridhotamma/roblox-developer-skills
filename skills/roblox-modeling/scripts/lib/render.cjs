@@ -1,5 +1,5 @@
 'use strict';
-// Software rasteriser (Node only, no packages): flat-shaded low-poly renders, outlines, a measured floor grid,
+// Software rasteriser (Node only, no packages): low-poly renders (flat, or smoothed per part), outlines, a measured floor grid,
 // orthographic blueprints and PNG contact sheets you can look at with an image viewer.
 const M = require('./math.cjs');
 const G = require('./geometry.cjs');
@@ -130,18 +130,21 @@ function render(model, opts) {
   // meshes
   meshes.forEach((m, mi) => {
     const n = m.node, hi = opts.highlight && opts.highlight.has(n.name), base = hi ? [1, 0.35, 0.2] : n.color, em = n.material.emissive;
-    for (const t of m.tris) {
-      const A = m.pos[t[0]], B = m.pos[t[1]], Cc = m.pos[t[2]], nr = cross(sub(B, A), sub(Cc, A)), L = M.len(nr); if (L < 1e-14) continue;
+    const lit = nn => { const k = 0.42 + 0.55 * Math.max(0, dot(nn, LIGHT)) + 0.12 * Math.max(0, dot(nn, FILL)) + 0.06 * Math.max(0, nn[1]); return base.map((c, i) => Math.min(1.2, c * k + (em ? em[i] * 0.8 : 0))); };
+    // smoothed parts: per-pixel normals interpolated from the corner normals (the posed mesh, so bends shade right)
+    const smooth = n.smoothAngle > 0 && !opts.silhouette ? G.cornerNormals({ pos: m.pos, tris: m.tris }, n.smoothAngle) : null;
+    m.tris.forEach((t, ti) => {
+      const A = m.pos[t[0]], B = m.pos[t[1]], Cc = m.pos[t[2]], nr = cross(sub(B, A), sub(Cc, A)), L = M.len(nr); if (L < 1e-14) return;
       const nn = mul(nr, 1 / L), cen = mul(add(add(A, B), Cc), 1 / 3), toEye = C.ortho ? mul(C.f, -1) : unit(sub(C.pos, cen));
-      if (dot(nn, toEye) < -1e-6 && !opts.twoSided) continue;      // back-face cull: inside-out parts render as holes, which the checks also catch
-      let col;
-      if (opts.silhouette) col = [1, 1, 1];
-      else {
-        const k = 0.42 + 0.55 * Math.max(0, dot(nn, LIGHT)) + 0.12 * Math.max(0, dot(nn, FILL)) + 0.06 * Math.max(0, nn[1]);
-        col = base.map((c, i) => Math.min(1.2, c * k + (em ? em[i] * 0.8 : 0)));
+      if (dot(nn, toEye) < -1e-6 && !opts.twoSided) return;      // back-face cull: inside-out parts render as holes, which the checks also catch
+      if (smooth) {
+        const [n0, n1, n2] = smooth[ti];
+        raster(T, project(C, A), project(C, B), project(C, Cc), mi, (u, v, w) => lit(unit(add(add(mul(n0, u), mul(n1, v)), mul(n2, w)))));
+        return;
       }
+      const col = opts.silhouette ? [1, 1, 1] : lit(nn);
       raster(T, project(C, A), project(C, B), project(C, Cc), mi, () => col);
-    }
+    });
   });
   if (opts.outline !== false && !opts.silhouette) outline(T, day);
   return { T, C, F };
