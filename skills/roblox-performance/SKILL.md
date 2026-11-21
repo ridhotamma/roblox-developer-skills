@@ -1,6 +1,6 @@
 ---
 name: roblox-performance
-description: Make Roblox games run smoothly on every device - fix low FPS, stutter, server lag (low heartbeat), high ping, memory growth, crashes on phones and slow joins. Covers profiling (MicroProfiler, Developer Console, Script Profiler, Luau Heap, Creator Hub performance dashboard), budgets per device, rendering (draw calls, instancing, textures, transparency, shadows, lights, particles, GUI, LOD), StreamingEnabled, physics and network ownership, remote and replication design, NPC crowds, Luau hot paths, native code, Parallel Luau, leaks, pooling and loading. Ships a scanner for Luau source and .rbxlx places, a Studio command-bar audit, and a Luau kit (profiler labels, frame-budget scheduler, object pool, distance LOD, adaptive quality, in-game perf HUD, server heartbeat and leak monitor, client telemetry). Use this whenever the user mentions lag, FPS, stutter, optimization, performance, memory, mobile crashes, slow loading, server lag or ping, or says their game runs badly, even if they never say performance.
+description: Make Roblox games run smoothly on every device - fix low FPS, stutter, server lag (low heartbeat), high ping, memory growth, phone crashes and slow joins. Covers profiling (MicroProfiler, Developer Console, Script Profiler, Luau Heap, Creator Hub dashboard), budgets per device, rendering (draw calls, instancing, occlusion culling, textures, transparency, shadows, lights, particles, GUI, LOD), StreamingEnabled, physics and network ownership, remote and replication design, NPC crowds, Luau hot paths, native code, Parallel Luau, leaks, pooling and loading. Ships a scanner for Luau source and .rbxlx places, a Studio command-bar audit, and a Luau kit (profiler labels, frame-budget scheduler, object pool, distance LOD, adaptive quality, in-game perf HUD, server heartbeat and leak monitor, client telemetry). Use this whenever the user mentions lag, FPS, stutter, optimization, performance, memory, mobile crashes, slow loading, server lag or ping, or says their game runs badly, even if they never say performance.
 ---
 
 # Roblox performance and optimization
@@ -65,11 +65,12 @@ Rules of thumb from common practice, to compare against; calibrate with the Crea
 6. **Reuse, don't churn.** Pool instances that come and go (bullets, hit markers, coins); reuse tables and params in hot paths; never `Clone`/`Destroy` many times a second.
 7. **Fewer, shared assets.** A reused mesh kit instances into few draw calls; shared textures and atlases keep memory down; SurfaceAppearance only where it's seen up close.
 8. **Decor is cheap by default:** Anchored, CastShadow off on small parts, CanTouch off, Box collision, RenderFidelity Automatic.
-9. **Ration the expensive features:** shadow-casting lights, stacked transparency, big particles near the camera, Humanoids (AnimationController for simple NPCs), ViewportFrames, SurfaceGuis, full-screen post effects.
-10. **Send less, less often.** No per-frame remotes; 10–20 Hz for continuous state, only on change, batched, packed, Unreliable, only to players who need it.
-11. **Clean up everything you create or connect.** Per-player tables cleared on leave, connections in a Trove, tracks loaded once, `Destroy` not `Parent = nil`.
-12. **Load the first screen, not the whole game.** Server-only assets in ServerStorage; preload only what the loading screen and spawn need.
-13. **Big computations:** spread across frames, `--!native` on maths-heavy modules, Parallel Luau for independent per-entity work. Only after measuring.
+9. **Let the engine's occlusion culling work.** It is automatic, with no setting. Give hidden detail solid, opaque walls to hide behind (block parts or simple meshes, not unions or glass), and don't leave Highlights on big models. It skips drawing only: memory, shadows, scripts and physics still cost the same, and avatars, lights and effects aren't culled. Don't write a Luau occlusion system.
+10. **Ration the expensive features:** shadow-casting lights, stacked transparency, big particles near the camera, Humanoids (AnimationController for simple NPCs), ViewportFrames, SurfaceGuis, full-screen post effects.
+11. **Send less, less often.** No per-frame remotes; 10–20 Hz for continuous state, only on change, batched, packed, Unreliable, only to players who need it.
+12. **Clean up everything you create or connect.** Per-player tables cleared on leave, connections in a Trove, tracks loaded once, `Destroy` not `Parent = nil`.
+13. **Load the first screen, not the whole game.** Server-only assets in ServerStorage; preload only what the loading screen and spawn need.
+14. **Big computations:** spread across frames, `--!native` on maths-heavy modules, Parallel Luau for independent per-entity work. Only after measuring.
 
 ## Scanning code and places
 
@@ -80,7 +81,7 @@ node <skill>/scripts/perfscan.cjs <path> [--json] [--min info|low|medium|high] [
 `<path>` is a Rojo `src` folder, a `.lua`/`.luau` file, or a place/model saved as XML (`.rbxlx`/`.rbxmx`). Binary `.rbxl`/`.rbxm` can't be read directly: convert with `lune run <skill>/scripts/rbxl-to-rbxlx.luau MyGame.rbxl` (Lune is pinned by the `roblox-project-structure` scaffold) or File → Save to File As `.rbxlx` in Studio. Needs only Node.
 
 - **Code**: per-frame handlers and loops that fire remotes, load animations, create instances, walk descendants, create tweens or params, yield, or set text; a per-frame connection per object; server-side animation and tweens; nested player loops; remote handlers or long-lived connections made per join; per-player tables never cleared; legacy `wait`/`spawn`/`delay`, deprecated spatial queries, `PreloadAsync` on everything, `SetPrimaryPartCFrame`, front-of-array queues.
-- **Places**: streaming off on big maps, shadow-casting lights, small shadow casters, semi-transparent parts, precise collision and render fidelity, unanchored parts, Humanoid counts, particle load, scripts inside parts, what replicates at join, unique meshes and textures, SurfaceGuis, BillboardGuis without MaxDistance, ViewportFrames, looped sounds, Persistent models; plus a stats summary and the heaviest models.
+- **Places**: streaming off on big maps, shadow-casting lights, small shadow casters, semi-transparent parts, precise collision and render fidelity, unanchored parts, Humanoid counts, particle load, scripts inside parts, what replicates at join, unique meshes and textures, SurfaceGuis, BillboardGuis without MaxDistance, ViewportFrames, parts kept under Highlights (they block occlusion culling), looped sounds, Persistent models; plus a stats summary and the heaviest models.
 
 Every id, threshold and fix is in `references/audit-checklist.md`. It's a pattern scan, not a profiler: findings say where to look. Confirm the ones that matter with a measurement, and say which findings are measured and which are heuristic. `-- perf:ignore <id>` on a line suppresses a reviewed finding.
 
@@ -128,7 +129,7 @@ The server validates every telemetry field (types, NaN, ranges, allow-listed dev
 ## References
 
 - `references/profiling.md`: the measurement routine, MicroProfiler (CPU vs GPU bound, label meanings, server and mobile profiling, dumps), Developer Console tabs and memory categories, Script Profiler, Luau Heap, Creator Hub dashboard, the Stats API, benchmarking.
-- `references/rendering-and-assets.md`: draw calls and instancing, render clusters, geometry and LOD, textures and materials, transparency and overdraw, lighting and shadows, post effects, particles, GUI, Humanoids and animation, physics flags for decor, a builder's checklist.
+- `references/rendering-and-assets.md`: draw calls and instancing, render clusters, geometry and LOD, occlusion culling (what occludes, what gets culled, how to build for it and check it in Studio), textures and materials, transparency and overdraw, lighting and shadows, post effects, particles, GUI, Humanoids and animation, physics flags for decor, a builder's checklist.
 - `references/scripting.md`: frame budget, events over polling, one loop per system, task library and coalescing, allocation and GC, caching, spatial queries and a spatial grid, server habits, native code generation, Parallel Luau, avoiding hitches.
 - `references/network-physics-streaming.md`: what costs bandwidth, remote design, buffers and interpolation, physics and network ownership, the crowd pattern for hundreds of NPCs, StreamingEnabled settings and streaming-safe code, a server heartbeat checklist.
 - `references/memory-and-loading.md`: memory budgets per device, where memory goes, leak patterns and how to find them, the Trove cleanup pattern, server memory, join time and loading screens, mobile specifics.

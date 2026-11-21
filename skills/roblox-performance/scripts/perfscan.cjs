@@ -118,6 +118,7 @@ function newPlaceStats(display) {
     lights: 0, shadowLights: 0, emitters: [], aliveParticles: 0, beams: 0, trails: 0,
     humanoids: 0, workspaceScripts: [], surfaceGuis: 0, billboards: 0, billboardsNoLimit: 0, viewports: 0,
     loopedSounds: 0, persistentModels: 0, persistentParts: 0,
+    highlights: 0, highlightParts: 0, highlightRefs: [], refParts: new Map(),
     meshIds: new Set(), textureIds: new Set(),
     replicatedInstances: 0, replicatedParts: 0, models: [],
   };
@@ -135,7 +136,8 @@ function parseXml(file, display) {
 
   while ((m = re.exec(xml))) {
     if (m[1] !== undefined) {
-      const node = { cls: m[1], name: m[1], props: {}, parts: 0 };
+      const ref = /referent="([^"]*)"/.exec(m[0]);
+      const node = { cls: m[1], name: m[1], props: {}, parts: 0, ref: ref ? ref[1] : null, highlighted: false, hlParts: 0 };
       if (stack.length === 0) topLevel.push(node.cls);
       stack.push(node);
       continue;
@@ -153,7 +155,8 @@ function parseXml(file, display) {
       const cls = node.cls;
 
       if (BASEPART.has(cls)) node.parts += 1;
-      if (parent) parent.parts += node.parts;
+      if (node.highlighted) node.hlParts = node.parts; // a Highlight with no Adornee covers its parent
+      if (parent) { parent.parts += node.parts; parent.hlParts += node.hlParts; }
 
       if (stack.length === 0) {
         // a service (place) or a top-level model (model file)
@@ -186,6 +189,8 @@ function parseXml(file, display) {
       if (!inWorkspace) continue;
 
       stats.wsInstances += 1;
+      if (node.ref) stats.refParts.set(node.ref, node.parts);
+      if (stack.length === (isModelFile ? 0 : 1)) stats.highlightParts += node.hlParts; // top of a Workspace subtree
       if (cls === 'Terrain') {
         stats.terrainDecoration = boolOf(p, 'Decoration', false);
       } else if (BASEPART.has(cls)) {
@@ -234,6 +239,11 @@ function parseXml(file, display) {
         if (!Number.isFinite(max) || max <= 0) stats.billboardsNoLimit += 1;
       } else if (cls === 'ViewportFrame') {
         stats.viewports += 1;
+      } else if (cls === 'Highlight') {
+        stats.highlights += 1;
+        const adornee = (prop(p, 'Adornee') || '').trim();
+        if (adornee && adornee !== 'null') stats.highlightRefs.push(adornee);
+        else if (parent) parent.highlighted = true;
       } else if (cls === 'Sound') {
         if (boolOf(p, 'Looped', false) && boolOf(p, 'Playing', false)) stats.loopedSounds += 1;
       } else if (cls === 'Decal' || cls === 'Texture') {
@@ -258,6 +268,8 @@ function parseXml(file, display) {
       if (m[3] === 'Name') node.name = decodeXml(m[4]);
     }
   }
+  for (const r of new Set(stats.highlightRefs)) stats.highlightParts += stats.refParts.get(r) || 0;
+  stats.refParts.clear();
   return { scripts, place: stats };
 }
 
@@ -712,6 +724,10 @@ function placeFindings(s, findings) {
     add('persistent-models', 'medium', `${s.persistentModels} Persistent models hold ${fmt(s.persistentParts)} parts that never stream out`,
       'Keep ModelStreamingMode Persistent for the few models clients must always have; use Atomic or Default for the rest.');
   }
+  if (s.highlightParts > 300) {
+    add('highlighted-parts', s.highlightParts > 3000 ? 'medium' : 'low', `${fmt(s.highlightParts)} parts sit under ${s.highlights} Highlight(s): they are never occlusion-culled and never hide what is behind them`,
+      'Create Highlights only while needed (hover, selection, objective) and destroy them after; keep them off big models and map geometry.');
+  }
   if (s.terrainDecoration === true) {
     add('terrain-decoration', 'info', 'Terrain decoration (animated grass) is on',
       'It costs GPU on low-end phones; keep it if it matters to the look, and measure on a phone.');
@@ -735,6 +751,7 @@ function placeSummary(s) {
     particleEmitters: s.emitters.length, aliveParticles: Math.round(s.aliveParticles), beams: s.beams, trails: s.trails,
     humanoids: s.humanoids, workspaceScripts: s.workspaceScripts.length,
     surfaceGuis: s.surfaceGuis, billboardGuis: s.billboards, viewportFrames: s.viewports,
+    highlights: s.highlights, highlightedParts: s.highlightParts,
     replicatedAtJoin: { instances: s.replicatedInstances, parts: s.replicatedParts },
     heaviestModels: top,
     heaviestEmitters: emitters.map((e) => ({ where: e.where, alive: Math.round(e.alive), rate: e.rate })),

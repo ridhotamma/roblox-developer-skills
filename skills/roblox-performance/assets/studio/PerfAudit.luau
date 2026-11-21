@@ -80,6 +80,8 @@ local billboardsNoLimit: { Instance } = {}
 local loopedSounds: { Instance } = {}
 local persistentModels: { Instance } = {}
 local persistentParts = 0
+local highlights: { Instance } = {}
+local highlightTargets: { [Instance]: boolean } = {}
 local meshIds: { [string]: boolean } = {}
 local textureIds: { [string]: boolean } = {}
 local uniqueMeshes, uniqueTextures = 0, 0
@@ -159,6 +161,12 @@ for _, d in descendants(Workspace) do
 		end
 	elseif d:IsA("ViewportFrame") then
 		viewports += 1
+	elseif d:IsA("Highlight") then
+		table.insert(highlights, d)
+		local target = d.Adornee or d.Parent
+		if target then
+			highlightTargets[target] = true
+		end
 	elseif d:IsA("Sound") then
 		if d.Looped and d.Playing then
 			table.insert(loopedSounds, d)
@@ -178,6 +186,22 @@ for _, d in descendants(Workspace) do
 				end
 			end
 		end
+	end
+end
+
+-- Parts under Highlights are never occlusion-culled (counted once even if Highlights overlap)
+local highlightPartSet: { [Instance]: boolean } = {}
+local highlightParts = 0
+for target in highlightTargets do
+	local function count(inst: Instance)
+		if inst:IsA("BasePart") and not highlightPartSet[inst] then
+			highlightPartSet[inst] = true
+			highlightParts += 1
+		end
+	end
+	count(target)
+	for _, inner in descendants(target) do
+		count(inner)
 	end
 end
 
@@ -394,6 +418,15 @@ if persistentParts > 2000 then
 		`{#persistentModels} Persistent models hold {fmt(persistentParts)} parts that never stream out`,
 		"Keep ModelStreamingMode Persistent for the few models clients must always have; use Atomic or Default for the rest.",
 		persistentModels
+	)
+end
+if highlightParts > 300 then
+	add(
+		"highlighted-parts",
+		if highlightParts > 3000 then "MEDIUM" else "LOW",
+		`{fmt(highlightParts)} parts sit under {#highlights} Highlight(s): they are never occlusion-culled and never hide what is behind them`,
+		"Create Highlights only while needed (hover, selection, objective) and destroy them after; keep them off big models and map geometry.",
+		highlights
 	)
 end
 if terrain.Decoration then

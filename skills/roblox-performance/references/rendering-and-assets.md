@@ -1,6 +1,6 @@
 # Rendering and assets
 
-Low FPS on one player's device with a healthy server is usually rendering. Every frame the CPU decides what is visible and prepares draw calls (one per batch of things that share a mesh, material and texture), and the GPU fills the pixels. Either side can be the bottleneck (see "CPU-bound or GPU-bound?" in `profiling.md`). Roblox lowers some quality automatically on weak devices (shadows, lighting detail, view distance, particles), so test at the graphics level your players actually use.
+Low FPS on one player's device with a healthy server is usually rendering. Every frame the CPU decides what is visible (frustum and occlusion culling, both automatic) and prepares draw calls (one per batch of things that share a mesh, material and texture), and the GPU fills the pixels. Either side can be the bottleneck (see "CPU-bound or GPU-bound?" in `profiling.md`). Roblox lowers some quality automatically on weak devices (shadows, lighting detail, view distance, particles), so test at the graphics level your players actually use.
 
 ## Draw calls and instancing
 
@@ -16,6 +16,45 @@ Low FPS on one player's device with a healthy server is usually rendering. Every
 - **Model.LevelOfDetail = StreamingMesh** (with StreamingEnabled): a streamed-out model is drawn as a low-detail stand-in instead of vanishing. Good for buildings and landmarks on big maps.
 - **Unions (CSG)** often carry more triangles and heavier collision than an equivalent mesh. For anything repeated, export it as a mesh.
 - **Parts vs mesh:** a building made of 400 parts is 400 instances to stream, simulate and cluster. Merging static decor into a few meshes cuts instances, memory and draw calls; keep separate parts only where gameplay needs them (doors, breakables, collision).
+
+## Occlusion culling (automatic, built into the client)
+
+Roblox skips drawing objects that are hidden behind other opaque geometry. It has been on for every experience since late 2024: Windows first, all platforms from January 2025, and Terrain support from mid-2025. Like frustum culling, it's automatic. There is no property to toggle it, no per-instance opt-out, no "occluder" hint, and no API that tells scripts whether something is hidden. It runs on its own thread and the engine tunes how hard it works. It does less when the renderer would have to wait for it, and more when the frame is GPU-bound, so it isn't a cost you budget for.
+
+What it does and doesn't save:
+
+- It removes **draw calls and triangles from the camera view** for hidden objects. In practice, rendering cost then follows what you can see, not what exists in the map. Dense cities and buildings with many rooms gain the most. Arenas, open fields and wide top-down views gain almost nothing, because everything is visible.
+- Hidden objects **still cost memory, streaming, physics, scripts and replication**, so StreamingEnabled and the memory budgets still apply.
+- Hidden objects **still draw into the shadow map**, because something behind a wall can cast a shadow you see. Shadow casters are never culled, so the CastShadow and light-shadow advice below still applies.
+- It is conservative. It tests bounding boxes and gives up when proving something is hidden costs more than drawing it. Some hidden objects still get drawn, and that is expected.
+
+What can block (occlude) and what can be hidden (as of early to mid 2026; Roblox is shrinking this list, so check the DevForum announcement thread):
+
+| | Can occlude others | Gets culled when hidden |
+|---|---|---|
+| Opaque Part, especially block parts (the cheapest occluder) | yes | yes |
+| Opaque MeshPart with a modest vertex count | yes | yes |
+| Very detailed mesh, or anything small on screen | no (skipped by heuristic) | yes |
+| Terrain | yes | yes (grass decoration is not culled) |
+| UnionOperation (CSG), TrussPart | no | yes |
+| Anything not fully opaque: Transparency > 0, Glass, ForceField, alpha-cutout or transparent SurfaceAppearance | no | yes |
+| Avatars, Humanoid NPCs, AnimationController rigs, skinned meshes (anything animated) | no | no (in testing on PC and Mac in early 2026) |
+| Lights, ParticleEmitters, Beams, Trails, BillboardGuis, SurfaceGuis | n/a | no |
+| Parts under a Highlight (even a disabled one) | no | no (known limitation as of April 2026) |
+
+Building so it helps:
+
+- **Give hidden detail something solid to hide behind.** Interiors get real walls and ceilings, and streets get buildings that block long sightlines. Hills (Terrain) work too.
+- **Make big occluders cheap and opaque.** Build walls, floors and building shells from opaque block parts or simple MeshParts. Don't build them from unions, glass, or semi-transparent or alpha-cutout materials. For a detailed building, use a simple opaque shell mesh that blocks the view, and put the fine detail in separate meshes (a `Detail` child for the kit's LodController).
+- **Don't leave Highlights on big models.** Create a Highlight when it's needed (hover, selection, an objective marker) and destroy it afterwards. The `highlighted-parts` scan rule counts parts kept under Highlights in the place.
+- **Don't write your own occlusion system in Luau** (raycasting to hide parts by setting Transparency or Parent). The engine already does this better on its own thread, and changing many parts invalidates render clusters and replication. Spend that effort on distance LOD (`PerfLod`) and streaming instead.
+- **Open maps** don't benefit, so keep relying on RenderFidelity Automatic, `LevelOfDetail`, the kit's LodController and particle budgets there.
+
+Checking it (in Studio, Play mode):
+
+1. Turn on Studio's wireframe rendering view and stand where a wall hides part of the map. Objects that are hidden and culled disappear from the wireframe. Anything animated, lights and effects stay, as listed above.
+2. Open the performance stats overlay (Ctrl+Shift+F2) and compare draw calls and triangles looking at the wall and then looking past it. Triangle counts are a better test than FPS, because a fast GPU hides the difference.
+3. Big numbers that stay the same in both views mean the blockers aren't occluding. Look for glass or semi-transparent walls, union walls, very detailed meshes, Highlights, or rigs.
 
 ## Textures and materials
 
@@ -90,6 +129,7 @@ Roughly from expensive to cheap: DepthOfField and Blur (full-screen passes), Sun
 ## A builder's checklist
 
 - Reuse a small kit of meshes; vary with rotation, scale and colour.
+- Walls, floors and building shells are opaque parts or simple meshes (not unions, not glass) so occlusion culling can hide what's behind them; no long-lived Highlights on big models.
 - Textures 256–512 for props, shared atlases, SurfaceAppearance only up close.
 - No stacked transparency; invisible parts are fully transparent with shadows off.
 - Shadows on a handful of key lights; CastShadow off for small props.

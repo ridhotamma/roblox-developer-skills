@@ -29,6 +29,7 @@ Both tools use the same ids and thresholds.
 | `viewport-frames` | > 20 ViewportFrames | Low | Images for static icons; few live viewports |
 | `looped-sounds` | > 30 looped sounds playing in Workspace | Low | Client-side, nearby-only ambience |
 | `persistent-models` | Persistent models holding > 2,000 parts | Medium | Persistent only for essentials |
+| `highlighted-parts` | > 300 parts under Highlights in Workspace (Adornee, or the Highlight's parent) | Low; Medium > 3,000 | Create Highlights on demand and destroy them; they block occlusion culling |
 | `terrain-decoration` | Terrain decoration on | Info | Keep if it matters; measure on a phone |
 
 ## Code (`perfscan.cjs` on source)

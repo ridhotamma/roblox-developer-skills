@@ -230,8 +230,12 @@ function heavyPlace() {
   const replicated = [];
   for (let i = 0; i < 21000; i++) replicated.push(item('Folder', `F${i}`, {}));
   const persistent = item('Model', 'City', { ModelStreamingMode: { token: 2 } }, parts.slice(0, 2500).join(''));
+  // 400 parts under a Highlight with no Adornee (covers its parent), plus a nested Highlight that must not double count
+  const glowParts = [];
+  for (let i = 0; i < 400; i++) glowParts.push(item('Part', `G${i}`, { Anchored: true, size: [4, 4, 4] }));
+  const glow = item('Model', 'Glow', {}, item('Highlight', 'Highlight', {}) + item('Model', 'Inner', {}, item('Highlight', 'Highlight', {}) + glowParts.slice(0, 50).join('')) + glowParts.slice(50).join(''));
   const workspace = item('Workspace', 'Workspace', { StreamingEnabled: false },
-    item('Terrain', 'Terrain', { Decoration: true }) + persistent + parts.slice(2500).join('') + lights.join('') + humanoids.join('') + scripts.join('') + item('Part', 'Chimney', { Anchored: true }, emitter));
+    item('Terrain', 'Terrain', { Decoration: true }) + persistent + parts.slice(2500).join('') + lights.join('') + humanoids.join('') + scripts.join('') + glow + item('Part', 'Chimney', { Anchored: true }, emitter));
   const lighting = item('Lighting', 'Lighting', { Technology: { token: 4 }, GlobalShadows: true });
   const rs = item('ReplicatedStorage', 'ReplicatedStorage', {}, replicated.join(''));
   return `<roblox version="4">${workspace}${lighting}${rs}</roblox>`;
@@ -242,11 +246,12 @@ const heavy = scanPath(path.join(dir, 'places/Heavy.rbxlx'));
 const heavyRules = new Set(heavy.findings.map((f) => f.rule));
 for (const id of ['streaming-off', 'shadowed-lights', 'small-shadow-casters', 'semi-transparent', 'precise-collision', 'precise-render',
   'unanchored-parts', 'humanoid-npcs', 'particle-load', 'workspace-scripts', 'replicated-heavy', 'unique-meshes', 'unique-textures',
-  'persistent-models', 'terrain-decoration']) {
+  'persistent-models', 'highlighted-parts', 'terrain-decoration']) {
   check(`place rule fires: ${id}`, heavyRules.has(id));
 }
 const hp = heavy.places[0];
-check('place stats: parts counted', hp && hp.parts === 4000 + 1, hp && hp.parts);
+check('place stats: parts counted', hp && hp.parts === 4000 + 400 + 1, hp && hp.parts);
+check('place stats: highlighted parts counted once', hp && hp.highlightedParts === 400 && hp.highlights === 2, hp && `${hp.highlightedParts} parts, ${hp.highlights} highlights`);
 check('place stats: Future lighting read', hp && hp.lightingTechnology === 'Future', hp && hp.lightingTechnology);
 check('place stats: heaviest model is City', hp && hp.heaviestModels[0] && /City$/.test(hp.heaviestModels[0].where), hp && JSON.stringify(hp.heaviestModels[0]));
 check('place scripts scanned as server code', heavy.scripts === 25, heavy.scripts);
