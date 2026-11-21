@@ -1,0 +1,64 @@
+{
+  "name": "LightTank",
+  "type": "Tank",
+  "title": "CV90/M8-class light tank, 450 kW diesel, 105 mm gun",
+  "mass": 25000,
+  "comHeight": 1,
+  "length": 6.6,
+  "width": 3.2,
+  "height": 2.5,
+  "tracks": {
+    "contactLength": 3.6,
+    "width": 0.53,
+    "tread": 2.6,
+    "contacts": 5,
+    "wheelRadius": 0.33,
+    "grip": 0.8,
+    "lateralGrip": 0.6,
+    "rollingResistance": 0.035,
+    "approach": 0.4
+  },
+  "engine": {
+    "power": 450,
+    "efficiency": 0.55,
+    "maxTractiveG": 0.6,
+    "maxSpeedKmh": 70,
+    "reverseSpeedKmh": 40,
+    "spool": 1.2
+  },
+  "steering": {
+    "pivotRate": 40,
+    "turnRate": 40,
+    "maxLateralG": 0.5
+  },
+  "brakes": {
+    "decelG": 0.65
+  },
+  "suspension": {
+    "frequency": 1.5,
+    "dampingRatio": 0.5,
+    "maxLength": 1.5,
+    "rideHeight": 0.5
+  },
+  "turret": {
+    "traverseRate": 50,
+    "elevationRate": 35,
+    "minElevation": -8,
+    "maxElevation": 35,
+    "height": 2.1
+  },
+  "gun": {
+    "reload": 5,
+    "recoil": 10,
+    "muzzleVelocity": 1500,
+    "range": 2500,
+    "defaultShell": true
+  },
+  "assists": {
+    "stability": 0.6
+  },
+  "aero": {
+    "cd": 0.9,
+    "area": 6
+  }
+}

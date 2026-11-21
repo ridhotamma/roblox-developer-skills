@@ -1,0 +1,41 @@
+{
+  "name": "FreightTrain",
+  "type": "Train",
+  "title": "ES44AC-class freight loco and 10 loaded hoppers",
+  "mass": 190000,
+  "comHeight": 2,
+  "length": 22.3,
+  "bogieSpacing": 15.6,
+  "cars": {
+    "count": 10,
+    "mass": 100000,
+    "length": 17,
+    "bogieSpacing": 12.5,
+    "cdA": 2
+  },
+  "engine": {
+    "power": 3280,
+    "efficiency": 0.85,
+    "startingTractiveEffort": 810,
+    "adhesion": 0.44,
+    "speedLimitKmh": 110,
+    "reverseSpeedKmh": 15
+  },
+  "resistance": {
+    "rolling": 1.2,
+    "speed": 0.02,
+    "cdA": 9
+  },
+  "brakes": {
+    "service": 0.4,
+    "emergency": 0.6,
+    "adhesion": 0.15
+  },
+  "derail": {
+    "enabled": true,
+    "lateralG": 0.3
+  },
+  "controls": {
+    "notchRate": 0.25
+  }
+}

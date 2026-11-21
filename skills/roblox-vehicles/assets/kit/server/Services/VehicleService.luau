@@ -1,6 +1,6 @@
 --!strict
 -- Turns any vehicle model into a working chassis, so one spec drives any mesh. The spec's Type picks
--- the physics: Car (default), Motorcycle, Boat, Plane or Helicopter.
+-- the physics: Car (default), Motorcycle, Boat, Plane, Helicopter, Tank or Train.
 --
 -- A vehicle model needs:
 --   * attribute Vehicle = a key of VehicleSpecs (Hatchback, SportBike, Speedboat, LightPlane...)
@@ -13,6 +13,12 @@
 --     WheelR tail wheel for a tail-dragger), optional Propeller, Aileron*, Elevator, Rudder, Flap*
 --   * helicopters: Skid* parts (long thin landing skids) or gear wheels; MainRotor, TailRotor
 --   * boats: nothing else; the lowest point of the body is the keel. Optional Propeller.
+--   * tanks: TrackL and TrackR (their bottoms are the ground line, their centres the tread), Turret
+--     and Gun (visuals turned by VehicleVisuals; a Muzzle attachment at the barrel's end), optional
+--     road wheels WheelL1.. / WheelR1..
+--   * trains: the lead vehicle's parts, and cars as child Models Car1, Car2 ... in a line behind it
+--     (each becomes its own assembly); a TrainTrack (tag "TrainTrack") to run on, the one named by
+--     attribute Track or the nearest. Optional per car: attributes Mass (kg), BogieSpacing (m).
 --   * all but cars: the model's pivot faces forward (LookVector to the nose or bow, UpVector up)
 --   * optional: attribute EngineSound = "rbxassetid://..." (engine loop)
 --   * optional per wheel: attribute WheelRadius (studs) if the mesh's bounding box is misleading
@@ -26,6 +32,11 @@
 -- Ownership: the driver's client simulates the vehicle while seated (smooth, no input lag); the
 -- server simulates it when empty, and anchors it once it has settled to save work. Seated players
 -- go into the VehicleRider collision group (limbs don't scrape the road, casts ignore them).
+--
+-- Tank guns: the driver's shots come through VehicleControl; the server checks the driver, the
+-- reload and that the shot leaves the muzzle along the gun, then fires VehicleService.Fired(player,
+-- model, origin, direction, gun) for your projectiles (roblox-combat), and with Gun.DefaultShell a
+-- harmless prototype shell (raycast and explosion).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -50,6 +61,10 @@ local MIN_ROOT_MASS = 150 -- assembly mass units for the chassis root (see build
 local BOAT_DENSITY = 100 -- boat roots are dense so Terrain water's own buoyancy is ~1-2% of the weight
 local LOOSE_WHEEL_PATTERN = "^Wheel([FR])([LR]?)(%d*)$"
 local SKID_RADIUS_M = 0.15
+local RMU_PER_KG = MIN_ROOT_MASS / 1300 -- tanks and trains: a car's root mass per kg, so they outweigh cars in proportion
+local ROAD_WHEEL_PATTERN = "^Wheel([LR])%d*$"
+local CAR_PATTERN = "^Car(%d+)$"
+local TRAIN_HULL_CLEARANCE = 0.8 -- metres above the rail: train hulls clear the rails and platforms' edges
 local MPS = VehicleMath.METERS_PER_STUD
 -- Visual parts that spin (rotors, propellers) or hinge (control surfaces), by name prefix.
 local SPIN_ROLES = { "MainRotor", "TailRotor", "Rotor", "Propeller" }
@@ -68,6 +83,11 @@ local VehicleService = {}
 local parked: { [Model]: Parked } = {}
 local drivers: { [Model]: Player } = {}
 local topSpeeds: { [any]: number } = {}
+local lastShot: { [Model]: number } = {}
+
+local firedEvent = Instance.new("BindableEvent")
+-- Fired(player, model, origin: Vector3, direction: Vector3, gun: spec.Gun) for every accepted shot.
+VehicleService.Fired = firedEvent.Event
 
 local function centerOf(wheel: Instance): Vector3
 	if wheel:IsA("BasePart") then
@@ -762,12 +782,392 @@ local function buildOther(model: Model, spec: any, kind: string): boolean
 	return true
 end
 
+-- ---------------------------------------------------------------------------------------------
+-- Tanks and trains
+
+local function boundsOf(instance: Instance): (CFrame, Vector3)
+	if instance:IsA("BasePart") then
+		return instance.CFrame, instance.Size
+	end
+	return (instance :: Model):GetBoundingBox()
+end
+
+-- Corners of parts in a frame's space.
+local function extentsOf(parts: { BasePart }, frame: CFrame): (Vector3, Vector3)
+	local mn, mx = Vector3.one * math.huge, -Vector3.one * math.huge
+	for _, part in parts do
+		for _, sx in { -0.5, 0.5 } do
+			for _, sy in { -0.5, 0.5 } do
+				for _, sz in { -0.5, 0.5 } do
+					local corner = frame:PointToObjectSpace((part.CFrame * CFrame.new(part.Size * Vector3.new(sx, sy, sz))).Position)
+					mn, mx = mn:Min(corner), mx:Max(corner)
+				end
+			end
+		end
+	end
+	return mn, mx
+end
+
+local function partsOf(instance: Instance): { BasePart }
+	local parts: { BasePart } = {}
+	if instance:IsA("BasePart") then
+		table.insert(parts, instance)
+	end
+	for _, d in instance:GetDescendants() do
+		if d:IsA("BasePart") then
+			table.insert(parts, d)
+		end
+	end
+	return parts
+end
+
+-- An invisible root carrying a heavy vehicle's mass (heavier than a car's in proportion).
+local function heavyRoot(name: string, parent: Instance, sizeM: Vector3, cframe: CFrame, massKg: number): BasePart
+	local root = Instance.new("Part")
+	root.Name = name
+	root.Size = sizeM / MPS
+	root.CFrame = cframe
+	root.Transparency = 1
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	local volume = root.Size.X * root.Size.Y * root.Size.Z
+	root.CustomPhysicalProperties = PhysicalProperties.new(math.clamp(massKg * RMU_PER_KG / volume, 0.7, 100), 0.3, 0.5)
+	root.CollisionGroup = COLLISION_GROUP
+	noFluidForces(root)
+	root.Parent = parent
+	return root
+end
+
+-- Body parts: welded to the root, massless, no collision of their own (the hull collides).
+local function weldBody(root: BasePart, parts: { BasePart }, autoHull: boolean)
+	for _, part in parts do
+		part.Anchored = false
+		part.Massless = true
+		part.CollisionGroup = COLLISION_GROUP
+		noFluidForces(part)
+		if autoHull then
+			part.CanCollide = false
+		end
+		weldToRoot(root, part)
+	end
+end
+
+-- Root-space box of a vehicle's body (from corners in the pivot's frame).
+local function rootBox(root: BasePart, pivot: CFrame, minCorner: Vector3, maxCorner: Vector3): (Vector3, Vector3)
+	local toRoot = root.CFrame:Inverse() * pivot
+	local mn, mx = Vector3.one * math.huge, -Vector3.one * math.huge
+	for _, sx in { minCorner.X, maxCorner.X } do
+		for _, sy in { minCorner.Y, maxCorner.Y } do
+			for _, sz in { minCorner.Z, maxCorner.Z } do
+				local c = toRoot * Vector3.new(sx, sy, sz)
+				mn, mx = mn:Min(c), mx:Max(c)
+			end
+		end
+	end
+	return mn, mx
+end
+
+local function visualLink(folder: Instance, root: BasePart, instance: Instance, role: string, spin: boolean): ObjectValue
+	local link = Instance.new("ObjectValue")
+	link.Name = role
+	link.Value = instance
+	local pv = pivotOf(instance)
+	link:SetAttribute("Role", role)
+	link:SetAttribute("Spin", spin)
+	link:SetAttribute("Axis", visualAxis(instance, spin))
+	link:SetAttribute("Offset", root.CFrame:ToObjectSpace(pv))
+	link:SetAttribute("Side", if root.CFrame:PointToObjectSpace(pv.Position).X < 0 then -1 else 1)
+	link.Parent = folder
+	return link
+end
+
+local function buildTank(model: Model, spec: any): boolean
+	local pivot = model:GetPivot()
+	local forward, up = pivot.LookVector, pivot.UpVector
+	local tracks = spec.Tracks
+
+	-- Visuals VehicleVisuals turns: the turret, the gun, road wheels.
+	local special: { [Instance]: boolean } = {}
+	local turret = model:FindFirstChild("Turret", true)
+	local gun = model:FindFirstChild("Gun", true)
+	if turret and not (turret:IsA("BasePart") or turret:IsA("Model")) then
+		turret = nil
+	end
+	if gun and not (gun:IsA("BasePart") or gun:IsA("Model")) then
+		gun = nil
+	end
+	if turret then
+		special[turret] = true
+	end
+	if gun then
+		special[gun] = true
+	end
+	local roadWheels: { Instance } = {}
+	for _, d in model:GetDescendants() do
+		if string.match(d.Name, ROAD_WHEEL_PATTERN) and (d:IsA("BasePart") or d:IsA("Model")) and not insideAny(d, special, model) then
+			special[d] = true
+			table.insert(roadWheels, d)
+		end
+	end
+	local body: { BasePart } = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and not insideAny(d, special, model) then
+			table.insert(body, d)
+		end
+	end
+	if #body == 0 then
+		warn(`[VehicleService] {model:GetFullName()} has no body parts`)
+		return false
+	end
+	local minCorner, maxCorner = extentsOf(body, pivot)
+
+	-- Tracks: their bottoms are the ground line, their centres the tread and the contact patches.
+	local groundY = minCorner.Y
+	local centerZ = (minCorner.Z + maxCorner.Z) / 2
+	local midX = (minCorner.X + maxCorner.X) / 2
+	local leftX, rightX = midX - tracks.Tread / 2 / MPS, midX + tracks.Tread / 2 / MPS
+	local trackL, trackR = model:FindFirstChild("TrackL", true), model:FindFirstChild("TrackR", true)
+	if trackL and trackR and (trackL:IsA("BasePart") or trackL:IsA("Model")) and (trackR:IsA("BasePart") or trackR:IsA("Model")) then
+		local pl = pivot:PointToObjectSpace(boundsOf(trackL).Position)
+		local pr = pivot:PointToObjectSpace(boundsOf(trackR).Position)
+		leftX, rightX, centerZ = pl.X, pr.X, (pl.Z + pr.Z) / 2
+		local lMin = extentsOf(partsOf(trackL), pivot)
+		local rMin = extentsOf(partsOf(trackR), pivot)
+		groundY = math.min(lMin.Y, rMin.Y)
+	else
+		warn(`[VehicleService] {model:GetFullName()}: no TrackL / TrackR, using the spec's tread`)
+	end
+
+	-- The root at the centre of mass carries the mass; its size (from the spec) sets the inertia.
+	local com = Vector3.new((leftX + rightX) / 2, groundY + spec.ComHeight / MPS, centerZ)
+	local comWorld = pivot:PointToWorldSpace(com)
+	local sizeM = Vector3.new(spec.Width * 0.8, spec.Height * 0.5, spec.Length * 0.8)
+	local root = heavyRoot("ChassisRoot", model, sizeM, CFrame.lookAt(comWorld, comWorld + forward, up), spec.Mass)
+
+	-- Joints between the body and the visuals would pin the tank to anchored visuals.
+	for _, d in model:GetDescendants() do
+		if d:IsA("JointInstance") or d:IsA("WeldConstraint") then
+			local a = (d :: any).Part0 :: Instance?
+			local b = (d :: any).Part1 :: Instance?
+			if a and b and insideAny(a, special, model) ~= insideAny(b, special, model) then
+				d:Destroy()
+			end
+		end
+	end
+	local autoHull = model:GetAttribute("KeepCollision") ~= true
+	weldBody(root, body, autoHull)
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d ~= root and insideAny(d, special, model) then
+			makeVisual(d)
+		end
+	end
+
+	-- Collision hull: hull and turret above the track tops; below it the track contacts carry
+	-- everything, so the idlers climb steps instead of the hull snagging on them.
+	if autoHull then
+		local mn, mx = rootBox(root, pivot, minCorner, maxCorner)
+		local toRoot = root.CFrame:Inverse() * pivot
+		local bottom = (toRoot * Vector3.new(com.X, groundY + (2 * tracks.WheelRadius + tracks.Approach) / MPS, com.Z)).Y
+		local top = math.max(mx.Y, (toRoot * Vector3.new(com.X, groundY + spec.Height / MPS, com.Z)).Y)
+		buildHull(root, Vector3.new(mn.X, bottom, mn.Z), Vector3.new(mx.X, top, mx.Z), bottom, spec.Body.HullFriction)
+	end
+
+	-- Track contacts: Tracks.Contacts along each track's ground length, plus the idler and sprocket
+	-- at the hull ends, raised by the approach height.
+	local radius = tracks.WheelRadius / MPS
+	local staticLength = spec.Suspension.MaxLength * spec.Suspension.RideHeight
+	local endZ = math.max(spec.Length / 2 - tracks.WheelRadius, tracks.ContactLength / 2 + tracks.WheelRadius) / MPS
+	local n = math.max(tracks.Contacts, 2)
+	for _, side in { -1, 1 } do
+		local x = if side < 0 then leftX else rightX
+		local points: { { z: number, lift: number, isEnd: boolean } } = {}
+		for i = 0, n - 1 do
+			table.insert(points, { z = centerZ + (i / (n - 1) - 0.5) * tracks.ContactLength / MPS, lift = 0, isEnd = false })
+		end
+		for _, e in { -1, 1 } do
+			table.insert(points, { z = centerZ + e * endZ, lift = tracks.Approach / MPS, isEnd = true })
+		end
+		for i, point in points do
+			local center = pivot:PointToWorldSpace(Vector3.new(x, groundY + radius + point.lift, point.z))
+			local mount = Instance.new("Attachment")
+			mount.Name = `Track{if side < 0 then "L" else "R"}_{i}`
+			mount.WorldCFrame = root.CFrame.Rotation + center + up * staticLength
+			mount:SetAttribute("TrackContact", true)
+			mount:SetAttribute("Left", side < 0)
+			mount:SetAttribute("End", point.isEnd)
+			mount:SetAttribute("Radius", radius)
+			mount:SetAttribute("StaticLength", staticLength)
+			mount:SetAttribute("MaxLength", spec.Suspension.MaxLength)
+			mount.Parent = root
+		end
+	end
+
+	-- Visuals: turret and gun (VehicleVisuals turns them from TurretYaw / GunPitch), road wheels.
+	local folder = Instance.new("Folder")
+	folder.Name = "Visuals"
+	folder.Parent = root
+	if turret then
+		visualLink(folder, root, turret, "Turret", false)
+	end
+	if gun then
+		visualLink(folder, root, gun, "Gun", false)
+	end
+	for _, wheel in roadWheels do
+		local link = visualLink(folder, root, wheel, "RoadWheel", true)
+		link:SetAttribute("Radius", radiusOf(wheel))
+	end
+	model:SetAttribute("TurretYaw", 0)
+	model:SetAttribute("GunPitch", 0)
+
+	makeForces(root)
+	model.PrimaryPart = root
+	model:SetAttribute("ChassisBuilt", true)
+	return true
+end
+
+local function buildTrain(model: Model, spec: any): boolean
+	local pivot = model:GetPivot()
+	local forward, up = pivot.LookVector, pivot.UpVector
+
+	-- The lead vehicle (every part not inside a car) and the cars, Car1, Car2 ... in order.
+	local cars: { { model: Model, index: number } } = {}
+	local carSet: { [Instance]: boolean } = {}
+	for _, child in model:GetChildren() do
+		local index = string.match(child.Name, CAR_PATTERN)
+		if index and child:IsA("Model") then
+			table.insert(cars, { model = child, index = tonumber(index) :: number })
+			carSet[child] = true
+		end
+	end
+	table.sort(cars, function(a, b)
+		return a.index < b.index
+	end)
+	local autoHull = model:GetAttribute("KeepCollision") ~= true
+
+	-- One vehicle: a root at its centre of mass (ComHeight above its lowest point, the rail), its
+	-- parts welded to it, a hull clear of the rails.
+	local function vehicle(container: Model, parts: { BasePart }, massKg: number, name: string): (BasePart?, number)
+		if #parts == 0 then
+			return nil, 0
+		end
+		local mn, mx = extentsOf(parts, pivot)
+		local railY = mn.Y
+		local center = (mn + mx) / 2
+		local lengthM = (mx.Z - mn.Z) * MPS
+		local com = Vector3.new(center.X, railY + spec.ComHeight / MPS, center.Z)
+		local comWorld = pivot:PointToWorldSpace(com)
+		local sizeM = Vector3.new(3, 3, math.max(lengthM * 0.9, 2))
+		local root = heavyRoot(name, container, sizeM, CFrame.lookAt(comWorld, comWorld + forward, up), massKg)
+		weldBody(root, parts, autoHull)
+		if autoHull then
+			local bmn, bmx = rootBox(root, pivot, mn, mx)
+			local bottom = ((root.CFrame:Inverse() * pivot) * Vector3.new(com.X, railY + TRAIN_HULL_CLEARANCE / MPS, com.Z)).Y
+			buildHull(root, bmn, bmx, bottom, 0.3)
+		end
+		makeForces(root)
+		return root, lengthM
+	end
+	local function hullsOf(container: Instance): { BasePart }
+		local hulls: { BasePart } = {}
+		for _, child in container:GetChildren() do
+			if child:IsA("BasePart") and (child.Name == "HullBody" or child.Name == "HullEnd") then
+				table.insert(hulls, child)
+			end
+		end
+		return hulls
+	end
+	local function bogieHalf(container: Instance, default: number, lengthM: number): number
+		local attr = container:GetAttribute("BogieSpacing")
+		local spacing = if typeof(attr) == "number" then attr else default
+		return math.min(spacing, lengthM * 0.9) / 2 / MPS
+	end
+
+	local leadParts: { BasePart } = {}
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and not insideAny(d, carSet, model) then
+			table.insert(leadParts, d)
+		end
+	end
+	local leadRoot, leadLength = vehicle(model, leadParts, spec.Mass, "ChassisRoot")
+	if not leadRoot then
+		warn(`[VehicleService] {model:GetFullName()} has no body parts`)
+		return false
+	end
+	leadRoot:SetAttribute("BogieHalf", bogieHalf(model, spec.BogieSpacing, leadLength))
+	local hulls = { hullsOf(model) }
+	local folder = Instance.new("Folder")
+	folder.Name = "Cars"
+	folder.Parent = leadRoot
+	for i, car in cars do
+		local massAttr = car.model:GetAttribute("Mass")
+		local massKg = if typeof(massAttr) == "number" then massAttr else spec.Cars.Mass
+		local carRoot, carLength = vehicle(car.model, partsOf(car.model), massKg, "CarRoot")
+		if carRoot then
+			car.model.PrimaryPart = carRoot
+			local link = Instance.new("ObjectValue")
+			link.Name = car.model.Name
+			link.Value = carRoot
+			link:SetAttribute("Index", i)
+			link:SetAttribute("Offset", leadRoot.CFrame:PointToObjectSpace(carRoot.Position).Z)
+			link:SetAttribute("BogieHalf", bogieHalf(car.model, spec.Cars.BogieSpacing, carLength))
+			link:SetAttribute("MassKg", massKg)
+			link.Parent = folder
+			table.insert(hulls, hullsOf(car.model))
+		end
+	end
+	-- Neighbouring cars don't collide with each other (their corners meet in tight curves).
+	for i = 1, #hulls - 1 do
+		for _, a in hulls[i] do
+			for _, b in hulls[i + 1] do
+				local constraint = Instance.new("NoCollisionConstraint")
+				constraint.Part0 = a
+				constraint.Part1 = b
+				constraint.Parent = a
+			end
+		end
+	end
+
+	model.PrimaryPart = leadRoot
+	model:SetAttribute("ChassisBuilt", true)
+	-- Onto the rails: every car at its place on the nearest track, stopped.
+	local sim = Sims.new(model)
+	if sim then
+		sim:Recover()
+		sim:Destroy()
+	end
+	return true
+end
+
 local function build(model: Model, spec: any): boolean
 	local kind = Sims.Kind(spec)
 	if kind == "Car" then
 		return buildCar(model, spec)
+	elseif kind == "Tank" then
+		return buildTank(model, spec)
+	elseif kind == "Train" then
+		return buildTrain(model, spec)
 	end
 	return buildOther(model, spec, kind)
+end
+
+-- Every assembly of a vehicle: its ChassisRoot, plus a train's car roots.
+local function assemblyRoots(model: Model): { BasePart }
+	local root = model.PrimaryPart
+	if not root then
+		return {}
+	end
+	local roots = { root }
+	local cars = root:FindFirstChild("Cars")
+	if cars then
+		for _, link in cars:GetChildren() do
+			local value = if link:IsA("ObjectValue") then link.Value else nil
+			if value and value:IsA("BasePart") then
+				table.insert(roots, value)
+			end
+		end
+	end
+	return roots
 end
 
 -- ---------------------------------------------------------------------------------------------
@@ -798,10 +1198,12 @@ local function park(model: Model)
 	if not root then
 		return
 	end
-	root.Anchored = false
-	pcall(function()
-		root:SetNetworkOwner(nil)
-	end)
+	for _, part in assemblyRoots(model) do
+		part.Anchored = false
+		pcall(function()
+			part:SetNetworkOwner(nil)
+		end)
+	end
 	local sim, kind = Sims.new(model)
 	if sim and kind then
 		parked[model] = { sim = sim, kind = kind, settledFor = 0 }
@@ -881,11 +1283,13 @@ local function bind(instance: Instance)
 				entry.sim:Destroy()
 				parked[model] = nil
 			end
-			root.Anchored = false
 			drivers[model] = player
-			pcall(function()
-				root:SetNetworkOwner(player)
-			end)
+			for _, part in assemblyRoots(model) do
+				part.Anchored = false
+				pcall(function()
+					part:SetNetworkOwner(player)
+				end)
+			end
 		else
 			drivers[model] = nil
 			park(model)
@@ -903,6 +1307,7 @@ local function unbind(instance: Instance)
 	end
 	parked[model] = nil
 	drivers[model] = nil
+	lastShot[model] = nil
 end
 
 -- Spawns a vehicle from ServerStorage.Assets.Vehicles[name] (any model following the rules above).
@@ -934,6 +1339,55 @@ end
 
 local rates: { [Player]: { count: number, window: number } } = {}
 
+-- Prototype shell (Gun.DefaultShell): a raycast to Gun.Range and a harmless explosion where it hits.
+local function defaultShell(model: Model, origin: Vector3, direction: Vector3, gun: any)
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = { model }
+	local hit = workspace:Raycast(origin, direction * math.min(gun.Range / MPS, 15000), params)
+	if hit then
+		local explosion = Instance.new("Explosion")
+		explosion.Position = hit.Position
+		explosion.BlastRadius = 8
+		explosion.BlastPressure = 0
+		explosion.DestroyJointRadiusPercent = 0
+		explosion.ExplosionType = Enum.ExplosionType.NoCraters
+		explosion.Parent = workspace
+	end
+end
+
+-- A shot from the driver: within the reload, from the tank, along its gun (from the aim it reported).
+local function fire(player: Player, model: Model, spec: any, origin: any, direction: any)
+	if typeof(origin) ~= "Vector3" or typeof(direction) ~= "Vector3" or origin ~= origin or direction ~= direction or direction.Magnitude < 0.5 then
+		return
+	end
+	local root = model.PrimaryPart
+	if not root then
+		return
+	end
+	local now = os.clock()
+	if now - (lastShot[model] or -math.huge) < spec.Gun.Reload * 0.9 then
+		return
+	end
+	if (origin - root.Position).Magnitude > spec.Length / MPS + 8 then
+		return
+	end
+	local cf = root.CFrame
+	local yaw = math.rad((model:GetAttribute("TurretYaw") :: number?) or 0)
+	local pitch = math.rad((model:GetAttribute("GunPitch") :: number?) or 0)
+	local turret = CFrame.fromAxisAngle(cf.UpVector, -yaw)
+	local expected = CFrame.fromAxisAngle(turret:VectorToWorldSpace(cf.RightVector), pitch):VectorToWorldSpace(turret:VectorToWorldSpace(cf.LookVector))
+	if expected:Dot(direction.Unit) < math.cos(math.rad(12)) then
+		return
+	end
+	lastShot[model] = now
+	model:SetAttribute("LastShot", workspace:GetServerTimeNow())
+	firedEvent:Fire(player, model, origin, direction.Unit, spec.Gun)
+	if spec.Gun.DefaultShell then
+		defaultShell(model, origin, direction.Unit, spec.Gun)
+	end
+end
+
 local function onControl(player: Player, model: any, state: any)
 	if typeof(model) ~= "Instance" or not model:IsA("Model") or drivers[model] ~= player or typeof(state) ~= "table" then
 		return
@@ -955,6 +1409,23 @@ local function onControl(player: Player, model: any, state: any)
 	end
 	if typeof(state.Flaps) == "boolean" then
 		model:SetAttribute("Flaps", state.Flaps)
+	end
+	local spec = Sims.Spec(model)
+	local kind = if spec then Sims.Kind(spec) else nil
+	if kind == "Tank" then
+		-- Turret aim for everyone else to see (degrees), then any shot along it.
+		local yaw, pitch = state.TurretYaw, state.GunPitch
+		if typeof(yaw) == "number" and yaw == yaw and math.abs(yaw) <= 180 then
+			model:SetAttribute("TurretYaw", yaw)
+		end
+		if typeof(pitch) == "number" and pitch == pitch then
+			model:SetAttribute("GunPitch", math.clamp(pitch, spec.Turret.MinElevation, spec.Turret.MaxElevation))
+		end
+		if state.Fire == true then
+			fire(player, model, spec, state.Origin, state.Direction)
+		end
+	elseif kind == "Train" and typeof(state.Horn) == "boolean" then
+		model:SetAttribute("Horn", state.Horn)
 	end
 	if state.Bail == true then
 		-- Thrown off a crashing bike: out of the seat, ragdolled when roblox-ragdoll is installed.
@@ -1017,7 +1488,9 @@ function VehicleService:Start()
 			entry.settledFor = if still and calm and telemetry.Grounded > 0 then entry.settledFor + dt else 0
 			if entry.settledFor >= SLEEP_AFTER then
 				entry.sim:Destroy()
-				root.Anchored = true -- asleep until someone sits in it
+				for _, part in assemblyRoots(model) do
+					part.Anchored = true -- asleep until someone sits in it
+				end
 			end
 		end
 	end)

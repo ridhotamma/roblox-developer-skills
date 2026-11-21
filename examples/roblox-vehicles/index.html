@@ -86,11 +86,15 @@
 <script src="lab/tests.js"></script>
 <script src="lab/airsea.js"></script>
 <script src="lab/tests-airsea.js"></script>
+<script src="lab/heavy.js"></script>
+<script src="lab/tests-heavy.js"></script>
 <script>
 'use strict';
 const { V, M, VM, World, Car } = VehicleLab;
 const SPECS = VEHICLE_SPECS, { TESTS, runOne } = VehicleTests;
-const AS = AirSeaLab, AST = AirSeaTests;
+const AS = AirSeaLab, AST = AirSeaTests, HV = HeavyLab, HVT = HeavyTests;
+// Which test suite a type runs: the car suite, the air/sea suite, or the tank/train suite.
+const suiteFor = (kind) => (kind === 'Car' ? null : kind === 'Tank' || kind === 'Train' ? HVT : AST);
 const kindOf = (name) => SPECS[name].type || 'Car';
 const MPS = VM.METERS_PER_STUD;
 const $ = (id) => document.getElementById(id);
@@ -129,6 +133,7 @@ function buildWorld(world) {
     const sea = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshStandardMaterial({ color: 0x2f6f9f, transparent: true, opacity: 0.72, roughness: 0.25, metalness: 0.1 }));
     sea.rotation.x = -Math.PI / 2; sea.position.y = water.level; sea.receiveShadow = true; worldGroup.add(sea);
   }
+  if (!Array.isArray(world) && world.track && world.track.length > 1) buildTrack(world.track);
   for (const b of boxes) {
     const size = b.h.map((x) => x * 2);
     let mat;
@@ -141,6 +146,28 @@ function buildWorld(world) {
     m.receiveShadow = true; m.castShadow = size[1] < 50;
     worldGroup.add(m);
   }
+}
+
+// Railway: a ballast ribbon and two rails (standard gauge) along the track's sample points.
+function buildTrack(pts) {
+  const G2 = 1.435 / 2 / MPS, B2 = 1.6 / MPS;
+  const bed = [], railL = [], railR = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(pts.length - 1, i + 1)];
+    const t = new THREE.Vector3(b[0] - a[0], 0, b[2] - a[2]).normalize();
+    const left = new THREE.Vector3(t.z, 0, -t.x);
+    const c = new THREE.Vector3(...pts[i]);
+    bed.push(c.clone().addScaledVector(left, B2).add(new THREE.Vector3(0, 0.05, 0)), c.clone().addScaledVector(left, -B2).add(new THREE.Vector3(0, 0.05, 0)));
+    railL.push(c.clone().addScaledVector(left, G2).add(new THREE.Vector3(0, 0.5, 0)));
+    railR.push(c.clone().addScaledVector(left, -G2).add(new THREE.Vector3(0, 0.5, 0)));
+  }
+  const pos = [], idx = [];
+  bed.forEach((v) => pos.push(v.x, v.y, v.z));
+  for (let i = 0; i < pts.length - 1; i++) { const k = i * 2; idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const ribbon = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: 0x6b5e52, roughness: 1, side: THREE.DoubleSide })); ribbon.receiveShadow = true; worldGroup.add(ribbon);
+  const railMat = new THREE.LineBasicMaterial({ color: 0xd8dee9 });
+  for (const r of [railL, railR]) worldGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(r), railMat));
 }
 
 // ------------------------------------------------------------- car visual (built from the same Car geometry)
@@ -200,19 +227,52 @@ function poseCar(fr) {
 }
 
 // ------------------------------------------------------------- bike / boat / plane / helicopter visuals (box models)
-const OTHER_COLORS = { SportBike: 0xe0453a, DirtBike: 0xf2b134, Speedboat: 0xf4f4f4, JetSki: 0x2f80ed, FishingBoat: 0xc0392b, LightPlane: 0xf2f2f2, JetFighter: 0x8a96a3, LightHeli: 0x2f80ed, AttackHeli: 0x4b5a3c };
+const OTHER_COLORS = { SportBike: 0xe0453a, DirtBike: 0xf2b134, Speedboat: 0xf4f4f4, JetSki: 0x2f80ed, FishingBoat: 0xc0392b, LightPlane: 0xf2f2f2, JetFighter: 0x8a96a3, LightHeli: 0x2f80ed, AttackHeli: 0x4b5a3c, MainBattleTank: 0x8a8461, LightTank: 0x5d6b47, PassengerTrain: 0xc0392b, FreightTrain: 0xf2b134, Tram: 0x2f80ed };
 let otherVis = null;
 function box(group, mat, size, pos) { const m = new THREE.Mesh(new THREE.BoxGeometry(...size), mat); m.position.set(...pos); m.castShadow = true; group.add(m); return m; }
 function wheel(group, r, pos, width = 0.5) { const t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, width, 18), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 })); t.rotation.z = Math.PI / 2; t.position.set(...pos); t.castShadow = true; group.add(t); return t; }
+function removeOtherVisual() {
+  if (!otherVis) return;
+  scene.remove(otherVis.group);
+  if (otherVis.cars) otherVis.cars.forEach((g) => scene.remove(g));
+  otherVis = null;
+}
 function buildOtherVisual(name) {
-  if (otherVis) scene.remove(otherVis.group);
+  removeOtherVisual();
   if (carVis) { scene.remove(carVis.group); carVis = null; }
   const kind = kindOf(name), spec = SPECS[name].spec, S = (m) => m / MPS;
   const group = new THREE.Group();
   const paint = new THREE.MeshStandardMaterial({ color: OTHER_COLORS[name] || 0x999999, roughness: 0.45, metalness: 0.2 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x1b2330, roughness: 0.3, metalness: 0.4 });
   const spinners = [];
-  if (kind === 'Motorcycle') {
+  let turret = null, gun = null, flash = null, cars = null;
+  if (kind === 'Tank') {
+    const com = spec.comHeight, t = spec.tracks;
+    const endZ = Math.max(spec.length / 2 - t.wheelRadius, t.contactLength / 2 + t.wheelRadius);
+    const trackH = 2 * t.wheelRadius + t.approach, hullTop = spec.turret.height - 0.35;
+    for (const x of [-1, 1]) box(group, dark, [S(t.width), S(trackH), S(2 * endZ + 2 * t.wheelRadius)], [x * S(t.tread / 2), S(trackH / 2 - com), 0]);
+    box(group, paint, [S(spec.width - 2 * t.width * 0.3), S(hullTop - 0.45), S(spec.length)], [0, S((hullTop + 0.45) / 2 - com), 0]);
+    turret = new THREE.Group(); turret.position.set(0, S(hullTop - com), S(spec.length * 0.08)); group.add(turret);
+    box(turret, paint, [S(spec.width * 0.62), S(spec.height - hullTop), S(spec.length * 0.5)], [0, S((spec.height - hullTop) / 2), 0]);
+    gun = new THREE.Group(); gun.position.set(0, S(spec.turret.height - hullTop), -S(spec.length * 0.22)); turret.add(gun);
+    const barrel = Math.min(5.3, spec.length * 0.7);
+    box(gun, dark, [S(0.18), S(0.18), S(barrel)], [0, 0, -S(barrel / 2)]);
+    flash = new THREE.Mesh(new THREE.SphereGeometry(S(0.6), 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd27a })); flash.position.set(0, 0, -S(barrel) - S(0.4)); flash.visible = false; gun.add(flash);
+  } else if (kind === 'Train') {
+    // One group per car, posed from the frame's car list; the lead is this group.
+    const vehicles = [{ length: spec.length, bogie: spec.bogieSpacing, color: OTHER_COLORS[name] }];
+    for (let i = 0; i < spec.cars.count; i++) vehicles.push({ length: spec.cars.length, bogie: spec.cars.bogieSpacing, color: 0x8f9aa8 });
+    cars = vehicles.map((v, i) => {
+      const g = i === 0 ? group : new THREE.Group();
+      const mat = i === 0 ? paint : new THREE.MeshStandardMaterial({ color: v.color, roughness: 0.5, metalness: 0.2 });
+      const com = spec.comHeight;
+      box(g, mat, [S(3), S(3.2), S(v.length - 0.4)], [0, S(0.9 + 1.6 - com), 0]);
+      box(g, dark, [S(3.05), S(0.25), S(v.length - 0.6)], [0, S(4.2 - com), 0]);
+      for (const z of [-1, 1]) box(g, dark, [S(2.2), S(0.8), S(2.6)], [0, S(0.45 - com), z * S(v.bogie / 2)]);
+      if (i > 0) scene.add(g);
+      return g;
+    });
+  } else if (kind === 'Motorcycle') {
     const probe = new AS.Bike(new World(), spec);
     for (const w of probe.wheels) wheel(group, w.radius, [0, w.local[1] - probe.spec.suspension.maxLength * probe.spec.suspension.rideHeight, w.local[2]], 0.5);
     const zf = probe.wheels[0].local[2], zr = probe.wheels[1].local[2], r = probe.wheels[0].radius;
@@ -245,14 +305,22 @@ function buildOtherVisual(name) {
     const tail = box(group, dark, [0.15, S(1.6), S(0.15)], [S(0.35), S(1.3), L * 0.58]); spinners.push({ mesh: tail, axis: 'x', rate: 18, rotor: true });
   }
   scene.add(group);
-  otherVis = { group, kind, spinners, angle: 0 };
-  const extent = kind === 'Plane' ? Math.max(spec.wing.span, spec.length) : kind === 'Helicopter' ? Math.max(spec.rotor.diameter, spec.length) : kind === 'Boat' ? spec.hull.length : 3;
+  otherVis = { group, kind, spinners, angle: 0, turret, gun, flash, cars };
+  const extent = kind === 'Plane' ? Math.max(spec.wing.span, spec.length) : kind === 'Helicopter' ? Math.max(spec.rotor.diameter, spec.length) : kind === 'Boat' ? spec.hull.length : kind === 'Tank' ? spec.length * 1.5 : kind === 'Train' ? spec.length * 2.5 : 3;
   camDist = Math.min(120, Math.max(26, (extent / MPS) * 1.4));
 }
 function poseOther(fr, dt = 1 / 30) {
   if (!otherVis) return;
   otherVis.group.position.set(...fr.p);
   otherVis.group.quaternion.set(fr.q[1], fr.q[2], fr.q[3], fr.q[0]);
+  if (otherVis.cars && fr.cars) otherVis.cars.forEach((g, i) => { const c = fr.cars[i]; if (!c) return; g.position.set(...c[0]); g.quaternion.set(c[1][1], c[1][2], c[1][3], c[1][0]); });
+  if (otherVis.turret && fr.tel) {
+    otherVis.turret.rotation.y = -((fr.tel.turretYaw || 0) * Math.PI) / 180;
+    otherVis.gun.rotation.x = ((fr.tel.gunPitch || 0) * Math.PI) / 180;
+    if (fr.tel.fired) otherVis.flashUntil = 0.12;
+    otherVis.flashUntil = (otherVis.flashUntil || 0) - dt;
+    otherVis.flash.visible = otherVis.flashUntil > 0;
+  }
   for (const sp of otherVis.spinners) {
     const speed = sp.rotor ? (fr.tel.rotorSpeed ?? 1) : 0.3 + 0.7 * (fr.tel.throttle ?? 0);
     sp.mesh.rotation[sp.axis] += sp.rate * speed * 2 * Math.PI * dt;
@@ -267,6 +335,8 @@ function showHudOther(fr, name) {
     Boat: `throttle ${n((t.throttle || 0) * 100)}% · planing ${n((t.planing || 0) * 100)}% · draft ${n(t.draft, 2)} m · trim ${n(t.trim, 1)}° · heel ${n(t.heel, 1)}°`,
     Plane: `alt ${n(t.altitude)} m · v/s ${n(t.vs, 1)} · α ${n(t.alpha, 1)}° · bank ${n(t.bank)}° · thr ${n((t.throttle || 0) * 100)}%${t.stall ? ' · <b style="color:#ff7a6b">STALL</b>' : ''}`,
     Helicopter: `height ${n(t.altitude, 1)} m · v/s ${n(t.vs, 1)} · pitch ${n(t.pitch)}° · bank ${n(t.bank)}° · rotor ${n((t.rotorSpeed || 0) * 100)}% · power ${n((t.powerShare || 0) * 100)}%`,
+    Tank: `tracks L ${n(t.trackLeft)} / R ${n(t.trackRight)} km/h · yaw ${n(t.yawRate)}°/s · pitch ${n(t.pitch, 1)}° · turret ${n(t.turretYaw)}° · gun ${n(t.gunPitch, 1)}° · ${t.reload > 0 ? `reloading ${n(t.reload, 1)} s` : '<b style="color:#7be0a5">READY</b>'}${t.stuck ? ' · <b style="color:#ffc43d">STUCK ASSIST</b>' : ''}`,
+    Train: `power ${n((t.power || 0) * 100)}% · brake ${n((t.brake || 0) * 100)}% · grade ${n(t.grade, 1)}% · ${t.radiusM && t.radiusM < 1e5 ? `curve ${n(t.radiusM)} m` : 'straight'}${t.wheelslip ? ' · <b style="color:#ffc43d">WHEELSLIP</b>' : ''}${t.derailed ? ' · <b style="color:#ff7a6b">DERAILED</b>' : ''}`,
   };
   $('hud').innerHTML = `<div class="big">${Math.round(Math.abs(speed || 0))} km/h</div>${lines[kind] || ''}`;
 }
@@ -299,6 +369,8 @@ addEventListener('pointermove', (e) => { if (!dragging) return; orbitYaw -= (e.c
 let camDist = 26;
 renderer.domElement.addEventListener('wheel', (e) => { camDist = Math.min(120, Math.max(8, camDist * (1 + e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
 const camPos = new THREE.Vector3(0, 10, 30);
+// World heading the camera looks along (radians, 0 = -Z, + = toward -X), for aiming a turret.
+function orbitYawWorld() { const d = new THREE.Vector3(); camera.getWorldDirection(d); return Math.atan2(-d.x, -d.z); }
 function updateCamera(fr, snap) {
   const p = new THREE.Vector3(...fr.p);
   const q = new THREE.Quaternion(fr.q[1], fr.q[2], fr.q[3], fr.q[0]);
@@ -335,8 +407,9 @@ async function ensureResults(spec) {
   results[spec] = [];
   $('caption').textContent = `Running ${spec}…`;
   const kind = kindOf(spec);
-  const list = kind === 'Car' ? TESTS : AST.TESTS.filter((t) => t.type === kind);
-  for (const t of list) { results[spec].push(kind === 'Car' ? runOne(t, spec, SPECS) : AST.runOne(t, spec, SPECS)); renderList(); await new Promise((r) => setTimeout(r, 0)); }
+  const suite = suiteFor(kind);
+  const list = suite ? suite.TESTS.filter((t) => t.type === kind) : TESTS;
+  for (const t of list) { results[spec].push(suite ? suite.runOne(t, spec, SPECS) : runOne(t, spec, SPECS)); renderList(); await new Promise((r) => setTimeout(r, 0)); }
 }
 function renderSummary() {
   const chips = [];
@@ -369,7 +442,7 @@ function selectTest(r) {
   if (!r) return;
   selTest = r; renderList();
   buildWorld(r.world); clearSkids();
-  if (kindOf(r.spec) === 'Car') { if (otherVis) { scene.remove(otherVis.group); otherVis = null; } buildCarVisual(r.spec); } else buildOtherVisual(r.spec);
+  if (kindOf(r.spec) === 'Car') { removeOtherVisual(); buildCarVisual(r.spec); } else buildOtherVisual(r.spec);
   frames = r.frames; fi = 0; playing = true; acc = 0;
   $('scrub').max = Math.max(0, frames.length - 1);
   $('caption').innerHTML = `<b>${r.spec}</b> · ${r.title} — <span style="color:${r.pass ? '#7be0a5' : '#ff8f80'}">${r.pass ? 'PASS' : 'FAIL'}</span> · ${r.measured}`;
@@ -401,7 +474,18 @@ const KEYS = {
   Boat: 'W/S throttle · A/D helm · R reset · C camera',
   Plane: 'Shift/Ctrl throttle (Ctrl brakes) · W/S pitch · A/D roll · Q/E rudder · G gear · F flaps · R reset · C camera',
   Helicopter: 'Shift/Ctrl up/down · W/S pitch (forward) · A/D yaw · Q/E roll · R reset · C camera',
+  Tank: 'W/S throttle · A/D steer (pivot when stopped) · drag to aim the turret · Space fire · R reset · C camera',
+  Train: 'W power (hold to notch up) · S brake, S stopped reverses · Shift emergency brake · R re-rail · C camera',
 };
+// A loop for driving trains: two 400 m curves joined by 1 km straights, a hill on one of them.
+function railLoop() {
+  const R = 400 / MPS, L = 1000 / MPS, nodes = [];
+  for (let d = 0; d < L; d += 120) nodes.push({ p: [R, 0, -d] });
+  for (let i = 0; i <= 12; i++) { const a = (i / 12) * Math.PI; nodes.push({ p: [R * Math.cos(a), 0, -L - R * Math.sin(a)] }); }
+  for (let d = L - 120; d > 60; d -= 120) { const x = d / L; nodes.push({ p: [-R, Math.sin(x * Math.PI) * 40, -d] }); }
+  for (let i = 0; i < 12; i++) { const a = Math.PI + (i / 12) * Math.PI; nodes.push({ p: [R * Math.cos(a), 0, -R * Math.sin(a)] }); }
+  return new HV.TrainTrack(nodes, { loop: true, designSpeedKmh: 120 });
+}
 let liveGear = true, liveFlaps = false;
 function startDrive() {
   const kind = kindOf(selSpec);
@@ -409,13 +493,33 @@ function startDrive() {
   if (kind === 'Car') {
     const w = trackWorld();
     live = new Car(w, SPECS[selSpec].raw, { position: [0, 0, 40] });
-    if (otherVis) { scene.remove(otherVis.group); otherVis = null; }
+    removeOtherVisual();
     buildWorld(w.boxes); buildCarVisual(selSpec); clearSkids();
     $('caption').innerHTML = `<b>Driving ${selSpec}</b> · kerbs 0.3/0.6/1.0 ahead-left, ramp ahead-right, 5°/10°/15° slopes far left, poles, wall, ridge. H toggles the collision hull.`;
     return;
   }
   const spec = SPECS[selSpec].spec;
   let w;
+  if (kind === 'Tank') {
+    w = HVT.flatWorld(40000);
+    w.box('Step', [0, 0.45 / MPS, -120], [60, 0.9 / MPS, 30], M.I(), { color: 0x4c566a });
+    const a = Math.atan(0.5), Lr = 140; w.box('Slope50', [90, (Math.sin(a) * Lr) / 2 - 2 * Math.cos(a), -60 - (Math.cos(a) * Lr) / 2], [50, 4, Lr], M.rotX(a), { color: 0x81a1c1 });
+    w.box('Wall', [-90, 1.25 / MPS, -100], [60, 2.5 / MPS, 4], M.I(), { color: 0x88c0d0 });
+    for (let i = 0; i < 8; i++) w.box(`Target${i}`, [-300 + i * 85, 15, -700 - i * 40], [16, 30, 16], M.I(), { color: 0xebcb8b });
+    live = new HV.Tank(w, spec);
+    buildWorld({ boxes: w.boxes }); buildOtherVisual(selSpec); clearSkids();
+    $('caption').innerHTML = `<b>Driving ${selSpec}</b> · 0.9 m step ahead, 50% slope right, 2.5 m wall left, targets in the distance`;
+    return;
+  }
+  if (kind === 'Train') {
+    w = HVT.flatWorld(40000);
+    const tr = railLoop();
+    w.trackLine = tr.samples.filter((_, i) => i % 2 === 0).map((x) => x.pos); w.trackLine.push(w.trackLine[0]);
+    live = new HV.Train(w, spec, tr, { s: (spec.length + spec.cars.count * (spec.cars.length + 1)) / MPS + 20 });
+    buildWorld({ boxes: w.boxes, track: w.trackLine }); buildOtherVisual(selSpec); clearSkids();
+    $('caption').innerHTML = `<b>Driving ${selSpec}</b> · a 4.5 km loop, 400 m curves canted for 120 km/h (derails near ${Math.round(Math.sqrt((spec.derail.lateralG * 9.81 + 9.81 * Math.tan(Math.min(Math.atan(((120 / 3.6) ** 2) / (9.81 * 400)), (6 * Math.PI) / 180))) * 400) * 3.6)} km/h), a hill on the far straight`;
+    return;
+  }
   if (kind === 'Boat') { w = AST.seaWorld(0.8); live = new AS.Boat(w, spec); }
   else { w = AST.flatWorld(40000); const ang = (12 * Math.PI) / 180; w.box('Ramp', [0, Math.sin(ang) * 10 - 0.6, -160], [12, 1.2, 20], M.rotX(ang), { color: 0xd08770 }); for (let i = 0; i < 8; i++) w.box(`Tower${i}`, [-150 + i * 45, 30, -600 - i * 60], [20, 60, 20], M.I(), { color: 0x81a1c1 }); }
   if (kind === 'Motorcycle') live = new AS.Bike(w, spec);
@@ -453,11 +557,13 @@ function loop(now) {
     const input = kind === 'Motorcycle' ? { throttle: ws, steer: ad, handbrake: !!(keys.ShiftLeft || keys.ShiftRight), lean: qe }
       : kind === 'Boat' ? { throttle: ws, steer: ad }
       : kind === 'Plane' ? { pitch: ws, roll: ad, yaw: qe, power, brake: power < 0, gearDown: liveGear, flaps: liveFlaps }
+      : kind === 'Tank' ? { throttle: ws, steer: ad, aim: [-Math.sin(orbitYawWorld()), 0, -Math.cos(orbitYawWorld())], fire: !!keys.Space }
+      : kind === 'Train' ? { throttle: ws, handbrake: !!(keys.ShiftLeft || keys.ShiftRight) }
       : { pitch: ws, yaw: ad, roll: qe, power };
     const n = Math.max(1, Math.round(dt * 60));
     let tel;
     for (let i = 0; i < n; i++) tel = live.frame(1 / 60, input);
-    const fr = { t: live.clock, p: live.body.pos, q: live.body.q, tel };
+    const fr = { t: live.clock, p: live.body.pos, q: live.body.q, tel, cars: live.cars ? live.cars.map((c) => [c.rig.body.pos, c.rig.body.q]) : null };
     poseOther(fr, dt); updateCamera(fr); showHudOther(fr, selSpec);
   } else if (mode === 'drive' && live) {
     const input = { throttle: (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), steer: (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), handbrake: !!(keys.ShiftLeft || keys.ShiftRight) };
@@ -471,7 +577,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-$('findings').innerHTML = `<b>Motorcycles, boats, planes, helicopters</b> run their own suites (tests-airsea.js): launch, top speed and braking against the report, balanced lean, wheelies, floating at the spec draft, planing, turns, waves, takeoff, climb, stall, coordinated turns, hover and ground effect. <b>How to read this.</b> Every row prints its own threshold: cars use launch ±15%, top speed ±4%, braking ±15% and cornering 70–120% of the report's lateral g; air and sea tests use wider margins for the report match (for example bike launch ±20%, boat top speed ±10%, plane climb ±30%, helicopter top speed ±15%) and the skill's stated behaviour for the rest. Click any row to replay it. Tyres turn amber near the grip limit and red while sliding; skid marks show slides. Mouse drag orbits the camera, the scroll wheel zooms, C changes the view, H shows the collision hull; the Drive tab lists the keys for the selected type.`;
+$('findings').innerHTML = `<b>Motorcycles, boats, planes, helicopters</b> run their own suites (tests-airsea.js): launch, top speed and braking against the report, balanced lean, wheelies, floating at the spec draft, planing, turns, waves, takeoff, climb, stall, coordinated turns, hover and ground effect. <b>Tanks and trains</b> run tests-heavy.js: tank launch, top speed, braking, pivot and turn rates, steps, slopes, walls, turret traverse and stabilisation, gun limits, recoil; train launch, balancing speed, service and emergency stops, curves, hills, derailment, cant and re-railing. <b>How to read this.</b> Every row prints its own threshold: cars use launch ±15%, top speed ±4%, braking ±15% and cornering 70–120% of the report's lateral g; air and sea tests use wider margins for the report match (for example bike launch ±20%, boat top speed ±10%, plane climb ±30%, helicopter top speed ±15%) and the skill's stated behaviour for the rest. Click any row to replay it. Tyres turn amber near the grip limit and red while sliding; skid marks show slides. Mouse drag orbits the camera, the scroll wheel zooms, C changes the view, H shows the collision hull; the Drive tab lists the keys for the selected type.`;
 
 resize();
 ensureResults(selSpec).then(() => { renderList(); selectTest(results[selSpec].find((r) => !r.pass) || results[selSpec][0]); });

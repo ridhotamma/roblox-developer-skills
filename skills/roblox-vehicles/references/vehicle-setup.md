@@ -40,7 +40,7 @@ SportsCarBlue (Model)              attribute Vehicle = "SportsCar", tag "Vehicle
 - Optional attributes on the model: `EngineSound` and `TireSound` (`rbxassetid://...` loops), `KeepCollision = true` to keep the body's own collision instead of the generated hull (must then pass the stuck test course in anti-stuck.md).
 - Body collision is replaced by a hidden rounded hull (`HullBody`, `HullEnd` parts) unless `KeepCollision` is set; body parts end up `CanCollide = false`.
 
-### Motorcycles, boats, planes, helicopters
+### Motorcycles, boats, planes, helicopters, tanks, trains
 
 ```
 SportBikeRed     Vehicle = "SportBike"    WheelF, WheelR, DriverSeat
@@ -48,6 +48,9 @@ Speedboat        Vehicle = "Speedboat"    DriverSeat, optional Propeller (the lo
 LightPlane       Vehicle = "LightPlane"   WheelF + WheelRL/WheelRR (tail-dragger: WheelFL/WheelFR + WheelR),
                                           optional Propeller, AileronL, AileronR, Elevator, Rudder, FlapL, FlapR
 LightHeli        Vehicle = "LightHeli"    SkidL, SkidR (or gear wheels), MainRotor, TailRotor, DriverSeat
+Abrams           Vehicle = "MainBattleTank"  TrackL, TrackR, Turret, Gun (Muzzle attachment), DriverSeat,
+                                          optional WheelL1.. / WheelR1.. road wheels
+Intercity        Vehicle = "PassengerTrain"  the locomotive's parts + DriverSeat, then Car1, Car2 ... (Models)
 ```
 
 - **The pivot faces forward.** Cars work out forward from their wheels; every other type uses the model's pivot: LookVector toward the nose or bow, UpVector up. Set it with Studio's pivot tool (or `WorldPivot` / the PrimaryPart) before tagging.
@@ -56,6 +59,8 @@ LightHeli        Vehicle = "LightHeli"    SkidL, SkidR (or gear wheels), MainRot
 - **Skids** (`Skid*`, long thin parts) get two contacts each, at their ends; they stay part of the body.
 - **Visual parts** named `MainRotor`, `TailRotor`, `Rotor*`, `Propeller*` spin about their thinnest dimension; `Aileron*`, `Elevator*`, `Rudder*`, `Flap*` hinge about their longest. Put the part's pivot (`PivotOffset`) on the hub or hinge line. Attributes: `Axis` = `"X"`/`"Y"`/`"Z"` to override the axis, `Invert = true` to flip a surface, `MaxDeflection` (degrees). They are excluded from the collision hull, so a helicopter's rotor disk never snags trees.
 - **Boats** need water: Workspace attribute `SeaLevel` (studs, optional `WaveHeight` m, `WaveLength` m, `WaveDirection` degrees), Terrain water, or `Water.SetHeightFunction` (boat-physics.md §8). Spawn the boat with its keel at the surface.
+- **Tanks**: `TrackL` / `TrackR` stay part of the body; their bottoms set the ground line and their centres the tread and where the track contacts go (`tracks.contacts` per side plus an idler and a sprocket at the hull ends). `Turret` turns about the hull's up axis at its pivot, `Gun` elevates about the turret's right axis at its pivot (put the pivot on the trunnion); both become visuals. A `Muzzle` attachment inside the gun marks where shots leave. A `Texture` inside a track scrolls with that track's speed. tank-physics.md §12.
+- **Trains**: the lead vehicle is every part not inside a `Car*` model; each `Car1`, `Car2`... child model becomes its own assembly. Build them in a straight line behind the lead along its LookVector; the gaps you leave are kept. Wheels sit on the rail: each vehicle's lowest point is its rail height. Optional per car: attributes `Mass` (kg) and `BogieSpacing` (m). Lay a `TrainTrack` (train-physics.md §9) and place the train roughly on it; the builder snaps every car onto the nearest track (or the one named by the train's `Track` attribute). Seats in any car work for passengers.
 - Every vehicle part gets `EnableFluidForces = false`, so Roblox's own aerodynamics (Workspace.FluidForces) doesn't double up with the sims.
 
 ## 2. Reusing one chassis across many meshes
@@ -85,6 +90,8 @@ LightHeli        Vehicle = "LightHeli"    SkidL, SkidR (or gear wheels), MainRot
 - When someone sits in the driver seat the server calls `root:SetNetworkOwner(player)`; that player's client runs `VehicleSim` every physics step, so driving has no input lag.
 - When the seat empties, ownership returns to the server, which simulates the parked car with no pedal (the hill hold brakes all four wheels) and anchors it after 2 s settled (zero cost while parked). It wakes when someone sits again.
 - Other players see the car through normal physics replication; their clients place, steer and spin wheels locally (`VehicleVisuals`) and pitch the engine from estimated rpm.
+- Trains are several assemblies (the lead and each car): the driver gets network ownership of all of them, the server simulates them all while parked, and anchors them all once settled.
+- Tank turrets: the driver's client turns the turret from its sim; it reports the aim (`TurretYaw` / `GunPitch`, about 8 times a second) and everyone else's client eases the turret toward it at a little over the traverse rate.
 - Collisions between two player-owned cars are resolved by Roblox's physics ownership; fast car-to-car contact can look rough at high ping. Racing games often reduce damage from collisions or use collision groups so cars ghost through each other during races.
 - Server-side gameplay (laps, checkpoints, finish lines) should use server checks of the car's position (region queries on a timer), not client-reported lap times.
 
@@ -106,6 +113,8 @@ The other types (all bound by `VehicleController` at `ContextActionPriority.High
 | Boat | throttle / reverse | helm | — |
 | Plane | pitch (W = nose down) | roll | Q, E / L1, R1: rudder · LeftShift / R2 / "Throttle +" (hold at full = afterburner) · LeftCtrl / L2 / "Throttle −" (and wheel brakes) · G / D-pad down / "Gear" · F / D-pad up: flaps |
 | Helicopter | pitch (fly forward / back) | yaw (turn) | Q, E / L1, R1: roll (strafe) · LeftShift / R2 / "Up" · LeftCtrl / L2 / "Down" |
+| Tank | throttle / reverse | steer (pivots on the spot when stopped) | the camera aims the turret (right-drag, shift-lock, right stick, drag on touch) · left click / R1 / "Fire" |
+| Train | W: power (hold to notch up) · S: brake, and reverse once stopped | — | LeftShift / X / "E-Brake": emergency brake · H / L1 / "Horn" · R / Y: re-rail after a derailment |
 
 All types: R / Y / "Reset". Space (jump) leaves the seat, so nothing is bound to it. In aircraft R2/L2 are sunk at High priority; otherwise Roblox's vehicle controller would add them to the seat's ThrottleFloat (the pitch stick). Set `AIM_FLIGHT = true` in the controller for point-to-fly: with the stick centred, the plane flies toward where the camera looks (`PlaneSim.AimInput`), which suits mouse and touch players. Keyboard helicopter pilots usually prefer A/D as yaw (GTA's layout); swap `Yaw`/`Roll` in the controller's helicopter input for a stick-style layout.
 
@@ -120,7 +129,8 @@ All types: R / Y / "Reset". Space (jump) leaves the seat, so nothing is bound to
 ## 8. HUD
 
 - Speed (km/h or mph setting), gear (R, 1..n), rpm bar with a red zone; the kit has a minimal version.
-- The kit's HUD per type: bikes add lean and a WHEELIE / STOPPIE banner; boats show knots, throttle and ON THE PLANE / AGROUND; planes show airspeed, throttle (AB with afterburner), altitude, vertical speed, GEAR and FLAPS, and a STALL banner; helicopters show airspeed, rotor %, power used, height above ground, vertical speed and ROTOR while it spools.
+- The kit's HUD per type: bikes add lean and a WHEELIE / STOPPIE banner; boats show knots, throttle and ON THE PLANE / AGROUND; planes show airspeed, throttle (AB with afterburner), altitude, vertical speed, GEAR and FLAPS, and a STALL banner; helicopters show airspeed, rotor %, power used, height above ground, vertical speed and ROTOR while it spools; tanks show READY or the reload countdown with a reload bar, turret angle and gun elevation; trains show the power or brake lever (P / B, R in reverse), grade, the track's speed limit and DERAILED / OVERSPEED / WHEELSLIP.
+- A tank needs a crosshair: the camera's centre is where the turret is heading, not where it points yet. Draw a second marker where the gun points (`GunDirection` telemetry projected to the screen) so players see the turret catching up.
 - Racing: position, lap, lap time, best lap, minimap. Keep it in the bottom corners on phones, clear of the thumbstick and buttons.
 
 ## 9. Sound
@@ -131,11 +141,13 @@ All types: R / Y / "Reset". Space (jump) leaves the seat, so nothing is bound to
 - **Impacts**: a thud scaled by the speed change on collisions.
 - **Wind**: rising with speed.
 - Turbo whistle, exhaust pops on lift-off for sports cars.
-- **Boats, planes, helicopters**: the engine loop follows the `EngineThrottle` attribute (set by the server from the driver's `VehicleControl` messages); helicopter pitch and volume follow rotor spool. Add rotor blade slap at speed and wind noise with airspeed.
+- **Boats, planes, helicopters, tanks, trains**: the engine loop follows the `EngineThrottle` attribute (set by the server from the driver's `VehicleControl` messages); helicopter pitch and volume follow rotor spool. Add rotor blade slap at speed and wind noise with airspeed.
+- **Train horn**: model attribute `HornSound` (a looped sample); it plays while the driver holds the horn.
+- **Tank gun**: play a cannon sample from `VehicleService.Fired` on the server (or on clients when `LastShot` changes); add track squeal and clatter scaled by track speed.
 
 ## 10. Effects
 
-Tire smoke, skid marks and tire squeal are built into `VehicleVisuals` (drifting.md §6), as are spinning rotors and propellers, hinged control surfaces, hidden retracted gear, boat wake and bow spray (from the water height at the stern and bow), and rotor downwash dust under a low helicopter. The rest below are ideas to add.
+Tire smoke, skid marks and tire squeal are built into `VehicleVisuals` (drifting.md §6), as are spinning rotors and propellers, hinged control surfaces, hidden retracted gear, boat wake and bow spray (from the water height at the stern and bow), rotor downwash dust under a low helicopter, tank turrets and guns, gun recoil with a muzzle flash, light and smoke at the `Muzzle` attachment, scrolling track textures and rolling road wheels. The rest below are ideas to add.
 
 
 - **Exhaust**: small smoke puffs with rate from throttle; flame pops on lift-off at high rpm.
@@ -146,7 +158,7 @@ Expose slip, throttle and brake to clients cheaply: the driver's client knows th
 
 ## 11. Anti-cheat
 
-The driver's client owns the vehicle's physics, so it can move it anywhere. The kit's server loop flags speeds well above the spec's top speed (`Sims.SpeedLimitKmh`: the car or bike top speed, the boat's thrust-limited top, the plane's top with a dive margin, the helicopter's blade-stall limit) and calls `roblox-security`'s `Sanctions.Flag` if installed. The `VehicleControl` remote only accepts messages from the vehicle's current driver, type-checks and clamps them, and is rate-limited. Also:
+The driver's client owns the vehicle's physics, so it can move it anywhere. The kit's server loop flags speeds well above the spec's top speed (`Sims.SpeedLimitKmh`: the car or bike top speed, the boat's thrust-limited top, the plane's top with a dive margin, the helicopter's blade-stall limit, the tank's governor with a downhill margin, the train's speed limit) and calls `roblox-security`'s `Sanctions.Flag` if installed. The `VehicleControl` remote only accepts messages from the vehicle's current driver, type-checks and clamps them, and is rate-limited. Tank shots are checked on the server before `VehicleService.Fired` runs: the driver's, no faster than the reload, from within the tank, and within 12° of where its reported turret and gun point. Damage belongs in your combat code (the `roblox-combat` skill's server-side hit checks), never in the client's message. Also:
 - validate race progress on the server (checkpoints in order, minimum time between them)
 - check teleport-like jumps of the car (distance between server checks)
 - never let the client grant rewards for races or drifts; the server measures them
@@ -173,3 +185,7 @@ The driver's client owns the vehicle's physics, so it can move it anywhere. The 
 | Wheels in the wrong orientation | The visual keeps the wheel's original orientation relative to the chassis; fix the mesh's rest orientation in the model. |
 | Jittery for other players | High ping; normal for physics replication. Keep body collision simple. |
 | Different feel between two bodies on one spec | Shouldn't happen; check both use the same spec and neither has extra constraints or unanchored loose parts. |
+| Train falls through the ground or sits off the rails | Output says `no TrainTrack`? Tag the track folder `TrainTrack`, name nodes 1, 2, 3..., and place the train near it (or set its `Track` attribute). Then press Reset to re-rail. |
+| Train cars stretch apart or overlap in curves | Build the cars in a straight line along the lead's LookVector, with a small gap; keep curves wider than the cars (train-physics.md §11). |
+| Tank turret or gun doesn't move | Named `Turret` / `Gun` (BasePart or Model)? Their pivots on the turret ring and the trunnion? The `TurretYaw` attribute changes when the driver aims? |
+| Tank sits too high or low | `TrackL` / `TrackR` bottoms set the ground line; their bounding boxes must not include fenders or skirts (move those to the hull). |

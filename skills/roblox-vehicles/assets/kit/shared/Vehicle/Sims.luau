@@ -2,6 +2,7 @@
 -- Picks the physics sim for a built vehicle model from its spec's Type:
 --   Car (default) -> VehicleSim     Motorcycle -> BikeSim     Boat -> BoatSim
 --   Plane -> PlaneSim               Helicopter -> HeliSim
+--   Tank -> TankSim                 Train -> TrainSim (with TrainTrack)
 -- Every sim has Step(dt, input) -> telemetry, Recover() and Destroy(). The controller builds the
 -- input each type expects (see the Input types in each module).
 
@@ -10,6 +11,8 @@ local BoatSim = require(script.Parent.BoatSim)
 local HeliSim = require(script.Parent.HeliSim)
 local PlaneSim = require(script.Parent.PlaneSim)
 local SimUtil = require(script.Parent.SimUtil)
+local TankSim = require(script.Parent.TankSim)
+local TrainSim = require(script.Parent.TrainSim)
 local VehicleMath = require(script.Parent.VehicleMath)
 local VehicleSim = require(script.Parent.VehicleSim)
 local VehicleSpecs = require(script.Parent.VehicleSpecs)
@@ -45,6 +48,10 @@ function Sims.new(model: Model): (Sim?, string?)
 		sim = PlaneSim.new(model, spec)
 	elseif kind == "Helicopter" then
 		sim = HeliSim.new(model, spec)
+	elseif kind == "Tank" then
+		sim = TankSim.new(model, spec)
+	elseif kind == "Train" then
+		sim = TrainSim.new(model, spec)
 	else
 		sim = VehicleSim.new(model)
 	end
@@ -94,6 +101,10 @@ function Sims.SpeedLimitKmh(spec: any): number
 		return best * 3.6 * 1.25 -- dives
 	elseif kind == "Helicopter" then
 		return spec.Rotor.TipSpeed * (spec.Rotor.BladeStallMu + 0.1) * 3.6 * 1.2
+	elseif kind == "Tank" then
+		return spec.Engine.MaxSpeedKmh * 1.4 -- downhill
+	elseif kind == "Train" then
+		return if spec.Engine.SpeedLimitKmh > 0 then spec.Engine.SpeedLimitKmh * 1.2 else 300
 	end
 	return 300
 end

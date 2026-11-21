@@ -123,6 +123,12 @@ function SimUtil.Rig(model: Model, spec: any): Rig?
 	if not root or model:GetAttribute("ChassisBuilt") ~= true then
 		return nil
 	end
+	return SimUtil.RootRig(model, root, spec)
+end
+
+-- The rig of one root part with a SimForce and SimTorque (a train car is its own assembly).
+-- spec.Mass (kg) is the mass that assembly stands for.
+function SimUtil.RootRig(model: Model, root: BasePart, spec: any): Rig?
 	local attachment = root:FindFirstChild("SimAttachment")
 	local force = attachment and attachment:FindFirstChild("SimForce")
 	local torque = attachment and attachment:FindFirstChild("SimTorque")

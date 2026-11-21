@@ -1,0 +1,64 @@
+{
+  "name": "MainBattleTank",
+  "type": "Tank",
+  "title": "Abrams-class main battle tank, 1,120 kW gas turbine, 120 mm gun",
+  "mass": 62000,
+  "comHeight": 1.1,
+  "length": 7.9,
+  "width": 3.7,
+  "height": 2.4,
+  "tracks": {
+    "contactLength": 4.6,
+    "width": 0.635,
+    "tread": 2.95,
+    "contacts": 6,
+    "wheelRadius": 0.4,
+    "grip": 0.8,
+    "lateralGrip": 0.6,
+    "rollingResistance": 0.035,
+    "approach": 0.45
+  },
+  "engine": {
+    "power": 1120,
+    "efficiency": 0.5,
+    "maxTractiveG": 0.6,
+    "maxSpeedKmh": 67,
+    "reverseSpeedKmh": 35,
+    "spool": 2
+  },
+  "steering": {
+    "pivotRate": 25,
+    "turnRate": 30,
+    "maxLateralG": 0.45
+  },
+  "brakes": {
+    "decelG": 0.6
+  },
+  "suspension": {
+    "frequency": 1.4,
+    "dampingRatio": 0.5,
+    "maxLength": 1.6,
+    "rideHeight": 0.5
+  },
+  "turret": {
+    "traverseRate": 40,
+    "elevationRate": 30,
+    "minElevation": -9,
+    "maxElevation": 20,
+    "height": 2
+  },
+  "gun": {
+    "reload": 6,
+    "recoil": 20,
+    "muzzleVelocity": 1650,
+    "range": 3000,
+    "defaultShell": true
+  },
+  "assists": {
+    "stability": 0.6
+  },
+  "aero": {
+    "cd": 0.9,
+    "area": 7
+  }
+}

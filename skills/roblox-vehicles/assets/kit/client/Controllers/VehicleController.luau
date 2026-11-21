@@ -6,8 +6,8 @@
 --   * runs the vehicle's sim every physics step (the server gave this client network ownership)
 --   * speed-dependent field of view and a small HUD per type
 --   * Reset (R / gamepad Y / touch) puts the vehicle back on its wheels or keel, with a cooldown
---   * tells the server what others should see (engine throttle, landing gear, flaps) and bike
---     crashes (the rider is thrown off), through the VehicleControl remote
+--   * tells the server what others should see (engine throttle, landing gear, flaps, turret aim,
+--     horn), bike crashes (the rider is thrown off) and tank shots, through the VehicleControl remote
 --
 -- Controls (see references/vehicle-setup.md §6):
 --   Car         W/S throttle-brake, A/D steer, LeftShift / X handbrake ("Drift")
@@ -18,6 +18,10 @@
 --               G / D-pad down gear, F / D-pad up flaps
 --   Helicopter  W/S pitch (fly forward / back), A/D yaw (turn), Q/E / L1-R1 roll (strafe),
 --               LeftShift / R2 up, LeftCtrl / L2 down
+--   Tank        W/S throttle-reverse, A/D steer (pivots when stopped), the camera aims the turret,
+--               left click / R1 / touch "Fire" fires
+--   Train       W power (hold to notch up), S brake (S when stopped reverses), LeftShift / X
+--               emergency brake, H / L1 horn, R / Y puts a derailed train back on the rails
 -- The drift score (cars) is cosmetic: validate on the server before rewarding anything.
 
 local ContextActionService = game:GetService("ContextActionService")
@@ -33,7 +37,7 @@ local DRIFT_BANK_DELAY = 1.2 -- seconds after a drift ends before its points are
 local AIM_FLIGHT = false -- planes: with the stick centred, fly toward where the camera looks
 local CONTROL_HZ = 8
 local HIGH = Enum.ContextActionPriority.High.Value
-local FOV_BOOST = { Car = { 14, 220 }, Motorcycle = { 16, 220 }, Boat = { 10, 90 }, Plane = { 10, 700 }, Helicopter = { 8, 250 } }
+local FOV_BOOST = { Car = { 14, 220 }, Motorcycle = { 16, 220 }, Boat = { 10, 90 }, Plane = { 10, 700 }, Helicopter = { 8, 250 }, Tank = { 6, 70 }, Train = { 8, 200 } }
 
 local player = Players.LocalPlayer
 
@@ -63,6 +67,8 @@ local held = {
 	rollRight = false,
 	powerUp = false,
 	powerDown = false,
+	fire = false,
+	horn = false,
 }
 local toggles = { gearDown = true, flaps = false }
 
@@ -130,6 +136,7 @@ local function stop()
 	s.connection:Disconnect()
 	s.sim:Destroy()
 	s.hud.gui:Destroy()
+	s.model:SetAttribute("LocalAim", nil)
 	for _, name in s.actions do
 		ContextActionService:UnbindAction(name)
 	end
@@ -166,7 +173,7 @@ local function start(seat: VehicleSeat, model: Model)
 	local hud = buildHud()
 	local actions: { string } = {}
 
-	local function hold(name: string, key: string, title: string?, position: UDim2?, ...: Enum.KeyCode)
+	local function hold(name: string, key: string, title: string?, position: UDim2?, ...: Enum.KeyCode | Enum.UserInputType)
 		ContextActionService:BindActionAtPriority(name, function(_, state)
 			(held :: any)[key] = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
 			return Enum.ContextActionResult.Sink
@@ -231,6 +238,11 @@ local function start(seat: VehicleSeat, model: Model)
 			hold("VehicleRollLeft", "rollLeft", nil, nil, Enum.KeyCode.Q, Enum.KeyCode.ButtonL1)
 			hold("VehicleRollRight", "rollRight", nil, nil, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
 		end
+	elseif kind == "Tank" then
+		hold("VehicleFire", "fire", "Fire", UDim2.new(1, -150, 1, -150), Enum.UserInputType.MouseButton1, Enum.KeyCode.ButtonR1)
+	elseif kind == "Train" then
+		hold("VehicleHandbrake", "handbrake", "E-Brake", UDim2.new(1, -150, 1, -150), Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonX)
+		hold("VehicleHorn", "horn", "Horn", UDim2.new(1, -150, 1, -230), Enum.KeyCode.H, Enum.KeyCode.ButtonL1)
 	end
 
 	local remote = ReplicatedStorage:FindFirstChild("VehicleControl") :: RemoteEvent?
@@ -239,6 +251,7 @@ local function start(seat: VehicleSeat, model: Model)
 	local bailed = false
 	local driftPoints, bankedPoints, sinceDrift = 0, 0, 0
 	local fov = FOV_BOOST[kind] or FOV_BOOST.Car
+	local muzzle = model:FindFirstChild("Muzzle", true)
 
 	local connection = RunService.PreSimulation:Connect(function(dt)
 		local throttle, steer = seat.ThrottleFloat, seat.SteerFloat
@@ -275,6 +288,17 @@ local function start(seat: VehicleSeat, model: Model)
 				Power = axis(held.powerUp, held.powerDown),
 				Engine = true,
 			})
+		elseif kind == "Tank" then
+			t = sim:Step(dt, {
+				Throttle = throttle,
+				Steer = steer,
+				Aim = if camera then camera.CFrame.LookVector else nil,
+				Fire = held.fire,
+			})
+			-- This client's turret, straight from the sim (others see the replicated TurretYaw).
+			model:SetAttribute("LocalAim", Vector2.new(t.TurretYaw, t.GunPitch))
+		elseif kind == "Train" then
+			t = sim:Step(dt, { Throttle = throttle, Handbrake = held.handbrake })
 		else
 			t = sim:Step(dt, { Throttle = throttle, Steer = steer, Handbrake = held.handbrake })
 		end
@@ -326,6 +350,22 @@ local function start(seat: VehicleSeat, model: Model)
 			local altitude = if t.Altitude then `{math.floor(t.Altitude)} m` else "—"
 			hud.info.Text = `ALT {altitude}  V/S {string.format("%+.1f", t.VerticalSpeed)}`
 			banner = if t.RotorSpeed < 0.95 then `ROTOR {math.floor(t.RotorSpeed * 100)}%` else ""
+		elseif kind == "Tank" then
+			hud.badge.Text = if t.Reload > 0 then string.format("%.1f", t.Reload) else "READY"
+			fill = 1 - t.Reload / math.max(spec.Gun.Reload, 0.1)
+			red = t.Reload > 0
+			hud.info.Text = `TURRET {math.floor(t.TurretYaw + 0.5)}°  GUN {string.format("%+d", math.floor(t.GunPitch + 0.5))}°`
+			banner = if t.Stuck then "STUCK ASSIST" else ""
+		elseif kind == "Train" then
+			local braking = t.Brake > 0.05 and t.Power < 0.05
+			hud.badge.Text = (if t.Reverse then "R " else "") .. (if braking then `B{math.floor(t.Brake * 100)}` else `P{math.floor(t.Power * 100)}`)
+			fill = if braking then t.Brake else t.Power
+			red = braking
+			hud.info.Text = `GRADE {string.format("%+.1f", t.Grade)}%` .. (if t.SpeedLimit > 0 then `  LIMIT {math.floor(t.SpeedLimit)}` else "")
+			banner = if t.Derailed then "DERAILED - press R"
+				elseif t.SpeedLimit > 0 and kmh > t.SpeedLimit + 5 then "OVERSPEED"
+				elseif t.Wheelslip then "WHEELSLIP"
+				else ""
 		end
 		hud.fill.Size = UDim2.fromScale(math.clamp(fill, 0, 1), 1)
 		hud.fill.BackgroundColor3 = if red then Color3.fromRGB(255, 80, 70) else Color3.fromRGB(90, 200, 120)
@@ -348,6 +388,13 @@ local function start(seat: VehicleSeat, model: Model)
 				state.Throttle = math.abs(t.Throttle)
 			elseif kind == "Helicopter" then
 				state.Throttle = t.PowerShare * t.RotorSpeed
+			elseif kind == "Tank" then
+				state.Throttle = math.max(math.abs(throttle), math.abs(steer))
+				state.TurretYaw = math.floor(t.TurretYaw * 2 + 0.5) / 2
+				state.GunPitch = math.floor(t.GunPitch * 2 + 0.5) / 2
+			elseif kind == "Train" then
+				state.Throttle = t.Power
+				state.Horn = held.horn
 			end
 			local changed = false
 			for key, value in state do
@@ -362,6 +409,14 @@ local function start(seat: VehicleSeat, model: Model)
 					sent[key] = value
 				end
 				remote:FireServer(model, state) -- perf:ignore remote-in-frame (only on change, at most CONTROL_HZ a second)
+			end
+			if kind == "Tank" and t.Fired then
+				-- The shot leaves the Muzzle attachment (or the barrel's end) along the gun.
+				local origin = if muzzle and muzzle:IsA("Attachment")
+					then muzzle.WorldPosition
+					else t.Trunnion + t.GunDirection * (spec.Length * 0.6 / 0.28)
+				model:SetAttribute("LocalShot", os.clock())
+				remote:FireServer(model, { Fire = true, Origin = origin, Direction = t.GunDirection, TurretYaw = t.TurretYaw, GunPitch = t.GunPitch }) -- perf:ignore remote-in-frame (once per shot)
 			end
 			if kind == "Motorcycle" and t.Crashed and not bailed then
 				bailed = true

@@ -785,6 +785,138 @@
    "warnings": []
   }
  },
+ "FreightTrain": {
+  "type": "Train",
+  "raw": {
+   "name": "FreightTrain",
+   "type": "Train",
+   "title": "ES44AC-class freight loco and 10 loaded hoppers",
+   "mass": 190000,
+   "comHeight": 2,
+   "length": 22.3,
+   "bogieSpacing": 15.6,
+   "cars": {
+    "count": 10,
+    "mass": 100000,
+    "length": 17,
+    "bogieSpacing": 12.5,
+    "cdA": 2
+   },
+   "engine": {
+    "power": 3280,
+    "efficiency": 0.85,
+    "startingTractiveEffort": 810,
+    "adhesion": 0.44,
+    "speedLimitKmh": 110,
+    "reverseSpeedKmh": 15
+   },
+   "resistance": {
+    "rolling": 1.2,
+    "speed": 0.02,
+    "cdA": 9
+   },
+   "brakes": {
+    "service": 0.4,
+    "emergency": 0.6,
+    "adhesion": 0.15
+   },
+   "derail": {
+    "enabled": true,
+    "lateralG": 0.3
+   },
+   "controls": {
+    "notchRate": 0.25
+   }
+  },
+  "spec": {
+   "type": "Train",
+   "title": "ES44AC-class freight loco and 10 loaded hoppers",
+   "mass": 190000,
+   "comHeight": 2,
+   "length": 22.3,
+   "bogieSpacing": 15.6,
+   "cars": {
+    "count": 10,
+    "mass": 100000,
+    "length": 17,
+    "bogieSpacing": 12.5,
+    "cdA": 2
+   },
+   "engine": {
+    "power": 3280,
+    "efficiency": 0.85,
+    "startingTractiveEffort": 810,
+    "adhesion": 0.44,
+    "speedLimitKmh": 110,
+    "reverseSpeedKmh": 15
+   },
+   "resistance": {
+    "rolling": 1.2,
+    "speed": 0.02,
+    "cdA": 9
+   },
+   "brakes": {
+    "service": 0.4,
+    "emergency": 0.6,
+    "adhesion": 0.15
+   },
+   "derail": {
+    "enabled": true,
+    "lateralG": 0.3
+   },
+   "controls": {
+    "notchRate": 0.25
+   },
+   "name": "FreightTrain"
+  },
+  "report": {
+   "type": "Train",
+   "name": "FreightTrain",
+   "title": "ES44AC-class freight loco and 10 loaded hoppers",
+   "mass": 1190000,
+   "consist": "190 t + 10 × 100 t",
+   "powerToWeight": 2.7563025210084033,
+   "startingTE": 810000,
+   "startingAccel": 0.6689002689075629,
+   "crossoverKmh": 12.391111111111112,
+   "launch": {
+    "t50": {
+     "t": 48.49999999999938,
+     "x": 414.42919640738575
+    },
+    "t100": {
+     "t": 207.95000000001303,
+     "x": 3915.154386083181
+    }
+   },
+   "top": {
+    "kmh": 110,
+    "limiter": "speed limit"
+   },
+   "balance1": {
+    "kmh": 70.56000000000051,
+    "limiter": "power"
+   },
+   "balance2": {
+    "kmh": 39.78000000000008,
+    "limiter": "power"
+   },
+   "rulingGrade": 0.06818555238609204,
+   "serviceStop": {
+    "meters": 1104.307544221263,
+    "seconds": 72.87000000000037
+   },
+   "emergencyStop": {
+    "meters": 749.5292183929078,
+    "seconds": 49.33999999999875
+   },
+   "lineKmh": 110,
+   "derail150": 75.63856159393832,
+   "derail300": 106.96907964454027,
+   "derail600": 151.27712318787664,
+   "warnings": []
+  }
+ },
  "Hatchback": {
   "type": "Car",
   "raw": {
@@ -1609,6 +1741,476 @@
    "warnings": []
   }
  },
+ "LightTank": {
+  "type": "Tank",
+  "raw": {
+   "name": "LightTank",
+   "type": "Tank",
+   "title": "CV90/M8-class light tank, 450 kW diesel, 105 mm gun",
+   "mass": 25000,
+   "comHeight": 1,
+   "length": 6.6,
+   "width": 3.2,
+   "height": 2.5,
+   "tracks": {
+    "contactLength": 3.6,
+    "width": 0.53,
+    "tread": 2.6,
+    "contacts": 5,
+    "wheelRadius": 0.33,
+    "grip": 0.8,
+    "lateralGrip": 0.6,
+    "rollingResistance": 0.035,
+    "approach": 0.4
+   },
+   "engine": {
+    "power": 450,
+    "efficiency": 0.55,
+    "maxTractiveG": 0.6,
+    "maxSpeedKmh": 70,
+    "reverseSpeedKmh": 40,
+    "spool": 1.2
+   },
+   "steering": {
+    "pivotRate": 40,
+    "turnRate": 40,
+    "maxLateralG": 0.5
+   },
+   "brakes": {
+    "decelG": 0.65
+   },
+   "suspension": {
+    "frequency": 1.5,
+    "dampingRatio": 0.5,
+    "maxLength": 1.5,
+    "rideHeight": 0.5
+   },
+   "turret": {
+    "traverseRate": 50,
+    "elevationRate": 35,
+    "minElevation": -8,
+    "maxElevation": 35,
+    "height": 2.1
+   },
+   "gun": {
+    "reload": 5,
+    "recoil": 10,
+    "muzzleVelocity": 1500,
+    "range": 2500,
+    "defaultShell": true
+   },
+   "assists": {
+    "stability": 0.6
+   },
+   "aero": {
+    "cd": 0.9,
+    "area": 6
+   }
+  },
+  "spec": {
+   "type": "Tank",
+   "title": "CV90/M8-class light tank, 450 kW diesel, 105 mm gun",
+   "mass": 25000,
+   "comHeight": 1,
+   "length": 6.6,
+   "width": 3.2,
+   "height": 2.5,
+   "tracks": {
+    "contactLength": 3.6,
+    "width": 0.53,
+    "tread": 2.6,
+    "contacts": 5,
+    "wheelRadius": 0.33,
+    "grip": 0.8,
+    "lateralGrip": 0.6,
+    "rollingResistance": 0.035,
+    "approach": 0.4
+   },
+   "engine": {
+    "power": 450,
+    "efficiency": 0.55,
+    "maxTractiveG": 0.6,
+    "maxSpeedKmh": 70,
+    "reverseSpeedKmh": 40,
+    "spool": 1.2
+   },
+   "steering": {
+    "pivotRate": 40,
+    "turnRate": 40,
+    "maxLateralG": 0.5
+   },
+   "brakes": {
+    "decelG": 0.65
+   },
+   "suspension": {
+    "frequency": 1.5,
+    "dampingRatio": 0.5,
+    "maxLength": 1.5,
+    "rideHeight": 0.5
+   },
+   "turret": {
+    "traverseRate": 50,
+    "elevationRate": 35,
+    "minElevation": -8,
+    "maxElevation": 35,
+    "height": 2.1
+   },
+   "gun": {
+    "reload": 5,
+    "recoil": 10,
+    "muzzleVelocity": 1500,
+    "range": 2500,
+    "defaultShell": true
+   },
+   "recovery": {
+    "autoFlip": true,
+    "stuckAssist": true
+   },
+   "assists": {
+    "stability": 0.6
+   },
+   "aero": {
+    "cd": 0.9,
+    "area": 6
+   },
+   "body": {
+    "hullFriction": 0.15
+   },
+   "name": "LightTank"
+  },
+  "report": {
+   "type": "Tank",
+   "name": "LightTank",
+   "title": "CV90/M8-class light tank, 450 kW diesel, 105 mm gun",
+   "powerToWeight": 18,
+   "groundPressure": 64268.8679245283,
+   "steeringRatio": 1.3846153846153846,
+   "turningMoment": 132435,
+   "pivotForce": 50936.53846153846,
+   "pivotPower": 92457.07179514761,
+   "startTE": 147150,
+   "topTE": 12728.571428571431,
+   "launch": {
+    "t32": 5.649999999999924,
+    "t50": 15.70999999999971
+   },
+   "top": {
+    "kmh": 70,
+    "limiter": "governor"
+   },
+   "brake": {
+    "meters": 9.14703023317335,
+    "seconds": 1.6549999999999867
+   },
+   "slope": 0.608052305115363,
+   "slopePercent": 69.60236801342586,
+   "pivotTime": 9,
+   "traverseTime": 7.2,
+   "recoilDv": 0.4,
+   "warnings": []
+  }
+ },
+ "MainBattleTank": {
+  "type": "Tank",
+  "raw": {
+   "name": "MainBattleTank",
+   "type": "Tank",
+   "title": "Abrams-class main battle tank, 1,120 kW gas turbine, 120 mm gun",
+   "mass": 62000,
+   "comHeight": 1.1,
+   "length": 7.9,
+   "width": 3.7,
+   "height": 2.4,
+   "tracks": {
+    "contactLength": 4.6,
+    "width": 0.635,
+    "tread": 2.95,
+    "contacts": 6,
+    "wheelRadius": 0.4,
+    "grip": 0.8,
+    "lateralGrip": 0.6,
+    "rollingResistance": 0.035,
+    "approach": 0.45
+   },
+   "engine": {
+    "power": 1120,
+    "efficiency": 0.5,
+    "maxTractiveG": 0.6,
+    "maxSpeedKmh": 67,
+    "reverseSpeedKmh": 35,
+    "spool": 2
+   },
+   "steering": {
+    "pivotRate": 25,
+    "turnRate": 30,
+    "maxLateralG": 0.45
+   },
+   "brakes": {
+    "decelG": 0.6
+   },
+   "suspension": {
+    "frequency": 1.4,
+    "dampingRatio": 0.5,
+    "maxLength": 1.6,
+    "rideHeight": 0.5
+   },
+   "turret": {
+    "traverseRate": 40,
+    "elevationRate": 30,
+    "minElevation": -9,
+    "maxElevation": 20,
+    "height": 2
+   },
+   "gun": {
+    "reload": 6,
+    "recoil": 20,
+    "muzzleVelocity": 1650,
+    "range": 3000,
+    "defaultShell": true
+   },
+   "assists": {
+    "stability": 0.6
+   },
+   "aero": {
+    "cd": 0.9,
+    "area": 7
+   }
+  },
+  "spec": {
+   "type": "Tank",
+   "title": "Abrams-class main battle tank, 1,120 kW gas turbine, 120 mm gun",
+   "mass": 62000,
+   "comHeight": 1.1,
+   "length": 7.9,
+   "width": 3.7,
+   "height": 2.4,
+   "tracks": {
+    "contactLength": 4.6,
+    "width": 0.635,
+    "tread": 2.95,
+    "contacts": 6,
+    "wheelRadius": 0.4,
+    "grip": 0.8,
+    "lateralGrip": 0.6,
+    "rollingResistance": 0.035,
+    "approach": 0.45
+   },
+   "engine": {
+    "power": 1120,
+    "efficiency": 0.5,
+    "maxTractiveG": 0.6,
+    "maxSpeedKmh": 67,
+    "reverseSpeedKmh": 35,
+    "spool": 2
+   },
+   "steering": {
+    "pivotRate": 25,
+    "turnRate": 30,
+    "maxLateralG": 0.45
+   },
+   "brakes": {
+    "decelG": 0.6
+   },
+   "suspension": {
+    "frequency": 1.4,
+    "dampingRatio": 0.5,
+    "maxLength": 1.6,
+    "rideHeight": 0.5
+   },
+   "turret": {
+    "traverseRate": 40,
+    "elevationRate": 30,
+    "minElevation": -9,
+    "maxElevation": 20,
+    "height": 2
+   },
+   "gun": {
+    "reload": 6,
+    "recoil": 20,
+    "muzzleVelocity": 1650,
+    "range": 3000,
+    "defaultShell": true
+   },
+   "recovery": {
+    "autoFlip": true,
+    "stuckAssist": true
+   },
+   "assists": {
+    "stability": 0.6
+   },
+   "aero": {
+    "cd": 0.9,
+    "area": 7
+   },
+   "body": {
+    "hullFriction": 0.15
+   },
+   "name": "MainBattleTank"
+  },
+  "report": {
+   "type": "Tank",
+   "name": "MainBattleTank",
+   "title": "Abrams-class main battle tank, 1,120 kW gas turbine, 120 mm gun",
+   "powerToWeight": 18.06451612903226,
+   "groundPressure": 104111.60561451559,
+   "steeringRatio": 1.559322033898305,
+   "turningMoment": 419671.8,
+   "pivotForce": 142261.62711864404,
+   "pivotPower": 183116.36719427846,
+   "startTE": 364932,
+   "topTE": 30089.552238805973,
+   "launch": {
+    "t32": 6.539999999999905,
+    "t50": 18.150000000000038
+   },
+   "top": {
+    "kmh": 67,
+    "limiter": "governor"
+   },
+   "brake": {
+    "meters": 9.875395395118,
+    "seconds": 1.784999999999984
+   },
+   "slope": 0.608054534822525,
+   "slopePercent": 69.60269900258803,
+   "pivotTime": 14.4,
+   "traverseTime": 9,
+   "recoilDv": 0.3225806451612903,
+   "warnings": []
+  }
+ },
+ "PassengerTrain": {
+  "type": "Train",
+  "raw": {
+   "name": "PassengerTrain",
+   "type": "Train",
+   "title": "Diesel-electric passenger loco and 5 coaches, 200 km/h",
+   "mass": 125000,
+   "comHeight": 1.8,
+   "length": 21,
+   "bogieSpacing": 14,
+   "cars": {
+    "count": 5,
+    "mass": 50000,
+    "length": 26,
+    "bogieSpacing": 19,
+    "cdA": 1.2
+   },
+   "engine": {
+    "power": 3600,
+    "efficiency": 0.85,
+    "startingTractiveEffort": 290,
+    "adhesion": 0.33,
+    "speedLimitKmh": 200,
+    "reverseSpeedKmh": 20
+   },
+   "resistance": {
+    "rolling": 1.3,
+    "speed": 0.015,
+    "cdA": 6
+   },
+   "brakes": {
+    "service": 0.9,
+    "emergency": 1.3,
+    "adhesion": 0.15
+   },
+   "derail": {
+    "enabled": true,
+    "lateralG": 0.35
+   },
+   "controls": {
+    "notchRate": 0.5
+   }
+  },
+  "spec": {
+   "type": "Train",
+   "title": "Diesel-electric passenger loco and 5 coaches, 200 km/h",
+   "mass": 125000,
+   "comHeight": 1.8,
+   "length": 21,
+   "bogieSpacing": 14,
+   "cars": {
+    "count": 5,
+    "mass": 50000,
+    "length": 26,
+    "bogieSpacing": 19,
+    "cdA": 1.2
+   },
+   "engine": {
+    "power": 3600,
+    "efficiency": 0.85,
+    "startingTractiveEffort": 290,
+    "adhesion": 0.33,
+    "speedLimitKmh": 200,
+    "reverseSpeedKmh": 20
+   },
+   "resistance": {
+    "rolling": 1.3,
+    "speed": 0.015,
+    "cdA": 6
+   },
+   "brakes": {
+    "service": 0.9,
+    "emergency": 1.3,
+    "adhesion": 0.15
+   },
+   "derail": {
+    "enabled": true,
+    "lateralG": 0.35
+   },
+   "controls": {
+    "notchRate": 0.5
+   },
+   "name": "PassengerTrain"
+  },
+  "report": {
+   "type": "Train",
+   "name": "PassengerTrain",
+   "title": "Diesel-electric passenger loco and 5 coaches, 200 km/h",
+   "mass": 375000,
+   "consist": "125 t + 5 × 50 t",
+   "powerToWeight": 9.6,
+   "startingTE": 290000,
+   "startingAccel": 0.7605803333333333,
+   "crossoverKmh": 37.98620689655172,
+   "launch": {
+    "t50": {
+     "t": 20.05000000000015,
+     "x": 137.35821916781995
+    },
+    "t100": {
+     "t": 58.14999999999883,
+     "x": 964.9192007470696
+    }
+   },
+   "top": {
+    "kmh": 200,
+    "limiter": "speed limit"
+   },
+   "balance1": {
+    "kmh": 177.29999999999762,
+    "limiter": "power"
+   },
+   "balance2": {
+    "kmh": 123.84000000000066,
+    "limiter": "power"
+   },
+   "rulingGrade": 0.07753112470268433,
+   "serviceStop": {
+    "meters": 1627.4743939232492,
+    "seconds": 59.31999999999677
+   },
+   "emergencyStop": {
+    "meters": 1144.3816301727647,
+    "seconds": 41.5700000000003
+   },
+   "lineKmh": 200,
+   "derail150": 81.69898408181096,
+   "derail300": 115.53981132060066,
+   "derail600": 163.39796816362193,
+   "warnings": []
+  }
+ },
  "PickupTruck": {
   "type": "Car",
   "raw": {
@@ -2250,6 +2852,135 @@
    "hp": 410.75538547523144,
    "sagFront": 0.5909398403872376,
    "sagRear": 0.5171492255626086
+  }
+ },
+ "Tram": {
+  "type": "Train",
+  "raw": {
+   "name": "Tram",
+   "type": "Train",
+   "title": "Low-floor city tram, 480 kW, magnetic track brakes",
+   "mass": 40000,
+   "comHeight": 1.4,
+   "length": 30,
+   "bogieSpacing": 11,
+   "cars": {
+    "count": 0,
+    "mass": 0,
+    "length": 0,
+    "bogieSpacing": 0,
+    "cdA": 0
+   },
+   "engine": {
+    "power": 480,
+    "efficiency": 0.9,
+    "startingTractiveEffort": 50,
+    "adhesion": 0.3,
+    "speedLimitKmh": 70,
+    "reverseSpeedKmh": 15
+   },
+   "resistance": {
+    "rolling": 1.5,
+    "speed": 0.02,
+    "cdA": 5
+   },
+   "brakes": {
+    "service": 1.3,
+    "emergency": 2.5,
+    "adhesion": 0.3
+   },
+   "derail": {
+    "enabled": true,
+    "lateralG": 0.3
+   },
+   "controls": {
+    "notchRate": 1
+   }
+  },
+  "spec": {
+   "type": "Train",
+   "title": "Low-floor city tram, 480 kW, magnetic track brakes",
+   "mass": 40000,
+   "comHeight": 1.4,
+   "length": 30,
+   "bogieSpacing": 11,
+   "cars": {
+    "count": 0,
+    "mass": 0,
+    "length": 0,
+    "bogieSpacing": 0,
+    "cdA": 0
+   },
+   "engine": {
+    "power": 480,
+    "efficiency": 0.9,
+    "startingTractiveEffort": 50,
+    "adhesion": 0.3,
+    "speedLimitKmh": 70,
+    "reverseSpeedKmh": 15
+   },
+   "resistance": {
+    "rolling": 1.5,
+    "speed": 0.02,
+    "cdA": 5
+   },
+   "brakes": {
+    "service": 1.3,
+    "emergency": 2.5,
+    "adhesion": 0.3
+   },
+   "derail": {
+    "enabled": true,
+    "lateralG": 0.3
+   },
+   "controls": {
+    "notchRate": 1
+   },
+   "name": "Tram"
+  },
+  "report": {
+   "type": "Train",
+   "name": "Tram",
+   "title": "Low-floor city tram, 480 kW, magnetic track brakes",
+   "mass": 40000,
+   "consist": "40 t + 0 × 0 t",
+   "powerToWeight": 12,
+   "startingTE": 50000,
+   "startingAccel": 1.235285,
+   "crossoverKmh": 31.104000000000003,
+   "launch": {
+    "t50": {
+     "t": 13.150000000000052,
+     "x": 95.75711821850426
+    },
+    "t100": null
+   },
+   "top": {
+    "kmh": 70,
+    "limiter": "speed limit"
+   },
+   "balance1": {
+    "kmh": 70,
+    "limiter": "speed limit"
+   },
+   "balance2": {
+    "kmh": 70,
+    "limiter": "speed limit"
+   },
+   "rulingGrade": 0.125920998980632,
+   "serviceStop": {
+    "meters": 141.8609750456333,
+    "seconds": 14.669999999999732
+   },
+   "emergencyStop": {
+    "meters": 74.57250575636198,
+    "seconds": 7.69999999999988
+   },
+   "lineKmh": 70,
+   "derail150": 75.63856159393832,
+   "derail300": 106.96907964454027,
+   "derail600": 151.27712318787664,
+   "warnings": []
   }
  }
 };

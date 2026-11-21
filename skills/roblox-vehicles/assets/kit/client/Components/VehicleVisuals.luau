@@ -14,6 +14,11 @@
 -- the EngineThrottle attribute (from the driver, via VehicleControl). Control surfaces hinge about
 -- their longest axis: ailerons from SteerFloat, elevators from ThrottleFloat, flaps from the Flaps
 -- attribute. Attribute Invert = true on a surface flips it, MaxDeflection (degrees) sizes it.
+-- Tanks: the turret turns and the gun elevates to TurretYaw / GunPitch (replicated from the driver,
+-- eased at the traverse rate; the driver's own client uses its sim directly), the gun recoils with
+-- a muzzle flash and smoke at its Muzzle attachment on each shot (LastShot), Textures on TrackL /
+-- TrackR scroll with each track's speed and road wheels (WheelL* / WheelR*) roll with it.
+-- Trains: the horn (model attribute HornSound, played while Horn is true).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -36,6 +41,8 @@ local SKID_LIFETIME = 12
 local MAX_SKIDS = 500 -- shared by every vehicle on this client
 local ROTOR_REVS = { MainRotor = 4, TailRotor = 18, Rotor = 4, Propeller = 25 } -- rev/s at full speed (visual)
 local DEFLECTION = 22 -- degrees, default control surface travel
+local RECOIL_M = 0.45 -- gun recoil travel (visual)
+local RECOIL_RETURN = 5 -- 1/s
 
 type WheelVisual = {
 	mount: Attachment,
@@ -65,6 +72,8 @@ type PartVisual = {
 	angle: number,
 	invert: number,
 	maxDeflection: number,
+	radius: number,
+	rollSign: number,
 }
 
 local skidFolder: Folder? = nil
@@ -226,20 +235,77 @@ local function setup(instance: Instance, trove: any)
 			if link:IsA("ObjectValue") and link.Value then
 				local v = link.Value
 				local maxDeflection = v:GetAttribute("MaxDeflection")
+				local axis = link:GetAttribute("Axis") :: Vector3
+				local offset = link:GetAttribute("Offset") :: CFrame
+				local radius = link:GetAttribute("Radius")
 				table.insert(parts, {
 					instance = v,
 					role = link:GetAttribute("Role") :: string,
 					spin = link:GetAttribute("Spin") == true,
-					axis = link:GetAttribute("Axis") :: Vector3,
-					offset = link:GetAttribute("Offset") :: CFrame,
+					axis = axis,
+					offset = offset,
 					side = link:GetAttribute("Side") :: number,
 					angle = 0,
 					invert = if v:GetAttribute("Invert") == true then -1 else 1,
 					maxDeflection = if typeof(maxDeflection) == "number" then maxDeflection else DEFLECTION,
+					radius = if typeof(radius) == "number" then radius else 1,
+					-- Road wheels roll forward whichever way their axle attribute points.
+					rollSign = if offset:VectorToWorldSpace(axis).X >= 0 then 1 else -1,
 				})
 			end
 		end
 	end
+
+	-- Tanks: turret, gun, muzzle effects, track textures.
+	local turretPart: PartVisual?, gunPart: PartVisual? = nil, nil
+	for _, p in parts do
+		if p.role == "Turret" then
+			turretPart = p
+		elseif p.role == "Gun" then
+			gunPart = p
+		end
+	end
+	local trackTextures: { { texture: Texture, left: boolean } } = {}
+	local flashLight: PointLight? = nil
+	local flash: ParticleEmitter? = nil
+	local smoke: ParticleEmitter? = nil
+	local turretYaw, gunPitch, recoil = 0, 0, 0
+	local lastShot = model:GetAttribute("LastShot")
+	local localShot = model:GetAttribute("LocalShot")
+	if kind == "Tank" then
+		for _, name in { "TrackL", "TrackR" } do
+			local track = model:FindFirstChild(name, true)
+			if track then
+				for _, d in track:GetDescendants() do
+					if d:IsA("Texture") then
+						table.insert(trackTextures, { texture = d, left = name == "TrackL" })
+					end
+				end
+			end
+		end
+		local muzzle = model:FindFirstChild("Muzzle", true)
+		if muzzle and muzzle:IsA("Attachment") then
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(255, 200, 120)
+			light.Brightness = 6
+			light.Range = 24
+			light.Enabled = false
+			light.Parent = muzzle
+			trove:Add(light)
+			flashLight = light
+			local fire = emitter(muzzle, 2.5, Color3.fromRGB(255, 190, 90), NumberRange.new(0.08, 0.16), NumberRange.new(10, 30))
+			fire.LightEmission = 1
+			fire.EmissionDirection = Enum.NormalId.Front
+			fire.SpreadAngle = Vector2.new(12, 12)
+			trove:Add(fire)
+			flash = fire
+			local cloud = emitter(muzzle, 2, Color3.fromRGB(200, 195, 185), NumberRange.new(1.5, 3), NumberRange.new(4, 12))
+			cloud.EmissionDirection = Enum.NormalId.Front
+			trove:Add(cloud)
+			smoke = cloud
+		end
+	end
+	local horn: Sound? = nil
 
 	local seat: VehicleSeat? = nil
 	for _, d in model:GetDescendants() do
@@ -265,6 +331,9 @@ local function setup(instance: Instance, trove: any)
 	end
 	local engine = loopSound("EngineSound", 0.6)
 	local squeal = if tires then loopSound("TireSound", 0) else nil
+	if kind == "Train" then
+		horn = loopSound("HornSound", 0)
+	end
 
 	-- Spray and wake (boats), downwash dust (helicopters).
 	local effectAnchor: Attachment? = nil
@@ -398,6 +467,53 @@ local function setup(instance: Instance, trove: any)
 			worstSlip = math.max(worstSlip, slip)
 		end
 
+		-- Tanks: track speeds (studs/s) from the hull's motion; turret and gun aim; recoil and flash.
+		if kind == "Tank" then
+			local halfTread = spec.Tracks.Tread / 2 / MPS
+			local yawRate = -root.AssemblyAngularVelocity.Y
+			local leftSpeed, rightSpeed = forwardSpeed + yawRate * halfTread, forwardSpeed - yawRate * halfTread
+			if near then
+				for _, entry in trackTextures do
+					entry.texture.OffsetStudsV += (if entry.left then leftSpeed else rightSpeed) * dt
+				end
+			end
+			local aim = model:GetAttribute("LocalAim")
+			local driving = typeof(aim) == "Vector2"
+			if typeof(aim) == "Vector2" then
+				turretYaw, gunPitch = aim.X, aim.Y
+			else
+				-- Others' tanks: ease toward the replicated aim at a little over the traverse rate.
+				local yawTarget = (model:GetAttribute("TurretYaw") :: number?) or 0
+				local pitchTarget = (model:GetAttribute("GunPitch") :: number?) or 0
+				local dYaw = (yawTarget - turretYaw + 180) % 360 - 180
+				local traverse = spec.Turret.TraverseRate * 1.5 * dt
+				turretYaw = (turretYaw + math.clamp(dYaw, -traverse, traverse) + 180) % 360 - 180
+				local elevate = spec.Turret.ElevationRate * 1.5 * dt
+				gunPitch += math.clamp(pitchTarget - gunPitch, -elevate, elevate)
+			end
+			local shotAttr = if driving then "LocalShot" else "LastShot"
+			local shot = model:GetAttribute(shotAttr)
+			local previous = if driving then localShot else lastShot
+			if shot ~= nil and shot ~= previous then
+				recoil = 1
+				if near and flash and smoke and flashLight then
+					flash:Emit(14)
+					smoke:Emit(24)
+					local light = flashLight
+					light.Enabled = true
+					task.delay(0.08, function()
+						light.Enabled = false
+					end)
+				end
+			end
+			if driving then
+				localShot = shot
+			else
+				lastShot = shot
+			end
+			recoil *= math.exp(-RECOIL_RETURN * dt)
+		end
+
 		-- Rotors and propellers spin, control surfaces hinge.
 		if kind == "Helicopter" then
 			local spoolTime = math.max(spec.Rotor.SpoolTime, 0.1)
@@ -405,6 +521,36 @@ local function setup(instance: Instance, trove: any)
 		end
 		local flaps = model:GetAttribute("Flaps") == true
 		for _, p in parts do
+			if kind == "Tank" then
+				if not near then
+					continue
+				end
+				if p.role == "RoadWheel" then
+					local yawRate = -root.AssemblyAngularVelocity.Y
+					local sideSpeed = forwardSpeed + yawRate * (spec.Tracks.Tread / 2 / MPS) * (if p.side < 0 then 1 else -1)
+					p.angle = (p.angle - p.rollSign * sideSpeed / math.max(p.radius, 0.1) * dt) % (2 * math.pi)
+					place(p.instance, cf * p.offset * CFrame.fromAxisAngle(p.axis, p.angle))
+				elseif p.role == "Turret" or p.role == "Gun" then
+					-- The turret turns about the hull's up axis at its pivot; the gun elevates about the
+					-- turret's right axis at its own pivot (the trunnion) and slides back when it fires.
+					local turretOffset = if turretPart then turretPart.offset else CFrame.new(p.offset.Position)
+					local turretFrame = cf * CFrame.new(turretOffset.Position) * CFrame.Angles(0, -math.rad(turretYaw), 0)
+					if p.role == "Turret" then
+						place(p.instance, turretFrame * turretOffset.Rotation)
+					elseif gunPart then
+						local relative = CFrame.new(turretOffset.Position):Inverse() * gunPart.offset
+						place(
+							p.instance,
+							turretFrame
+								* CFrame.new(relative.Position)
+								* CFrame.Angles(math.rad(gunPitch), 0, 0)
+								* CFrame.new(0, 0, recoil * RECOIL_M / MPS)
+								* relative.Rotation
+						)
+					end
+				end
+				continue
+			end
 			if p.spin then
 				local revs = ROTOR_REVS[p.role] or 10
 				local rate = if kind == "Helicopter"
@@ -458,6 +604,9 @@ local function setup(instance: Instance, trove: any)
 			end
 		end
 
+		if horn then
+			horn.Volume = if model:GetAttribute("Horn") == true then 0.8 else 0
+		end
 		if squeal then
 			squeal.Volume = if near then math.clamp((worstSlip - 0.3) * 1.2, 0, 0.8) else 0
 			squeal.PlaybackSpeed = 0.9 + worstSlip * 0.2

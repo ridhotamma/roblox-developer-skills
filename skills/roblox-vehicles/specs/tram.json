@@ -1,0 +1,41 @@
+{
+  "name": "Tram",
+  "type": "Train",
+  "title": "Low-floor city tram, 480 kW, magnetic track brakes",
+  "mass": 40000,
+  "comHeight": 1.4,
+  "length": 30,
+  "bogieSpacing": 11,
+  "cars": {
+    "count": 0,
+    "mass": 0,
+    "length": 0,
+    "bogieSpacing": 0,
+    "cdA": 0
+  },
+  "engine": {
+    "power": 480,
+    "efficiency": 0.9,
+    "startingTractiveEffort": 50,
+    "adhesion": 0.3,
+    "speedLimitKmh": 70,
+    "reverseSpeedKmh": 15
+  },
+  "resistance": {
+    "rolling": 1.5,
+    "speed": 0.02,
+    "cdA": 5
+  },
+  "brakes": {
+    "service": 1.3,
+    "emergency": 2.5,
+    "adhesion": 0.3
+  },
+  "derail": {
+    "enabled": true,
+    "lateralG": 0.3
+  },
+  "controls": {
+    "notchRate": 1
+  }
+}

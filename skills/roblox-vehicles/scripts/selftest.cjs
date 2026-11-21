@@ -77,7 +77,7 @@ for (const [name, e] of Object.entries(expect)) {
 
 // ---------------------------------------------------------------------------------- other types
 const C = require('./types/common.cjs');
-const { Motorcycle: MB, Boat: BT, Plane: PL, Helicopter: HE } = R.TYPES;
+const { Motorcycle: MB, Boat: BT, Plane: PL, Helicopter: HE, Tank: TK, Train: TN } = R.TYPES;
 
 // Momentum theory: static thrust (2 rho A P^2)^(1/3); at speed thrust -> P / V.
 const A1 = Math.PI * 0.5 ** 2;
@@ -108,11 +108,32 @@ const W = heli.mass * 9.81;
 check('forward flight needs less induced power (translational lift)', HE.powerRequired(heli, W, 1.225, 25, 0) < HE.powerRequired(heli, W, 1.225, 0, 0));
 check('ground effect adds thrust near the ground', HE.groundEffect(heli, 3) > 1.1 && near(HE.groundEffect(heli, 100), 1, 0.01));
 
+// Tank: ground pressure W / (2 L b), skid-steer moment mu W L / 4, the tractive-effort hyperbola.
+const tank = R.normalize({ name: 'T', type: 'Tank' });
+check('tank ground pressure = W / (2 L b)', near(TK.groundPressure(tank), (tank.mass * 9.81) / (2 * tank.tracks.contactLength * tank.tracks.width), 1e-9));
+check('skid-steer turning moment = mu_t W L / 4', near(TK.turningMoment(tank), (tank.tracks.lateralGrip * tank.mass * 9.81 * tank.tracks.contactLength) / 4, 1e-9));
+check('tank tractive effort is power-limited at speed (eta P / v)', near(TK.tractiveEffort(tank, 15), (tank.engine.efficiency * tank.engine.power * 1000) / 15, 1e-6));
+check('tank tractive effort is traction-limited from a standstill', near(TK.tractiveEffort(tank, 0), tank.engine.maxTractiveG * tank.mass * 9.81, 1e-6));
+check('warns on a long hull that fights every turn (L/B > 1.8)', TK.report(R.normalize({ name: 'L', type: 'Tank', tracks: { contactLength: 6, tread: 2.5 } })).warnings.some((w) => w.includes('steering ratio')));
+
+// Train: Rockl curve resistance, derailment speed, tractive effort limits, ruling grade.
+const train = R.normalize({ name: 'N', type: 'Train' });
+check('Rockl curve resistance 650 / (R - 55) N/kN above 300 m', near(TN.curveResistance(400), 650 / 345 / 1000, 1e-12));
+check('Rockl curve resistance 500 / (R - 30) N/kN below 300 m', near(TN.curveResistance(200), 500 / 170 / 1000, 1e-12) && TN.curveResistance(Infinity) === 0);
+check('derailment speed sqrt(a_lat R)', near(TN.derailSpeedKmh(train, 300), Math.sqrt(train.derail.lateralG * 9.81 * 300) * 3.6, 1e-9));
+check('train tractive effort = min(start, adhesion, eta P / v)', near(TN.tractiveEffort(train, 0.1), Math.min(train.engine.startingTractiveEffort * 1000, train.engine.adhesion * train.mass * 9.81), 1e-6) && near(TN.tractiveEffort(train, 40), (train.engine.efficiency * train.engine.power * 1000) / 40, 1e-6));
+check('no tractive effort past the speed limit', TN.tractiveEffort(train, (train.engine.speedLimitKmh + 1) / 3.6) === 0);
+check('warns on wheelslip when starting effort is past adhesion', TN.report(R.normalize({ name: 'W', type: 'Train', engine: { startingTractiveEffort: 600 } })).warnings.some((w) => w.includes('wheelslip')));
+
 // Validation for the new types.
 check('rejects an unknown type', bad({ name: 'X', type: 'Submarine' }, 'type must be'));
 check('rejects a boat drive type', bad({ name: 'X', type: 'Boat', drive: { type: 'sail' } }, 'outboard, inboard or jet'));
 check('rejects a hull that sinks', bad({ name: 'X', type: 'Boat', mass: 50000 }, 'sinks'));
 check('rejects a jet without thrust', bad({ name: 'X', type: 'Plane', engine: { type: 'jet', thrust: 0 } }, 'needs engine.thrust'));
+check('rejects a tank with fewer than 3 track contacts', bad({ name: 'X', type: 'Tank', tracks: { contacts: 2 } }, 'tracks.contacts'));
+check('rejects gun elevation limits the wrong way round', bad({ name: 'X', type: 'Tank', turret: { minElevation: 10, maxElevation: 5 } }, 'minElevation'));
+check('rejects bogies wider apart than the vehicle', bad({ name: 'X', type: 'Train', length: 10, bogieSpacing: 12 }, 'bogieSpacing'));
+check('rejects an emergency brake weaker than service', bad({ name: 'X', type: 'Train', brakes: { service: 1, emergency: 0.5 } }, 'emergency'));
 check('warns when a helicopter cannot hover', HE.report(R.normalize({ name: 'X', type: 'Helicopter', engine: { power: 100 } })).warnings.some((w) => w.includes("can't hover")));
 
 // Bundled specs of the new types land in real-world ranges.
@@ -126,6 +147,11 @@ const expectOther = {
   JetFighter: (r) => [['stall 215-260 km/h', r.stallKmh, 215, 260], ['afterburner top 1300-1500 km/h', r.topAb.kmh, 1300, 1500], ['afterburner climb 200-300 m/s', r.climbAb.rate, 200, 300]],
   LightHeli: (r) => [['top 190-230 km/h', r.top.kmh, 190, 230], ['vertical climb 4-8 m/s', r.verticalClimb, 4, 8], ['hover margin 10-40%', r.margin, 0.1, 0.4]],
   AttackHeli: (r) => [['top 270-310 km/h', r.top.kmh, 270, 310], ['vertical climb 8-14 m/s', r.verticalClimb, 8, 14]],
+  MainBattleTank: (r) => [['0-32 km/h 6-8 s', r.launch.t32, 6, 8], ['top 65-72 km/h', r.top.kmh, 65, 72], ['ground pressure 95-115 kPa', r.groundPressure / 1000, 95, 115], ['climbs a 60% slope', r.slopePercent, 60, 100], ['360° pivot 10-20 s', r.pivotTime, 10, 20], ['recoil 0.2-0.5 m/s', r.recoilDv, 0.2, 0.5]],
+  LightTank: (r) => [['0-32 km/h 4-7 s', r.launch.t32, 4, 7], ['top 65-75 km/h', r.top.kmh, 65, 75], ['ground pressure 50-80 kPa', r.groundPressure / 1000, 50, 80], ['climbs a 60% slope', r.slopePercent, 60, 100]],
+  PassengerTrain: (r) => [['0-100 km/h 45-70 s', r.launch.t100.t, 45, 70], ['top 200 km/h (limit)', r.top.kmh, 199, 201], ['emergency stop from 200 km/h 900-1400 m', r.emergencyStop.meters, 900, 1400], ['derails at 100-130 km/h in a 300 m curve', r.derail300, 100, 130]],
+  FreightTrain: (r) => [['0-100 km/h 150-300 s', r.launch.t100.t, 150, 300], ['60-85 km/h on a 1% grade', r.balance1.kmh, 60, 85], ['starts on a 3%+ grade', r.rulingGrade * 100, 3, 15], ['service stop from 110 km/h 800-1500 m', r.serviceStop.meters, 800, 1500]],
+  Tram: (r) => [['starts at 1.0-1.4 m/s²', r.startingAccel, 1.0, 1.4], ['0-50 km/h 10-16 s', r.launch.t50.t, 10, 16], ['top 70 km/h (limit)', r.top.kmh, 69, 71], ['emergency stop from 70 km/h 60-100 m', r.emergencyStop.meters, 60, 100]],
 };
 for (const [name, fn] of Object.entries(expectOther)) {
   const r = byName[name];
