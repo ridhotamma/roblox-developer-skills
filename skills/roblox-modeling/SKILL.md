@@ -31,7 +31,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
 6. **Build:** `node <skill>/scripts/rmodel.cjs build <name>.json --out out` (several specs become tabs in one preview; `--fast` skips the PNG sheets).
 
 7. **Read the test report** on stdout. Every FAIL needs a fix; a WARN needs a fix or a reason. The suite:
-   - **geometry**: every part watertight (open or non-manifold edges fail; a deliberately open sheet sets `"openSurface": true`), outward-facing and consistently wound (neighbouring faces that wind opposite ways fail, open sheets included), no self-intersections (a part cutting through itself fails), no zero-area, near-flat sliver (a corner over 175°) or near-duplicate-vertex triangles, no paper-thin parts.
+   - **geometry**: every part watertight (open or non-manifold edges fail; a deliberately open sheet sets `"openSurface": true`, which still fails while Roblox is a target, since Roblox requires watertight meshes with volume), outward-facing and consistently wound (neighbouring faces that wind opposite ways fail, open sheets included), no self-intersections (a part cutting through itself fails), no zero-area, near-flat sliver (a corner over 175°) or near-duplicate-vertex triangles, no paper-thin parts.
    - **budget**: the whole model within `budget`, and every part under Roblox's 20,000-triangle per-mesh limit (each part imports as its own MeshPart).
    - **z-fighting**: no two parts with coplanar, same-facing, overlapping faces, at rest and at the end of each clip. These flicker in every engine.
    - **rig** (skinned parts): every joint has enough edge loops for its largest bend in any clip (1 up to 20°, 2 up to 50°, 3 up to 110°, 4 beyond), and every bone sits inside the body near the centre of its cross-section. On lofts it also checks the stations: no two closer than 10% of the local width outside a joint, no gap over 3× the width across a bending zone, and no pointed end inside a bend zone or without a full ring between it and one. Thin skinned sheets (fins, capes, strips) get the edge-loop part only: rows of vertices where they bend.
@@ -47,7 +47,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
 
 9. **Fix and rebuild** until the tests pass and the renders match the references. Two to four rounds is normal. Tighten your own checks as you learn (for example add an `apart` check for a lid you saw clipping).
 
-10. **Deliver**: `out/<Name>.glb` (the main asset), `out/preview.html` (interactive three.js viewer: clips, orthographic views, wireframe, dimensions, test results, drag-in reference overlay; three.js is bundled inline so the single file works offline; publish it as an artifact or send the file), `<Name>.blender.py`, `<Name>.three.js`, `<Name>.obj/.mtl`, the review sheets, and the reference list with licences. Tell the user, briefly: size and triangle count, the clips and their lengths, which references it was measured from, anything you approximated, and how to use it (read `references/integration.md` for Blender, three.js / React Three Fiber, Roblox, Godot and Unity steps).
+10. **Deliver**: `out/<Name>.glb` (the main asset), `out/preview.html` (interactive three.js viewer: clips, orthographic views, wireframe, dimensions, test results, drag-in reference overlay; three.js is bundled inline so the single file works offline; publish it as an artifact or send the file), `<Name>.roblox.glb` + `<Name>.<Clip>.roblox.glb` (what to import into Roblox: vertex colours, one clip per file), `<Name>.blender.py`, `<Name>.three.js`, `<Name>.obj/.mtl`, the review sheets, and the reference list with licences. Tell the user, briefly: size and triangle count, the clips and their lengths, which references it was measured from, anything you approximated, and how to use it (read `references/integration.md` for Blender, three.js / React Three Fiber, Roblox, Godot and Unity steps).
 
 ## Model spec
 
@@ -58,6 +58,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
   "description": "Shown in the preview.",
   "ground": true,                          // false for things that swim or fly (skips the floor checks)
   "budget": 1500,                          // triangle budget
+  "targets": ["roblox", "blender", "threejs"], // default; Roblox's mesh rules apply while "roblox" is listed (also godot, unity)
   "reference": {
     "sources": [ { "url": "https://...", "note": "side view, lid open ~105°", "file": "refs/ref03.jpg" } ],
     "dimensions": { "width": 0.92, "height": 0.63, "depth": 0.56, "tolerance": 0.05 },
@@ -74,7 +75,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
 
 ### Parts
 
-Common fields: `name`, `shape`, `color` (hex or palette key), `material` (`roughness`, `metalness`, `emissive`), `parent` (default: the root), `pivot` (the point the part rotates about, in model space; default the part's centre; `"weld"` finds it on the contact with the parent), `at` (move), `rot` (degrees, applied X then Y then Z around the pivot when the part has one, so a fin posed at an angle stays on its hinge, otherwise around the shape's own centre), `scale`, `mirror: "x"` (adds a left/right copy: `FinL` → `FinR`, mirrored children follow), `jitter` (metres of seeded random wobble for organic or rocky looks), `bind` (name of a skinned body whose surface a rigid part should follow), `hidden`, `note`, `openSurface: true` (a deliberately open sheet: flag, cape, single-sided leaf; it skips the watertight test but must still be consistently wound).
+Common fields: `name`, `shape`, `color` (hex or palette key), `material` (`roughness`, `metalness`, `emissive`), `parent` (default: the root), `pivot` (the point the part rotates about, in model space; default the part's centre; `"weld"` finds it on the contact with the parent), `at` (move), `rot` (degrees, applied X then Y then Z around the pivot when the part has one, so a fin posed at an angle stays on its hinge, otherwise around the shape's own centre), `scale`, `mirror: "x"` (adds a left/right copy: `FinL` → `FinR`, mirrored children follow), `jitter` (metres of seeded random wobble for organic or rocky looks), `bind` (name of a skinned body whose surface a rigid part should follow), `hidden`, `note`, `openSurface: true` (a deliberately open sheet: flag, cape, single-sided leaf, for specs whose `targets` leave out Roblox; it skips the watertight test but must still be consistently wound).
 
 | shape | fields | use for |
 |---|---|---|

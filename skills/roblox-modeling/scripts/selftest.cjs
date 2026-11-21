@@ -160,8 +160,9 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   ok(!geo(one(two([3, 0, 0])), 'fail', /cuts through itself/), 'two separate shells in one part are not a self-intersection');
   const quad = [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]];
   ok(geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 3, 2]] }), 'fail', /open edges/), 'an open surface fails the watertight check');
-  ok(!geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 3, 2]], openSurface: true }), 'fail'), '"openSurface": true accepts a deliberately open sheet');
-  ok(geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 2, 3]], openSurface: true }), 'fail', /wind opposite ways/), 'neighbouring faces wound opposite ways fail, even on an open sheet');
+  ok(!geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 3, 2]], openSurface: true }, { targets: ['blender', 'threejs'] }), 'fail'), '"openSurface": true accepts a deliberately open sheet when Roblox is not a target');
+  ok(geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 3, 2]], openSurface: true }), 'fail', /Roblox requires every mesh to be watertight/), 'an open sheet still fails when Roblox is a target (the default)');
+  ok(geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 2, 3]], openSurface: true }, { targets: ['blender'] }), 'fail', /wind opposite ways/), 'neighbouring faces wound opposite ways fail, even on an open sheet');
   ok(one({ shape: 'sphere', radius: 1, segments: [160, 70] }).some(r => r.id === 'budget' && r.status === 'fail' && /per-mesh limit/.test(r.msg)), "a part over Roblox's 20,000-triangle mesh limit fails");
   // spiky outlines (fins, flames, leaves) triangulate without slivers
   const spiky = [[0, 0]]; for (let i = 0; i <= 8; i++) spiky.push([i * 0.1, i % 2 ? 0.5 : 0.08]); spiky.push([0.8, 0]);
@@ -176,6 +177,28 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const json = JSON.parse(glb.toString('utf8', 20, 20 + glb.readUInt32LE(12)));
   ok(json.skins && json.skins.length >= 1 && json.animations.map(a => a.name).join() === 'Swim,Idle,Die', 'glb carries the skins and all three clips');
   ok(json.accessors.every(a => a.byteOffset == null) && json.bufferViews.every(v => v.byteOffset % 4 === 0), 'buffer views are 4-byte aligned');
+  // skins: a weightless root joint above the bones, and every vertex still follows the same dominant bone
+  const bin = glb.subarray(28 + glb.readUInt32LE(12)), view = (i, T) => { const a = json.accessors[i], v = json.bufferViews[a.bufferView]; return new T(bin.buffer.slice(bin.byteOffset + v.byteOffset, bin.byteOffset + v.byteOffset + v.byteLength)); };
+  const bodyNode = json.nodes.find(n => n.name === 'BodyMesh'), skin = json.skins[bodyNode.skin], prim = json.meshes[bodyNode.mesh].primitives[0];
+  const J = view(prim.attributes.JOINTS_0, Uint8Array), W = view(prim.attributes.WEIGHTS_0, Float32Array), body = m.byName.get('Body');
+  let same = true, onRoot = 0; const order = [].concat(...body.mesh.tris);
+  order.forEach((k, v) => {
+    let best = 0; for (let c = 1; c < 4; c++) if (W[v * 4 + c] > W[v * 4 + best]) best = c;
+    if (W.slice(v * 4, v * 4 + 4).some((w, c) => w > 1e-6 && J[v * 4 + c] === 0)) onRoot++;
+    const want = body.skinBones[body.weights[k].indexOf(Math.max(...body.weights[k]))].name;
+    if (json.nodes[skin.joints[J[v * 4 + best]]].name !== want) same = false;
+  });
+  ok(json.nodes[skin.joints[0]].name === 'Fish' && onRoot === 0, "a skin's root joint is the node above its bones (Fish) and carries no weight (Roblox rule)");
+  ok(same, 'after the root joint is added every vertex still follows its own bone');
+  // Roblox files: the model with vertex colours, then one clip per file for a skinned model
+  const rbx = EX.robloxGlbs(m), rerr = rbx.map(r => EX.validateGlb(r.buf).concat(EX.validateRoblox(r.buf))).flat();
+  ok(rbx.map(r => r.name).join() === 'Fish.roblox.glb,Fish.Swim.roblox.glb,Fish.Idle.roblox.glb,Fish.Die.roblox.glb' && !rerr.length, 'Roblox export: the model plus one file per clip, each within Roblox\'s rules' + (rerr.length ? ': ' + rerr.join('; ') : ''));
+  ok(EX.validateRoblox(glb).some(e => /3 animations/.test(e)), 'the Roblox validator rejects several clips in one file');
+  const rj = JSON.parse(rbx[0].buf.toString('utf8', 20, 20 + rbx[0].buf.readUInt32LE(12)));
+  ok(rj.materials.every(x => x.pbrMetallicRoughness.baseColorFactor.slice(0, 3).every(c => c === 1)) && rj.meshes.every(x => x.primitives[0].attributes.COLOR_0 != null), 'Roblox model file: colours in COLOR_0 on a white base (they survive Merge Meshes)');
+  const chest = MD.compile(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'examples', 'treasure_chest.json'), 'utf8')));
+  ok(EX.robloxGlbs(chest).length === 1, 'an unrigged model gets the Roblox model file only (Roblox ignores node animations)');
+  ok(MD.compile({ name: 'X', targets: ['roblox', 'maya'], parts: [{ name: 'A', shape: 'box', size: [1, 1, 1] }] }).errors.some(e => /unknown target "maya"/.test(e)), 'an unknown export target is a spec error');
   const { obj } = EX.toObj(m); ok(/^o Body$/m.test(obj) && /^f /m.test(obj), 'obj has named objects and faces');
   ok(/import_scene\.gltf/.test(EX.blenderScript(m)) && /GLTFLoader/.test(EX.threeModule(m)), 'Blender script and three.js loader are generated');
   const html = PV.previewHtml([{ name: 'T', title: 'T', description: '', glb: Buffer.alloc(16), clips: [], checks: [], dims: [1, 1, 1], tris: 0, parts: 0, ground: true, refs: [] }]);

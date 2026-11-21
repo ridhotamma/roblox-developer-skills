@@ -8,7 +8,7 @@ const { add, sub, mul, D2R } = M;
 
 const PART_KEYS = new Set(('name parent pivot shape at rot scale color material mirror mirrorName jitter seed skin bind hidden note openSurface ' +
   'size taper taperAt chamfer hollow open radius height segments axis squash phase detail ico stagger tube arc profile stations sides outline depth plane points vertices faces').split(' '));
-const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags'.split(' '));
+const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags targets'.split(' '));
 const EASE = {
   linear: t => t, step: t => (t < 1 ? 0 : 1), in: t => t * t, out: t => 1 - (1 - t) * (1 - t), inOut: t => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t)),
   sine: t => 0.5 - 0.5 * Math.cos(Math.PI * t), backOut: t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
@@ -296,7 +296,12 @@ function compile(spec) {
     n.bindTo = t.name;
   }
 
-  const model = { name, title: spec.title || name, description: spec.description || '', spec, nodes: ordered, byName, errors: E, warnings: W, palette,
+  // export targets: Roblox's rules (watertight, one clip per file, ...) apply unless the spec leaves Roblox out
+  const TARGETS = ['roblox', 'blender', 'threejs', 'godot', 'unity'];
+  let targets = spec.targets == null ? ['roblox', 'blender', 'threejs'] : [].concat(spec.targets).map(t => String(t).toLowerCase());
+  for (const t of targets) if (!TARGETS.includes(t)) E.push(`targets: unknown target "${t}" (use ${TARGETS.join(', ')})`);
+  targets = targets.filter(t => TARGETS.includes(t));
+  const model = { name, title: spec.title || name, targets, description: spec.description || '', spec, nodes: ordered, byName, errors: E, warnings: W, palette,
     fps: spec.fps || 30, ground: spec.ground !== false, budget: spec.budget || 2000, reference: spec.reference || null, camera: spec.camera || {} };
   model.clips = (spec.animations || []).map(a => compileClip(model, a, E, W));
   const names = new Set(); for (const c of model.clips) { if (names.has(c.name)) E.push(`duplicate animation name "${c.name}"`); names.add(c.name); }

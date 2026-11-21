@@ -6,7 +6,11 @@ const MD = require('./model.cjs');
 const { sub, cross, unit, mul } = M;
 
 // ---- glTF --------------------------------------------------------------------------------------
-function toGltf(model) {
+// opts.vertexColors: write each part's colour as COLOR_0 and make the base colour white (glTF multiplies the two),
+//   so parts merged into one mesh keep their colours (Roblox allows one material per mesh).
+// opts.clips: names of the clips to include (default: all).
+function toGltf(model, opts) {
+  opts = opts || {};
   const bin = [], bufferViews = [], accessors = [];
   let offset = 0;
   const pushView = (typed, target) => {
@@ -22,8 +26,8 @@ function toGltf(model) {
   };
   const materials = [], matKey = new Map();
   const material = n => {
-    const k = JSON.stringify([n.color, n.material]); if (matKey.has(k)) return matKey.get(k);
-    const lin = n.color.map(M.srgbToLinear), m = { name: matName(n, materials.length), pbrMetallicRoughness: { baseColorFactor: [...lin, 1], metallicFactor: n.material.metalness || 0, roughnessFactor: n.material.roughness == null ? 0.85 : n.material.roughness } };
+    const k = JSON.stringify([opts.vertexColors ? null : n.color, n.material]); if (matKey.has(k)) return matKey.get(k);
+    const lin = opts.vertexColors ? [1, 1, 1] : n.color.map(M.srgbToLinear), m ={ name: matName(n, materials.length), pbrMetallicRoughness: { baseColorFactor: [...lin, 1], metallicFactor: n.material.metalness || 0, roughnessFactor: n.material.roughness == null ? 0.85 : n.material.roughness } };
     if (n.material.emissive) m.emissiveFactor = n.material.emissive.map(M.srgbToLinear);
     materials.push(m); matKey.set(k, materials.length - 1); return materials.length - 1;
   };
@@ -32,29 +36,33 @@ function toGltf(model) {
   const meshes = [], skins = [], extraRoots = [];
   model.nodes.forEach((n, i) => {
     if (!n.mesh) return;
-    const P = [], N = [], J = [], Wt = [];
+    const P = [], N = [], J = [], Wt = [], Col = [], vcol = n.color.map(M.srgbToLinear);
     const local = n.skin ? (p => p) : (p => sub(p, n.pivot));        // skinned meshes live in model space; rigid ones around their pivot
+    // The skin's root joint is the node above its top bone (usually the model root) and carries no weight:
+    // Roblox's importer rejects influences on the root joint. Joint 0 is that root, the bones follow from 1.
+    const root = n.skin ? skinRoot(n.skinBones) : null, off = root ? 1 : 0;
     for (const t of n.mesh.tris) {
       const A = n.mesh.pos[t[0]], B = n.mesh.pos[t[1]], C = n.mesh.pos[t[2]], nn = unit(cross(sub(B, A), sub(C, A)));
       for (const k of t) {
-        P.push(...local(n.mesh.pos[k])); N.push(...nn);
-        if (n.skin) { const w = n.weights[k], idx = w.map((v, j) => [v, j]).sort((a, b) => b[0] - a[0]).slice(0, 4); while (idx.length < 4) idx.push([0, 0]); const s = idx.reduce((q, x) => q + x[0], 0) || 1; J.push(...idx.map(x => (x[0] > 0 ? x[1] : 0))); Wt.push(...idx.map(x => x[0] / s)); }
+        P.push(...local(n.mesh.pos[k])); N.push(...nn); if (opts.vertexColors) Col.push(...vcol);
+        if (n.skin) { const w = n.weights[k], idx = w.map((v, j) => [v, j]).sort((a, b) => b[0] - a[0]).slice(0, 4); while (idx.length < 4) idx.push([0, -1]); const s = idx.reduce((q, x) => q + x[0], 0) || 1; J.push(...idx.map(x => (x[0] > 0 ? x[1] + off : 0))); Wt.push(...idx.map(x => x[0] / s)); }
       }
     }
     const attributes = { POSITION: accessor(P, 'VEC3', 5126, 34962, true), NORMAL: accessor(N, 'VEC3', 5126, 34962) };
+    if (opts.vertexColors) attributes.COLOR_0 = accessor(Col, 'VEC3', 5126, 34962);
     if (n.skin) { attributes.JOINTS_0 = accessor(J, 'VEC4', 5121, 34962); attributes.WEIGHTS_0 = accessor(Wt, 'VEC4', 5126, 34962); }
     meshes.push({ name: n.name, primitives: [{ attributes, material: material(n), mode: 4 }] });
     if (n.skin) {
       // glTF skinned meshes ignore their node transform, so the mesh goes on its own node at the scene root
-      const ibm = []; n.skinBones.forEach(b => ibm.push(...M.mat4Translate(mul(b.pivot, -1))));
-      skins.push({ name: n.name + 'Skin', joints: n.skinBones.map(b => b.index), inverseBindMatrices: accessor(ibm, 'MAT4', 5126), skeleton: n.skinBones[0].index });
+      const joints = (root ? [root] : []).concat(n.skinBones), ibm = []; joints.forEach(b => ibm.push(...M.mat4Translate(mul(b.pivot, -1))));
+      skins.push({ name: n.name + 'Skin', joints: joints.map(b => b.index), inverseBindMatrices: accessor(ibm, 'MAT4', 5126), skeleton: joints[0].index });
       const meshNode = { name: n.name + 'Mesh', mesh: meshes.length - 1, skin: skins.length - 1 };
       extraRoots.push(meshNode);
     } else nodes[i].mesh = meshes.length - 1;
   });
   const extraStart = nodes.length; nodes.push(...extraRoots);
   // animations: baked, linear
-  const animations = model.clips.map(clip => {
+  const animations = model.clips.filter(c => !opts.clips || opts.clips.includes(c.name)).map(clip => {
     const bake = MD.bakeClip(model, clip), input = accessor(bake.times, 'SCALAR', 5126, null, true), channels = [], samplers = [];
     for (const nd of bake.nodes) {
       const d = bake.data.get(nd);
@@ -77,8 +85,15 @@ function toGltf(model) {
   return { gltf, bin: Buffer.concat(bin) };
 }
 const matName = (n, i) => (n.src || n.name).replace(/[RL]$|_R$/, '') + 'Mat' + i;
-function toGlb(model) {
-  const { gltf, bin } = toGltf(model);
+// The nearest node above every top bone of a skin (a bone whose parent is not in the skin). null when a top bone is
+// the scene root itself.
+function skinRoot(bones) {
+  const set = new Set(bones), tops = bones.filter(b => { for (let p = b.parent; p; p = p.parent) if (set.has(p)) return false; return true; });
+  const above = b => { const a = []; for (let p = b.parent; p; p = p.parent) a.push(p); return a; };
+  const first = above(tops[0]); return first.find(c => tops.every(t => above(t).includes(c))) || null;
+}
+function toGlb(model, opts) {
+  const { gltf, bin } = toGltf(model, opts);
   let json = Buffer.from(JSON.stringify(gltf)); const jp = (4 - (json.length % 4)) % 4; json = Buffer.concat([json, Buffer.alloc(jp, 0x20)]);
   const bp = (4 - (bin.length % 4)) % 4, b = Buffer.concat([bin, Buffer.alloc(bp)]);
   const head = Buffer.alloc(12); head.writeUInt32LE(0x46546C67, 0); head.writeUInt32LE(2, 4); head.writeUInt32LE(12 + 8 + json.length + 8 + b.length, 8);
@@ -105,6 +120,36 @@ function validateGlb(buf) {
   const parents = new Map(); (g.nodes || []).forEach((n, i) => (n.children || []).forEach(c => { if (parents.has(c)) errs.push(`node ${c} has two parents`); parents.set(c, i); }));
   (g.animations || []).forEach(an => an.samplers.forEach((s, k) => { const inp = g.accessors[s.input]; if (!inp.min || !inp.max) errs.push(`animation ${an.name} sampler ${k}: input needs min/max`); if (g.accessors[s.output].count !== inp.count) errs.push(`animation ${an.name} sampler ${k}: input/output count differ`); }));
   (g.skins || []).forEach((s, i) => { if (g.accessors[s.inverseBindMatrices].count !== s.joints.length) errs.push(`skin ${i}: inverseBindMatrices count != joints`); });
+  return errs;
+}
+
+// ---- Roblox ----------------------------------------------------------------------------------------
+// Roblox's 3D Importer takes one animation track per file and one material per mesh, so Roblox gets its own files:
+// <Name>.roblox.glb (the model, vertex colours, no animation) and, for a skinned model, <Name>.<Clip>.roblox.glb
+// per clip (the same rig with that one clip). Node animations of unrigged parts are not imported by Roblox, so a
+// model without skins gets the model file only (animate it from a script, see integration.md).
+function robloxGlbs(model) {
+  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [] }) }];
+  if (model.nodes.some(n => n.mesh && n.skin)) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name] }) });
+  return out;
+}
+// Roblox's mesh rules on a .glb: at most one animation, at most 20,000 triangles and 4 influences per vertex in a
+// mesh, no weight on a skin's root joint, vertex colours present. Returns a list of problems.
+function validateRoblox(buf) {
+  const errs = [], jl = buf.readUInt32LE(12), g = JSON.parse(buf.toString('utf8', 20, 20 + jl)), bin = buf.subarray(28 + jl);
+  const read = (i, n) => { const a = g.accessors[i], v = g.bufferViews[a.bufferView], k = { SCALAR: 1, VEC3: 3, VEC4: 4 }[a.type]; const T = a.componentType === 5126 ? Float32Array : Uint8Array; return new T(bin.buffer.slice(bin.byteOffset + v.byteOffset, bin.byteOffset + v.byteOffset + a.count * k * T.BYTES_PER_ELEMENT)); };
+  if ((g.animations || []).length > 1) errs.push(`${g.animations.length} animations in one file (Roblox imports one track per file)`);
+  const skinOf = new Map(); (g.nodes || []).forEach(n => { if (n.mesh != null && n.skin != null) skinOf.set(n.mesh, n.skin); });
+  (g.meshes || []).forEach((m, mi) => m.primitives.forEach(p => {
+    const tris = g.accessors[p.attributes.POSITION].count / 3; if (tris > 20000) errs.push(`mesh ${m.name}: ${tris} triangles (Roblox limit 20,000)`);
+    if (p.attributes.COLOR_0 == null) errs.push(`mesh ${m.name}: no vertex colours`);
+    if (p.attributes.JOINTS_0 != null) {
+      const J = read(p.attributes.JOINTS_0), W = read(p.attributes.WEIGHTS_0); let onRoot = 0;
+      for (let i = 0; i < J.length; i++) if (J[i] === 0 && W[i] > 1e-6) onRoot++;
+      const root = g.nodes[g.skins[skinOf.get(mi)].joints[0]].name;
+      if (onRoot) errs.push(`mesh ${m.name}: ${onRoot} weights on the root joint ${root} (Roblox: no influences on the root)`);
+    }
+  }));
   return errs;
 }
 
@@ -215,4 +260,4 @@ export async function load${model.name}(parent, url = new URL('./${model.name}.g
 `;
 }
 
-module.exports = { toGltf, toGlb, validateGlb, toObj, blenderScript, threeModule };
+module.exports = { toGltf, toGlb, validateGlb, robloxGlbs, validateRoblox, toObj, blenderScript, threeModule };

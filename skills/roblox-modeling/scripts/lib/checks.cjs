@@ -108,7 +108,8 @@ function run(model, opts) {
     if (T.length > ROBLOX_MESH_TRIS) add('budget', 'fail', `${n.name}: ${T.length} triangles in one part, over Roblox's ${ROBLOX_MESH_TRIS} per-mesh limit — the 3D Importer will not take it; split the part or lower its segments / sides / stations`);
     const e = G.edgeReport(n.mesh), vol = G.signedVolume(n.mesh), degenerate = T.filter(t => G.triArea(P, t) < 1e-12).length;
     if (e.open || e.nonManifold) {
-      if (n.openSurface && !e.nonManifold) openParts++;
+      if (n.openSurface && !e.nonManifold && model.targets.includes('roblox')) { add('geometry', 'fail', `${n.name}: an open surface (${e.open} open edges) — Roblox requires every mesh to be watertight with some volume, so "openSurface" is only for specs whose "targets" leave Roblox out. Give the sheet a thickness instead (an extrude with depth 4-6 mm, a loft with a thin section)`); geomOk = false; }
+      else if (n.openSurface && !e.nonManifold) openParts++;
       else { add('geometry', 'fail', `${n.name}: ${e.open} open edges, ${e.nonManifold} non-manifold edges — not watertight, so it shows holes or see-through faces and the inside / overlap tests are unreliable. Close the shape (caps on lofts and lathes, every outline point joined) or, for a deliberately open sheet (flag, cape, leaf), add "openSurface": true`); geomOk = false; }
     }
     else if (vol <= 0) { add('geometry', 'fail', `${n.name}: inside-out (faces point inwards, it will render see-through)`); geomOk = false; }

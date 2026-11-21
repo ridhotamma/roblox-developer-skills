@@ -43,6 +43,11 @@ function cmdBuild(files, o) {
     const glb = EX.toGlb(model), verr = EX.validateGlb(glb);
     if (verr.length) { console.log('GLB VALIDATION FAILED:\n  ' + verr.join('\n  ')); failed++; }
     fs.writeFileSync(path.join(out, model.name + '.glb'), glb); written.push(model.name + '.glb');
+    if (model.targets.includes('roblox')) for (const r of EX.robloxGlbs(model)) {
+      const rerr = EX.validateGlb(r.buf).concat(EX.validateRoblox(r.buf));
+      if (rerr.length) { console.log(`${r.name} FAILED ROBLOX CHECKS:\n  ` + rerr.join('\n  ')); failed++; }
+      fs.writeFileSync(path.join(out, r.name), r.buf); written.push(r.name);
+    }
     const { obj, mtl } = EX.toObj(model); fs.writeFileSync(path.join(out, model.name + '.obj'), obj); fs.writeFileSync(path.join(out, model.name + '.mtl'), mtl); written.push(model.name + '.obj', model.name + '.mtl');
     fs.writeFileSync(path.join(out, model.name + '.blender.py'), EX.blenderScript(model)); written.push(model.name + '.blender.py');
     fs.writeFileSync(path.join(out, model.name + '.three.js'), EX.threeModule(model)); written.push(model.name + '.three.js');

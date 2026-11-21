@@ -109,6 +109,8 @@ The `geometry` test covers the static mesh of every part, rigid or skinned: open
 
 - A `.glb` with a skin imports through the 3D Importer as a skinned mesh with `Bone` instances named after the spec's bones. Animate it with an `AnimationController` + `Animator` (or a `Humanoid` for characters) and the Animation Editor, or drive the bones from a script (`Bone.Transform`) for procedural motion such as hair physics. The importer's skinning and animation support changes over time, so check the current Roblox documentation.
 - Up to 4 bone influences per vertex are supported. This engine uses at most 2, so weights import unchanged.
+- Roblox wants no influences on the root joint and frozen bone transforms (rotation 0, scale 1) at bind. The export makes each skin's root joint the node above its bones (usually the model root) with zero weight; bones carry only a translation at rest.
+- One animation track per file: import `<Name>.<Clip>.roblox.glb` for each clip (the build writes them for skinned models).
 - Keep bone names unique, without spaces or dots.
 - The bind pose is the rest pose you modelled, which is another reason to model limbs half-bent and arms in an A-pose.
 - Keep each mesh under Roblox's per-mesh triangle limit (20,000 at the time of writing). Each part exports as its own mesh, and the `budget` test fails any part over the limit. Low-poly models are far below it, but mobile performance favours a few hundred to a few thousand triangles per character.
