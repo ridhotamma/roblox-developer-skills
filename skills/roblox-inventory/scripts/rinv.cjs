@@ -34,6 +34,7 @@ const REMOTE_LINES = [
 // Reads the style presets out of InventoryConfig.luau: name, the comment above it, and the
 // few fields the tools care about.
 function readStyles(source) {
+  source = source.replace(/\r\n/g, '\n'); // CRLF checkouts and Windows editors
   const start = source.indexOf('local Styles');
   const end = source.indexOf('\nlocal InventoryConfig');
   if (start < 0 || end < 0) throw new Error('InventoryConfig.luau: Styles table not found');

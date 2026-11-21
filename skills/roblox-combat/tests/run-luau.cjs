@@ -77,7 +77,7 @@ function run(program, extra) {
   }
 }
 
-const replay = (traceText) => run('Replay.luau', `local TRACE = ${longString(traceText)}\n`).split('\n').filter((l) => l.length);
+const replay = (traceText) => run('Replay.luau', `local TRACE = ${longString(traceText)}\n`).split(/\r?\n/).filter((l) => l.length); // luau prints CRLF on Windows
 const config = () => JSON.parse(run('DumpConfig.luau'));
 
 module.exports = { luauAvailable, bundle, run, replay, config };

@@ -110,7 +110,7 @@ function replayJs() {
 
 function replayLuau() {
   const out = run('Replay.luau', `local SCENARIOS = ${lit(SCENARIOS)}\nlocal TIMELINE_CASES = ${lit(TIMELINE_CASES)}\n`);
-  return out.split('\n').filter((l) => l.length);
+  return out.split(/\r?\n/).filter((l) => l.length); // luau prints CRLF on Windows
 }
 
 module.exports = { luauAvailable, run, replayJs, replayLuau };

@@ -25,7 +25,7 @@ ok(errors.length === 0, `moods.json valid (${Object.keys(moods).length} moods)${
 ok(Object.keys(moods).length >= 15, 'at least 15 moods');
 for (const [file, content] of cli.outputs()) {
   const current = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  ok(current === content, `${path.relative(SKILL, file)} up to date (node scripts/compose.cjs build)`);
+  ok(current.replace(/\r\n/g, '\n') === content.replace(/\r\n/g, '\n'), `${path.relative(SKILL, file)} up to date (node scripts/compose.cjs build)`); // ignore CRLF checkouts
 }
 
 // 2. theory: notes belong where they should

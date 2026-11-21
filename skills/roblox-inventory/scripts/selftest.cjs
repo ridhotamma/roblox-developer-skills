@@ -26,9 +26,11 @@ function check(name, cond, extra = '') {
   if (!cond) failed++;
 }
 
-const read = (rel) => fs.readFileSync(path.join(SKILL, rel), 'utf8');
+// CRLF from a core.autocrlf checkout is undone by git on commit, so read files as LF; a lone \r still fails below.
+const readLf = (file) => fs.readFileSync(file, 'utf8').replace(/\r\n/g, '\n');
+const read = (rel) => readLf(path.join(SKILL, rel));
 const kitFiles = walk(KIT).filter((f) => f.endsWith('.luau'));
-const kit = Object.fromEntries(kitFiles.map((f) => [f.split(path.sep).join('/'), fs.readFileSync(path.join(KIT, f), 'utf8')]));
+const kit = Object.fromEntries(kitFiles.map((f) => [f.split(path.sep).join('/'), readLf(path.join(KIT, f))]));
 
 // --- Luau structure ----------------------------------------------------------------------
 

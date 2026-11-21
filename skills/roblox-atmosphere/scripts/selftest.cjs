@@ -54,7 +54,7 @@ ok(Object.keys(data).length >= 20, "at least 20 genre presets");
 // 2. generated files are current
 for (const [target, content] of presets.outputs(data)) {
   const current = fs.existsSync(target) ? fs.readFileSync(target, "utf8") : "";
-  ok(current === content, `${path.relative(SKILL, target)} up to date`);
+  ok(current.replace(/\r\n/g, "\n") === content.replace(/\r\n/g, "\n"), `${path.relative(SKILL, target)} up to date`); // ignore CRLF checkouts
 }
 
 // 3. Luau generation
