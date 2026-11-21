@@ -8,6 +8,8 @@
 | `<Name>.roblox.glb` | The Roblox import file (when `targets` includes `roblox`, the default): the same model with each part's colour in vertex colours on a white base, so parts merged with the importer's **Merge Meshes** keep their colours (Roblox allows one material per mesh), and no animation. |
 | `<Name>.roblox.lua` | Studio command-bar script: select the imported model, run it, and every MeshPart gets its CollisionFidelity (and CanCollide off on decoration). |
 | `<Name>.<Clip>.roblox.glb` | Skinned models only: the same rig with one clip each, because Roblox imports one animation track per file. Rigid-part models get no clip files: Roblox does not import node animations of unrigged parts. |
+| `<Name>.lod.glb` | The level-of-detail version (models of 300+ triangles): same nodes, bones and clips, about half the triangles, small detail parts dropped. For three.js `THREE.LOD`, Godot and Unity `LODGroup`. |
+| `<Name>.lod.roblox.glb` | Skinned models only: the LOD version as a Roblox rig, same bone names, so the clip files animate it. |
 | `<Name>.obj` + `.mtl` | Static rest pose, one object per part, for tools that do not read glTF. |
 | `<Name>.blender.py` | Imports the .glb into Blender, keeps its shading (the file's normals), sets the frame rate and frame range, puts each clip on an NLA track, and optionally saves a .blend. |
 | `<Name>.three.js` | ES module: `load<Name>(scene)` returns `{ root, mixer, actions, play(name, fade), update(dt) }`, with LoopOnce / clamp set for one-shot clips. |
@@ -58,8 +60,15 @@ Scale: one unit is one metre. A 0.3 m fish next to a 1.8 m character is right; s
 - Rigid-part animations: Roblox does not turn glTF node animations of a non-rigged model into Animations. Either drive the parts from a script (for a lid: a `HingeConstraint` with a servo, or `TweenService` on a pivot `CFrame`, using the pivot and angles from the spec), or rig it in Blender (armature with one bone per moving part) and import the FBX as a rig, then use the Animation Editor. Skinned models (an armature) import as a rig with bones; check the Roblox importer's current documentation for skinned-mesh and animation support, since it changes. The bind pose is the rest pose in the spec, and weights use at most 2 bones per vertex (Roblox allows 4). See `topology-and-rigging.md` § 9 for bone naming, animating with an `AnimationController`, and driving bones from scripts (hair or tail physics).
 - Parts that use `skin` or `bind` are extra skinned meshes that share the body's joints. Import them together into the same rig: if each one ends up with its own copy of the bones, the body animates and the fins do not.
 - **Collision:** with the imported model selected, paste `<Name>.roblox.lua` into the command bar (View → Command Bar) and press Enter. It sets each MeshPart's CollisionFidelity (Box / Hull / Default / PreciseConvexDecomposition) and turns CanCollide and CanTouch off on decoration. Per-part overrides go in the spec (`collision`).
+- **Level of detail:** for a model without skins, `<Name>.roblox.glb` also carries `Simple`, the whole LOD version as one mesh. Running `<Name>.roblox.lua` moves everything else into a `Detail` model, tags the model `PerfLod` and sets `LodDistance` / `CullDistance` from the spec's `lod`. The roblox-performance skill's `LodController` (install its kit) then shows `Detail` near and only `Simple` far: about half the triangles and one draw call at distance, decided on each client. Code that drives parts (a lid hinge) should find them under `Detail`. A skinned model's LOD is `<Name>.lod.roblox.glb`: swap to it at distance yourself (crowds, schools of fish), or rely on `RenderFidelity`.
 - **Performance:** each MeshPart is a draw call, so the `performance` line of the report says how many the model costs. Place copies by cloning the imported model (clones share the MeshId), not by importing again. `RenderFidelity` stays Automatic: Roblox lowers detail by itself at 250 and 500 studs.
 - Keep triangle counts low for mobile: the counts the build reports are the final counts.
+
+## LOD in three.js, Godot and Unity
+
+- **three.js:** load both files and add them to a `THREE.LOD`: `lod.addLevel(full.scene, 0); lod.addLevel(low.scene, 20)` (distance in metres). For animated models, play the same clip on both mixers (the node and bone names match).
+- **Godot 4:** import both; switch with `visibility_range_begin` / `visibility_range_end` on the two instances (Godot also generates its own mesh LODs on import).
+- **Unity:** put both under one object with an `LODGroup` (LOD0 = `<Name>.glb`, LOD1 = `<Name>.lod.glb`).
 
 ## Godot 4 and Unity
 

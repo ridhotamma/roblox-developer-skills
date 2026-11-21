@@ -3,7 +3,7 @@
 'use strict';
 const path = require('path'), fs = require('fs'), os = require('os');
 const M = require('./lib/math.cjs'), G = require('./lib/geometry.cjs'), MD = require('./lib/model.cjs'), CK = require('./lib/checks.cjs');
-const RB = require('./lib/roblox.cjs');
+const RB = require('./lib/roblox.cjs'), LOD = require('./lib/lod.cjs');
 const RN = require('./lib/render.cjs'), EX = require('./lib/export.cjs'), RF = require('./lib/reference.cjs'), PV = require('./lib/preview.cjs');
 let fails = 0;
 const ok = (c, msg) => { console.log((c ? 'ok   ' : 'FAIL ') + msg); if (!c) fails++; };
@@ -194,7 +194,7 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   ok(same, 'after the root joint is added every vertex still follows its own bone');
   // Roblox files: the model with vertex colours, then one clip per file for a skinned model
   const rbx = EX.robloxGlbs(m), rerr = rbx.map(r => EX.validateGlb(r.buf).concat(EX.validateRoblox(r.buf))).flat();
-  ok(rbx.map(r => r.name).join() === 'Fish.roblox.glb,Fish.Swim.roblox.glb,Fish.Idle.roblox.glb,Fish.Die.roblox.glb' && !rerr.length, 'Roblox export: the model plus one file per clip, each within Roblox\'s rules' + (rerr.length ? ': ' + rerr.join('; ') : ''));
+  ok(rbx.map(r => r.name).join() === 'Fish.roblox.glb,Fish.Swim.roblox.glb,Fish.Idle.roblox.glb,Fish.Die.roblox.glb,Fish.lod.roblox.glb' && !rerr.length, 'Roblox export: the model plus one file per clip, each within Roblox\'s rules' + (rerr.length ? ': ' + rerr.join('; ') : ''));
   ok(EX.validateRoblox(glb).some(e => /3 animations/.test(e)), 'the Roblox validator rejects several clips in one file');
   const rj = JSON.parse(rbx[0].buf.toString('utf8', 20, 20 + rbx[0].buf.readUInt32LE(12)));
   ok(rj.materials.every(x => x.pbrMetallicRoughness.baseColorFactor.slice(0, 3).every(c => c === 1)) && rj.meshes.every(x => x.primitives[0].attributes.COLOR_0 != null), 'Roblox model file: colours in COLOR_0 on a white base (they survive Merge Meshes)');
@@ -224,9 +224,9 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   // merging: the chest's static parts become a few meshes; the lid group stays separate so it can still open
   const chest = MD.compile(JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'examples', 'treasure_chest.json'), 'utf8')));
   const plan = RB.meshPlan(chest), rb = EX.robloxGlbs(chest)[0].buf, rj = JSON.parse(rb.toString('utf8', 20, 20 + rb.readUInt32LE(12)));
-  ok(plan.length < 10 && rj.meshes.length === plan.length && plan.some(p => p.name === 'Lid'), `the chest's ${chest.nodes.filter(n => n.mesh).length} parts import as ${plan.length} MeshParts, with the animated lid kept apart`);
+  ok(plan.length < 10 && rj.meshes.filter(x => x.name !== 'Simple').length === plan.length && plan.some(p => p.name === 'Lid'), `the chest's ${chest.nodes.filter(n => n.mesh).length} parts import as ${plan.length} MeshParts, with the animated lid kept apart`);
   ok(!EX.validateGlb(rb).length && !EX.validateRoblox(rb).length, 'the merged Roblox file is valid');
-  const mergedTris = rj.meshes.reduce((s, x) => s + rj.accessors[x.primitives[0].indices].count / 3, 0), allTris = chest.nodes.filter(n => n.mesh).reduce((s, n) => s + n.mesh.tris.length, 0);
+  const mergedTris = rj.meshes.filter(x => x.name !== 'Simple').reduce((s, x) => s + rj.accessors[x.primitives[0].indices].count / 3, 0), allTris = chest.nodes.filter(n => n.mesh).reduce((s, n) => s + n.mesh.tris.length, 0);
   ok(mergedTris === allTris, 'merging keeps every triangle');
   ok(RB.mergeGroups(chest).every(g => !g.members.some(m => chest.clips.some(c => c.animated.has(m) && m !== g.frame))), 'no animated part is merged into a static group');
   // collision classes from size and shape, and the Studio script that applies them
@@ -239,6 +239,37 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   ok(perf && perf.status === 'pass' && /GPU vertices/.test(perf.msg) && new RegExp(`→ ${plan.length} Roblox MeshParts`).test(perf.msg), 'the performance line reports GPU vertices and Roblox MeshParts');
   const pebbles = { name: 'Peb', parts: [{ name: 'Big', shape: 'box', size: [1, 0.2, 1], at: [0, 0.1, 0] }].concat(Array.from({ length: 6 }, (_, i) => ({ name: 'Pebble' + i, shape: 'sphere', radius: 0.012, detail: 1, at: [-0.4 + i * 0.15, 0.21, 0] }))) };
   ok(CK.run(MD.compile(pebbles)).some(r => r.id === 'performance' && r.status === 'warn' && /under ~10 px/.test(r.msg)), 'a model whose triangles are mostly too small to see is reported');
+}
+// 5c. level of detail: a cheaper version rebuilt from the spec, its test, and the Roblox / engine files
+{
+  const read = f => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'examples', f), 'utf8'));
+  const box = { name: 'B', parts: [{ name: 'A', shape: 'box', size: [1, 1, 1], at: [0, 0.5, 0] }] };
+  ok(!LOD.settings(MD.compile(box)).on && LOD.settings(MD.compile(Object.assign({}, box, { lod: true }))).on, 'LOD is off for simple models (under 300 triangles) unless the spec asks for it');
+  ok(!LOD.settings(MD.compile(Object.assign(read('treasure_chest.json'), { lod: false }))).on, '"lod": false turns it off');
+  ok(MD.compile(Object.assign({}, box, { lod: 'yes' })).errors.some(e => /lod must be/.test(e)) && MD.compile({ name: 'B', parts: [{ name: 'A', shape: 'box', size: [1, 1, 1], lod: 'maybe' }] }).errors.some(e => /lod must be "drop" or "keep"/.test(e)), 'bad lod values are spec errors');
+  ok(LOD.reducePart({ shape: 'cylinder', segments: 8 }).segments === 5 && LOD.reducePart({ shape: 'loft', sides: 8, stations: [] }).sides === 6 && LOD.reducePart({ shape: 'sphere', detail: 1 }).detail === 0 && LOD.reducePart({ shape: 'box', chamfer: 0.02 }).chamfer == null, 'reduction: fewer segments, even loft sides, one icosphere level less, no chamfer');
+  const star = []; for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.4 : 1, a = (i / 10) * Math.PI * 2; star.push([Math.cos(a) * r, Math.sin(a) * r]); }
+  ok(LOD.simplifyClosed(star, 6).length === 6 && (q => q.length === 4 && [[0, 0], [2, 0], [2, 1], [0, 1]].every(c => q.some(p => p[0] === c[0] && p[1] === c[1])))(LOD.simplifyClosed([[0, 0], [1, 0], [1, 0.001], [2, 0], [2, 1], [0, 1]], 4)), 'outline simplification drops the point that matters least first');
+  const chest = MD.compile(read('treasure_chest.json')), cl = LOD.build(chest), dropped = new Set(cl.dropped);
+  ok(['Coin1', 'Coin2', 'RubyGem'].every(n => dropped.has(n)) && !dropped.has('Lid') && !dropped.has('Base'), 'small parts inside the outline are detail (dropped); the big shapes stay');
+  const keepSpec = read('treasure_chest.json'); keepSpec.parts.find(p => p.name === 'Coin1').lod = 'keep';
+  ok(!LOD.build(MD.compile(keepSpec)).dropped.includes('Coin1'), '"lod": "keep" keeps a small part');
+  const horn = { name: 'H', lod: true, parts: [{ name: 'Body', shape: 'box', size: [1, 1, 1], at: [0, 0.5, 0] }, { name: 'Horn', shape: 'cone', radius: 0.03, height: 0.07, at: [0, 1.035, 0] }] };
+  ok(!LOD.build(MD.compile(horn)).dropped.includes('Horn'), 'a small part that sticks out of everything else is kept (it sets the outline)');
+  const fish = MD.compile(read('fish.json')), fl = LOD.build(fish).model, tri = m => m.nodes.reduce((s, n) => s + (n.mesh ? n.mesh.tris.length : 0), 0);
+  ok(!fl.errors.length && fl.clips.map(c => c.name).join() === 'Swim,Idle,Die' && ['Head', 'Spine1', 'Spine2', 'TailBone'].every(b => fl.byName.has(b)) && tri(fl) < 0.6 * tri(fish), 'the fish LOD keeps its bones and clips with under 60% of the triangles');
+  const res = CK.run(chest).find(r => r.id === 'lod');
+  ok(res && res.status === 'pass' && /silhouette kept/.test(res.msg), 'the lod test reports triangles and silhouette overlap');
+  const lidless = read('treasure_chest.json'); lidless.parts.find(p => p.name === 'Lid').lod = 'drop';
+  ok(CK.run(MD.compile(lidless)).some(r => r.id === 'lod' && r.status === 'warn' && /changes the outline/.test(r.msg)), 'dropping a part that carries the silhouette is reported');
+  // exports: Simple stand-in for a model without skins, a reduced rig for a skinned one, and .lod.glb for engines
+  const cb = EX.robloxGlbs(chest)[0].buf, cj = JSON.parse(cb.toString('utf8', 20, 20 + cb.readUInt32LE(12))), sm = cj.meshes.find(x => x.name === 'Simple');
+  ok(sm && cj.accessors[sm.primitives[0].indices].count / 3 === tri(cl.model) && !EX.validateRoblox(cb).length, "the chest's Roblox file carries a one-mesh Simple stand-in with the LOD's triangles");
+  const lua = RB.setupScript(chest);
+  ok(/AddTag\(holder, "PerfLod"\)/.test(lua) && /detail\.Name = "Detail"/.test(lua) && /simple\.CanQuery = false/.test(lua), 'the setup script builds Detail / Simple and tags the model for the LodController');
+  ok(/Fish\.lod\.roblox\.glb/.test(RB.setupScript(fish)) && EX.robloxGlbs(fish).some(r => r.name === 'Fish.lod.roblox.glb'), 'a skinned model gets a separate reduced rig instead');
+  const lg = EX.lodGlb(fish), lj = lg && JSON.parse(lg.toString('utf8', 20, 20 + lg.readUInt32LE(12)));
+  ok(lg && !EX.validateGlb(lg).length && lj.animations.length === 3, '<Name>.lod.glb is valid and keeps the clips (three.js LOD, Godot, Unity LODGroup)');
 }
 // 6. rendering and reference tracing round-trip
 {

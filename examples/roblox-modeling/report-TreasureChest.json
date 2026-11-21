@@ -20,6 +20,11 @@
    "msg": "592 triangles, 966 GPU vertices (1.63 per triangle: hard edges split vertices, smoothed parts share them), 21 parts → 7 Roblox MeshParts / draw calls (5 merged groups of static parts); small detail: Coin1 22, Coin2 22, Keyhole 4 triangles under ~10 px at 200 px tall (8% of the model)"
   },
   {
+   "id": "lod",
+   "status": "pass",
+   "msg": "LOD version: 592 → 416 triangles (70%), silhouette kept 100% / 100% / 100% (front / side / top), detail dropped: Keyhole, RubyGem, SapphireGem, Coin1, Coin2; Roblox: a one-mesh Simple stand-in (1 draw call at distance) for the LodController"
+  },
+  {
    "id": "geometry",
    "status": "pass",
    "msg": "21 parts watertight, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections"

@@ -5,6 +5,7 @@
 //   class, so the model costs a few draw calls instead of one per part (every unique mesh asset is a draw call).
 const G = require('./geometry.cjs');
 const M = require('./math.cjs');
+const LOD = require('./lod.cjs');
 
 // Roblox CollisionFidelity for each class ("none" is decoration: Box, with CanCollide and CanTouch off).
 const FIDELITY = { none: 'Box', box: 'Box', hull: 'Hull', default: 'Default', precise: 'PreciseConvexDecomposition' };
@@ -82,12 +83,42 @@ function renderVertices(n) {
 }
 
 // Studio command-bar script: select the imported model, run it, and every MeshPart gets its collision settings.
+// With a Simple stand-in (lod.cjs, models without skins) it also sets up level of detail for the roblox-performance
+// LodController: everything else moves into a "Detail" model, the holder is tagged PerfLod, and the stand-in
+// neither collides nor takes raycasts. A skinned model's LOD is its separate <Name>.lod.roblox.glb rig.
 function setupScript(model) {
   const plan = meshPlan(model), rows = plan.map(p => `  [${JSON.stringify(p.name)}] = { ${JSON.stringify(FIDELITY[p.collision])}, ${p.collision !== 'none'} }, -- ${p.collision}${p.members.length > 1 ? ': ' + p.members.map(m => m.name).join(', ') : ''}`);
+  const ls = LOD.settings(model), skinned = model.nodes.some(n => n.mesh && n.skin), simple = ls.on && !skinned && !LOD.build(model).model.errors.length;
+  const attrs = [ls.distance != null ? `  holder:SetAttribute("LodDistance", ${ls.distance})` : null, ls.cull != null ? `  holder:SetAttribute("CullDistance", ${ls.cull})` : null].filter(Boolean);
+  const lodBlock = !simple ? (ls.on && skinned ? `-- Level of detail: this model is skinned, so its cheaper version is a separate rig, ${model.name}.lod.roblox.glb
+-- (same bone names: the clip files animate it). Swap to it at distance, e.g. for crowds and schools.
+` : '') : `
+-- Level of detail (the roblox-performance skill's LodController): near, the full model in "Detail" shows; far, it is
+-- removed and the one-mesh stand-in "Simple" shows instead (${'about half the triangles, 1 draw call'}).
+local simple = root:FindFirstChild("Simple", true)
+if simple and simple:IsA("MeshPart") then
+  local holder = simple.Parent :: Instance
+  local detail = holder:FindFirstChild("Detail") or Instance.new("Model")
+  detail.Name = "Detail"
+  for _, c in ipairs(holder:GetChildren()) do
+    if c ~= simple and c ~= detail then c.Parent = detail end
+  end
+  detail.Parent = holder
+  simple.CanCollide = false
+  simple.CanTouch = false
+  simple.CanQuery = false
+  simple.CastShadow = false
+  game:GetService("CollectionService"):AddTag(holder, "PerfLod")
+${attrs.join('\n')}${attrs.length ? '\n' : ''}  print("[rmodel] LOD set up on " .. holder:GetFullName() .. ": Detail near, Simple far (tag PerfLod)")
+else
+  warn("[rmodel] no Simple stand-in found: import ${model.name}.roblox.glb (not ${model.name}.glb)")
+end
+`;
   return `-- ${model.title} - Roblox setup (roblox-modeling skill)
 -- Import ${model.name}.roblox.glb with the 3D Importer, select the imported model in the Explorer, then paste this
 -- into the command bar (View > Command Bar) and press Enter. It sets CollisionFidelity on every MeshPart and turns
--- collision off on decoration. ${plan.length} MeshParts (static parts are merged per material and collision class).
+-- collision off on decoration${simple ? ', then sets up level of detail' : ''}. ${plan.length} MeshParts (static parts are merged per material and collision class).
+${lodBlock && !simple ? lodBlock : ''}
 local SETTINGS = { -- name = { CollisionFidelity, CanCollide }
 ${rows.join('\n')}
 }
@@ -104,7 +135,7 @@ for _, d in ipairs(root:GetDescendants()) do
   end
 end
 print(("[rmodel] collision set on %d of ${plan.length} MeshParts"):format(done))
-`;
+${simple ? lodBlock : ''}`;
 }
 
 module.exports = { FIDELITY, DECOR_SIZE, collisionClass, mergeGroups, meshPlan, renderVertices, setupScript };

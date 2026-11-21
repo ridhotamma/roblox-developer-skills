@@ -2,6 +2,9 @@
 -- Import Fish.roblox.glb with the 3D Importer, select the imported model in the Explorer, then paste this
 -- into the command bar (View > Command Bar) and press Enter. It sets CollisionFidelity on every MeshPart and turns
 -- collision off on decoration. 9 MeshParts (static parts are merged per material and collision class).
+-- Level of detail: this model is skinned, so its cheaper version is a separate rig, Fish.lod.roblox.glb
+-- (same bone names: the clip files animate it). Swap to it at distance, e.g. for crowds and schools.
+
 local SETTINGS = { -- name = { CollisionFidelity, CanCollide }
   ["Tail"] = { "Box", false }, -- none
   ["PelvicLMesh"] = { "Box", true }, -- box

@@ -6,6 +6,8 @@ const M = require('./math.cjs');
 const G = require('./geometry.cjs');
 const MD = require('./model.cjs');
 const RB = require('./roblox.cjs');
+const LOD = require('./lod.cjs');
+const RN = require('./render.cjs');
 const { sub, dot, len } = M;
 const { pointTriDist, distToMesh, insideByRay } = G;
 const ROBLOX_MESH_TRIS = 20000;   // per-mesh triangle limit of Roblox's 3D Importer (per MeshPart)
@@ -150,6 +152,30 @@ function run(model, opts) {
     }
     add('performance', 'pass', `${tris} triangles, ${verts} GPU vertices (${(verts / (tris || 1)).toFixed(2)} per triangle: hard edges split vertices, smoothed parts share them)${rbx}${tinyTxt}`);
     if (share > 0.25) add('performance', 'warn', `${(share * 100).toFixed(0)}% of the triangles are under ~10 px when the model is 200 px tall on screen — budget spent on detail nobody sees; lower segments / detail on ${[...tiny.keys()].slice(0, 4).join(', ')}, or drop the tiniest parts`);
+  }
+  // 1a'. level of detail: the reduced version must compile, save a real share of the triangles and keep the outline
+  // (silhouette overlap front / side / top, drawn in the full model's frame so a shrinking LOD shows up)
+  {
+    const ls = LOD.settings(model);
+    if (!ls.on) add('lod', 'pass', `no LOD version: ${ls.why}`);
+    else {
+      const r = LOD.build(model), lm = r.model;
+      if (lm.errors.length) add('lod', 'fail', `the LOD version does not compile: ${lm.errors.join('; ')}`);
+      else {
+        const lt = lm.nodes.reduce((s, n) => s + (n.mesh ? n.mesh.tris.length : 0), 0), ratio = lt / (tris || 1), F = RN.frameInfo(model);
+        const iou = ['front', 'side', 'top'].map(v => {
+          const view = { ortho: v, w: 160, h: 160 }, a = RN.render(model, { view, silhouette: true, grid: false, frame: F }).T.id, b = RN.render(lm, { view, silhouette: true, grid: false, frame: F }).T.id;
+          let both = 0, any = 0; for (let i = 0; i < a.length; i++) { const x = a[i] >= 0, y = b[i] >= 0; if (x && y) both++; if (x || y) any++; }
+          return any ? both / any : 1;
+        });
+        const pct = x => `${Math.round(x * 100)}%`, sil = iou.map(pct).join(' / ');
+        const skinned = model.nodes.some(n => n.mesh && n.skin), where = !model.targets.includes('roblox') ? '' : skinned ? `; Roblox: a separate reduced rig (${model.name}.lod.roblox.glb, same bones)` : '; Roblox: a one-mesh Simple stand-in (1 draw call at distance) for the LodController';
+        add('lod', 'pass', `LOD version: ${tris} → ${lt} triangles (${pct(ratio)}), silhouette kept ${sil} (front / side / top)${r.dropped.length ? `, detail dropped: ${r.dropped.join(', ')}` : ''}${where}`);
+        if (ratio > 0.75) add('lod', 'warn', `the LOD version keeps ${pct(ratio)} of the triangles: it saves little. Mark small parts "lod": "drop", or lower segments / sides on the big shapes so the reduction has something to halve`);
+        const worst = Math.min(...iou);
+        if (worst < 0.9) add('lod', 'warn', `the LOD version changes the outline (${pct(worst)} overlap in the ${['front', 'side', 'top'][iou.indexOf(worst)]} view): a part that carries the silhouette was dropped or thinned. Mark it "lod": "keep", or give it more segments so it survives halving`);
+      }
+    }
   }
   if (geomOk) add('geometry', 'pass', `${rest.length} parts watertight${openParts ? ` (except ${openParts} declared open surface${openParts > 1 ? 's' : ''})` : ''}, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections`);
 

@@ -44,6 +44,12 @@ function cmdBuild(files, o) {
     const glb = EX.toGlb(model), verr = EX.validateGlb(glb);
     if (verr.length) { console.log('GLB VALIDATION FAILED:\n  ' + verr.join('\n  ')); failed++; }
     fs.writeFileSync(path.join(out, model.name + '.glb'), glb); written.push(model.name + '.glb');
+    const lodBuf = EX.lodGlb(model);
+    if (lodBuf) {
+      const lerr = EX.validateGlb(lodBuf);
+      if (lerr.length) { console.log('LOD GLB VALIDATION FAILED:\n  ' + lerr.join('\n  ')); failed++; }
+      fs.writeFileSync(path.join(out, model.name + '.lod.glb'), lodBuf); written.push(model.name + '.lod.glb');
+    }
     if (model.targets.includes('roblox')) for (const r of EX.robloxGlbs(model)) {
       const rerr = EX.validateGlb(r.buf).concat(EX.validateRoblox(r.buf));
       if (rerr.length) { console.log(`${r.name} FAILED ROBLOX CHECKS:\n  ` + rerr.join('\n  ')); failed++; }

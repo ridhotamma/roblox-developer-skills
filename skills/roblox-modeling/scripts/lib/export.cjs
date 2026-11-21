@@ -5,6 +5,7 @@ const M = require('./math.cjs');
 const MD = require('./model.cjs');
 const G = require('./geometry.cjs');
 const RB = require('./roblox.cjs');
+const LOD = require('./lod.cjs');
 const { sub, cross, unit, mul } = M;
 
 // ---- glTF --------------------------------------------------------------------------------------
@@ -12,6 +13,8 @@ const { sub, cross, unit, mul } = M;
 //   so parts merged into one mesh keep their colours (Roblox allows one material per mesh).
 // opts.clips: names of the clips to include (default: all).
 // opts.merge: merge parts that never move relative to each other into one mesh per frame / material class (Roblox).
+// opts.simple: a LOD model whose whole rest pose becomes one extra mesh, "Simple", under the root: the cheap stand-in
+//   the roblox-performance LodController shows at distance (everything else goes in "Detail", see roblox.cjs).
 function toGltf(model, opts) {
   opts = opts || {};
   const bin = [], bufferViews = [], accessors = [];
@@ -87,6 +90,11 @@ function toGltf(model, opts) {
     meshes.push({ name: g.name, primitives: [Object.assign(prim(g.members, g.frame.pivot), { material: material(g.members[0]) })] });
     const fi = newIndex.get(g.frame); nodes.push({ name: g.name, mesh: meshes.length - 1 });
     (nodes[fi].children = nodes[fi].children || []).push(nodes.length - 1);
+  }
+  if (opts.simple) {                                                  // the far stand-in: one mesh, one draw call
+    const root = model.nodes[0], parts = opts.simple.nodes.filter(n => n.mesh && !n.hidden);
+    meshes.push({ name: 'Simple', primitives: [Object.assign(prim(parts, root.pivot), { material: material({ name: 'Simple', color: [1, 1, 1], material: { roughness: 0.85, metalness: 0, emissive: null } }) })] });
+    nodes.push({ name: 'Simple', mesh: meshes.length - 1 }); (nodes[0].children = nodes[0].children || []).push(nodes.length - 1);
   }
   const extraStart = nodes.length; nodes.push(...extraRoots);
   // animations: baked, linear
@@ -166,10 +174,21 @@ function validateGlb(buf) {
 // <Name>.roblox.glb (the model, vertex colours, no animation) and, for a skinned model, <Name>.<Clip>.roblox.glb
 // per clip (the same rig with that one clip). Node animations of unrigged parts are not imported by Roblox, so a
 // model without skins gets the model file only (animate it from a script, see integration.md).
+// With a LOD version (lod.cjs): a model without skins gets the Simple stand-in inside its model file (one mesh the
+// LodController shows at distance); a skinned model gets <Name>.lod.roblox.glb, the reduced rig with the same bone
+// names, so the clip files animate it too.
 function robloxGlbs(model) {
-  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [], merge: true }) }];
-  if (model.nodes.some(n => n.mesh && n.skin)) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name], merge: true }) });
+  const skinned = model.nodes.some(n => n.mesh && n.skin), ls = LOD.settings(model), lod = ls.on ? LOD.build(model).model : null;
+  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [], merge: true, simple: lod && !lod.errors.length && !skinned ? lod : null }) }];
+  if (skinned) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name], merge: true }) });
+  if (skinned && lod && !lod.errors.length) out.push({ name: `${model.name}.lod.roblox.glb`, buf: toGlb(lod, { vertexColors: true, clips: [], merge: true }) });
   return out;
+}
+// The LOD version for engines with their own LOD switch (three.js THREE.LOD, Godot, Unity LODGroup): same nodes,
+// bones and clips as <Name>.glb. null when the model has no LOD version.
+function lodGlb(model) {
+  const ls = LOD.settings(model); if (!ls.on) return null;
+  const lod = LOD.build(model).model; return lod.errors.length ? null : toGlb(lod);
 }
 // Roblox's mesh rules on a .glb: at most one animation, at most 20,000 triangles and 4 influences per vertex in a
 // mesh, no weight on a skin's root joint, vertex colours present. Returns a list of problems.
@@ -297,4 +316,4 @@ export async function load${model.name}(parent, url = new URL('./${model.name}.g
 `;
 }
 
-module.exports = { toGltf, toGlb, validateGlb, robloxGlbs, validateRoblox, toObj, blenderScript, threeModule };
+module.exports = { toGltf, toGlb, validateGlb, robloxGlbs, lodGlb, validateRoblox, toObj, blenderScript, threeModule };
