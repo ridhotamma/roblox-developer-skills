@@ -1,23 +1,23 @@
 {
  "name": "Fish",
  "title": "Low-poly fish",
- "triangles": 348,
+ "triangles": 392,
  "parts": 16,
  "size": [
-  0.07146985752517557,
-  0.1479143173161818,
-  0.30000000000000004
+  0.06803812059593833,
+  0.154,
+  0.30400000000000005
  ],
  "results": [
   {
    "id": "budget",
    "status": "pass",
-   "msg": "348 triangles (budget 1200)"
+   "msg": "392 triangles (budget 1200)"
   },
   {
    "id": "geometry",
    "status": "pass",
-   "msg": "12 parts watertight, outward-facing, no degenerate triangles"
+   "msg": "12 parts watertight, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections"
   },
   {
    "id": "z-fighting",
@@ -27,7 +27,17 @@
   {
    "id": "rig",
    "status": "pass",
-   "msg": "Body: 3 bending joints with enough edge loops, bones inside the body on its centre line"
+   "msg": "Body: 3 bending joints with enough edge loops, bones inside the body on its centre line, evenly spaced stations"
+  },
+  {
+   "id": "rig",
+   "status": "pass",
+   "msg": "Dorsal: thin sheet, 3 bending joints with enough rows of vertices"
+  },
+  {
+   "id": "rig",
+   "status": "pass",
+   "msg": "Anal: thin sheet, 2 bending joints with enough rows of vertices"
   },
   {
    "id": "assembly",
@@ -37,22 +47,32 @@
   {
    "id": "dimensions",
    "status": "pass",
-   "msg": "width (x): 0.071 m vs reference 0.07 m (+2.1%, tolerance 8%)"
+   "msg": "width (x): 0.068 m vs reference 0.07 m (-2.8%, tolerance 8%)"
   },
   {
    "id": "dimensions",
    "status": "pass",
-   "msg": "height (y): 0.148 m vs reference 0.15 m (-1.4%, tolerance 8%)"
+   "msg": "height (y): 0.154 m vs reference 0.15 m (+2.7%, tolerance 8%)"
   },
   {
    "id": "dimensions",
    "status": "pass",
-   "msg": "depth (z): 0.300 m vs reference 0.3 m (+0.0%, tolerance 8%)"
+   "msg": "depth (z): 0.304 m vs reference 0.3 m (+1.3%, tolerance 8%)"
+  },
+  {
+   "id": "weld",
+   "status": "pass",
+   "msg": "9 appendage roots are sunk into their bodies"
+  },
+  {
+   "id": "seam",
+   "status": "pass",
+   "msg": "root edges follow the body contour along their whole length"
   },
   {
    "id": "anim:Swim",
    "status": "pass",
-   "msg": "moves (largest displacement 0.048 m)"
+   "msg": "moves (largest displacement 0.050 m)"
   },
   {
    "id": "anim:Swim",
@@ -62,7 +82,7 @@
   {
    "id": "anim:Swim",
    "status": "pass",
-   "msg": "11 attached part pairs stay joined"
+   "msg": "9 attached part pairs stay joined"
   },
   {
    "id": "anim:Swim",
@@ -70,9 +90,24 @@
    "msg": "no parts pass through each other"
   },
   {
+   "id": "anim:Swim",
+   "status": "pass",
+   "msg": "7 appendages follow the body surface"
+  },
+  {
    "id": "deform:Swim",
    "status": "pass",
    "msg": "Body deforms cleanly (no folds, faces ×0.94-1.08, volume -0.2%)"
+  },
+  {
+   "id": "deform:Swim",
+   "status": "pass",
+   "msg": "Dorsal deforms cleanly (no folds, faces ×0.80-1.46)"
+  },
+  {
+   "id": "deform:Swim",
+   "status": "pass",
+   "msg": "Anal deforms cleanly (no folds, faces ×0.77-1.21)"
   },
   {
    "id": "anim:Idle",
@@ -87,7 +122,7 @@
   {
    "id": "anim:Idle",
    "status": "pass",
-   "msg": "11 attached part pairs stay joined"
+   "msg": "9 attached part pairs stay joined"
   },
   {
    "id": "anim:Idle",
@@ -95,19 +130,34 @@
    "msg": "no parts pass through each other"
   },
   {
+   "id": "anim:Idle",
+   "status": "pass",
+   "msg": "7 appendages follow the body surface"
+  },
+  {
    "id": "deform:Idle",
    "status": "pass",
    "msg": "Body deforms cleanly (no folds, faces ×0.98-1.03, volume -0.0%)"
   },
   {
-   "id": "anim:Die",
+   "id": "deform:Idle",
    "status": "pass",
-   "msg": "moves (largest displacement 0.185 m)"
+   "msg": "Dorsal deforms cleanly (no folds, faces ×0.86-1.18)"
+  },
+  {
+   "id": "deform:Idle",
+   "status": "pass",
+   "msg": "Anal deforms cleanly (no folds, faces ×0.90-1.10)"
   },
   {
    "id": "anim:Die",
    "status": "pass",
-   "msg": "11 attached part pairs stay joined"
+   "msg": "moves (largest displacement 0.197 m)"
+  },
+  {
+   "id": "anim:Die",
+   "status": "pass",
+   "msg": "9 attached part pairs stay joined"
   },
   {
    "id": "anim:Die",
@@ -115,19 +165,34 @@
    "msg": "no parts pass through each other"
   },
   {
+   "id": "anim:Die",
+   "status": "pass",
+   "msg": "7 appendages follow the body surface"
+  },
+  {
    "id": "deform:Die",
    "status": "pass",
    "msg": "Body deforms cleanly (no folds, faces ×0.85-1.15, volume +0.5%)"
   },
   {
-   "id": "check:side profile matches the reference (low-poly fins drop the spines, so ~80% is the ceiling)",
+   "id": "deform:Die",
    "status": "pass",
-   "msg": "side silhouette vs sea-perch-side.jpg: 79% match (min 78%), aspect 1% (reference faces the other way)"
+   "msg": "Dorsal deforms cleanly (no folds, faces ×0.75-1.91)"
+  },
+  {
+   "id": "deform:Die",
+   "status": "pass",
+   "msg": "Anal deforms cleanly (no folds, faces ×0.56-1.38)"
+  },
+  {
+   "id": "check:side profile matches the reference (1867 watercolour with soft spiny fins: 70%+ with the aspect within 2% is a good low-poly match)",
+   "status": "pass",
+   "msg": "side silhouette vs sea-perch-side.png: 73% match (min 70%), aspect -2% (reference faces the other way)"
   },
   {
    "id": "check:length:height like the reference",
    "status": "pass",
-   "msg": "z/y = 2.028 vs reference 2 (1.4%)"
+   "msg": "z/y = 1.974 vs reference 2 (-1.3%)"
   },
   {
    "id": "check:ends belly-up",
@@ -143,6 +208,16 @@
    "id": "check:dorsal fin stays attached",
    "status": "pass",
    "msg": "Dorsal ↔ Body gap 0.0000 m in Swim @ 0.13 s (want 0..0.0021)"
+  },
+  {
+   "id": "check:anal fin stays attached",
+   "status": "pass",
+   "msg": "Anal ↔ Body gap 0.0000 m in Swim @ 0.13 s (want 0..0.0021)"
+  },
+  {
+   "id": "check:bound pelvic fin stays on the belly",
+   "status": "pass",
+   "msg": "PelvicL ↔ Body gap 0.0000 m in Swim @ 0.40 s (want 0..0.0021)"
   }
  ],
  "clips": [

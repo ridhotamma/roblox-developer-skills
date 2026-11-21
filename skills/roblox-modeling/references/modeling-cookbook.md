@@ -23,13 +23,23 @@
 | Ramps, roofs, wedge blades | `wedge`, or `box` with `taper` |
 | Rings, handles, hoops, chain links | `torus` (use `arc` for a half handle) |
 
+## Appendages: weld first, then rig
+
+Fins, wings, ears, leaves, straps and limbs are plates or stubs growing out of a body. Two things decide whether they read as part of it:
+
+- **The root is buried, not pasted.** Build the root edge from 2-4 outline points that follow the body contour, every point 3-5 mm inside the surface (scale it: about 1-2% of the body's smallest dimension). A straight root chord across a curved back leaves its corners outside; the `seam` test reports that gap and asks for a point on the contour.
+- **The hinge is on the root.** `"pivot": "weld"` finds it on the contact centroid; an explicit pivot must lie on the root line. A fin posed about its bounds centre lifts its root out of the body — the classic "card stuck on the side".
+- **The root must move like the surface under it.** Where the body blends two bones, a rigid part on one bone drifts (the `sync` test measures it). Skin the fin with the body's own bones/axis when it spans the blend, `bind` it for a small rigid fin, or place it where one bone owns 100% of the root and parent it there.
+- **Thickness and taper:** extruded fins at `depth` 4-6 mm with `taper` 0.7 read as bevelled sheets; zero thickness flickers and vanishes edge-on. Put `taperAt` on the root line, otherwise the outer face shrinks toward the outline centre and can pull the root edge back out of the body.
+- **A plate is edge-on from some views.** That is fine in low-poly; pose it (`rot` about the root) so the readable views show its face, and don't add thickness just to make it visible from the front.
+
 ## Recipes
 
 **Chest / crate / box with a lid** (see `examples/treasure_chest.json`): hollow base (`hollow` 0.03-0.04), plinth slightly larger than the base, rim as a hollow `open: "both"` box on top of the base, lid as an `extrude` of the arch (or a box) hinged with `pivot` on the back edge, a lid rim, straps as **U-shaped extrude outlines** (front-bottom-back only, so nothing crosses the opening) and arched bands on the lid (outer arch + inner arch reversed), handles as `torus` on mounting plates, a lock plate + hasp (hasp parented to the lid). Put something inside (a hull mound of gold, a dark floor) or the open state looks empty.
 
 **Barrel**: `lathe` profile bulging in the middle (`[[0.26,0],[0.31,0.25],[0.32,0.45],[0.31,0.65],[0.26,0.9]]`), 8-10 segments; hoops as thin hollow `open: "both"` boxes are wrong (square), use `lathe` rings or `torus` with small tube; lid recess = smaller dark cylinder slightly below the top.
 
-**Fish** (see `examples/fish.json`): trace a side view; loft body 8 sides with 8-10 stations (nose station `w: 0, h: 0`), width 0.4-0.5 × height; spine of 3-4 `none` bones from head to tail; body skinned along z; tail, dorsal and anal fins as thin `extrude` outlines in `zy` parented to the nearest bone; body stations taper to a point inside the tail fin; pectoral / pelvic fins mirrored, the root edge 1-3 mm inside the body surface, `pivot` on that root edge, parented to the bone nearest the root (the head bone for fins near the head); eyes = two small `sphere detail 0` (white + pupil) mirrored, parented to the head bone. `"ground": false`.
+**Fish** (see `examples/fish.json`): trace a side view; loft body 8 sides with 8-10 stations (nose station `w: 0, h: 0`), width 0.4-0.5 × height; spine of 3-4 `none` bones from head to tail; body skinned along z (`loops: 3` if it bends hard). Fins as thin `extrude` outlines in `zy`, `depth` 4-6 mm, `taper` 0.7, root points following the body 3-5 mm inside it. **Rig them to the surface:** dorsal and anal `skin` with the body's four bones + axis (their roots span several bones); pelvic fins `"bind": "Body"` + `"pivot": "weld"` (small, rigid, still follows the belly); pectoral fins rigid on `Head` with the root at z > the Head pivot, where the body is 100% Head, so they can flap; tail rigid on `TailBone` with its root behind that bone's pivot. Body stations taper to a point inside the tail fin. Eyes = two small `sphere detail 0` (white + pupil) mirrored, parented to the head bone. `"ground": false`.
 
 **Bird**: loft body (shorter, rounder: height ≈ width), head sphere or loft continuation, beak `cone` 4-5 sides, wings as `extrude` outlines in `xz` (top view outline) hinged at the shoulder with `pivot`, split into inner + outer wing (outer parented to inner) for a better flap, tail `extrude` fan, legs thin `cylinder`s.
 
@@ -55,7 +65,11 @@
 | Inside-out part (render shows holes) | geometry | Fix custom `mesh` face winding (counter-clockwise seen from outside) |
 | Paper-thin part disappears edge-on | geometry (warn) | At least 3-5 mm thick, or accept for fins seen mostly side-on |
 | Proportions drift from the reference | dimensions, silhouette | Re-measure, fix the regions the overlay marks |
-| A fin, lid or limb swings off its joint during a clip (looks cut off or floating) | anim attachment ("come apart") | Put the `pivot` on the edge where the part meets its parent, embed the root 2-3 mm into the parent, and on skinned bodies hang the part from the bone nearest its root |
+| A fin, lid or limb swings off its joint during a clip (looks cut off or floating) | anim attachment ("come apart") | Put the `pivot` on the edge where the part meets its parent (`"pivot": "weld"`), embed the root 3-5 mm into the parent, and on skinned bodies hang the part from the bone nearest its root, or bind/skin it with the body weights |
+| A fin looks like a card pasted on, with a visible cut line | weld / seam | Sink the whole root line 3-5 mm inside the body, with 2-4 points on the contour; the straight chord between two points cuts through the air |
+| Fins stay straight while the body bends, or slide along it | sync (fails with mm) | Skin the fin with the body's bones + axis, use `"bind": "Body"` for a small rigid fin, or move the root where one bone owns 100% |
+| A posed fin's root lifts out of the body after `rot` | weld / attachment | `"pivot": "weld"`, or put the explicit pivot on the root line |
+| A bound fin still drifts slightly | sync / render | Its 3-5 mm root is too small for the weight gradient: use `skin` instead |
 | A lofted body ends in a flat cap where a thin tail or fin begins (reads as a cut stump) | only the renders | Add stations that taper the body to a point inside the fin |
 | Rotation acts around the wrong point | renders, `apart`, `angle` | `pivot` is in model space; `rot` turns a shape around its own centre at build time only |
 | A skinned body bends in straight, faceted kinks or collapses at a joint | rig (loops), deform (pinch, volume) | Edge loops at the joint (`skin.loops`), `"weights": "joints"` for limbs, bulge the joint station 5-10% |

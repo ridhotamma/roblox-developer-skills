@@ -35,10 +35,10 @@ Default to rigid parts for props and stylised Roblox-style characters: they are 
 
    `"skin": { …, "loops": 3 }` inserts these stations for you, with width, height and offsets interpolated from the stations around them. It skips any position that already has a station. The report says how many rings it added.
 3. **Spend the triangles at the joints, not on straight runs.** A forearm needs 2 rings, an elbow needs 3. Remove stations from long straight segments before raising `sides`.
-4. **Even spacing, no slivers.** No two stations closer than about 10% of the local width (except deliberate loops in a joint zone), and no ring spacing bigger than about 3× the local width on a part that bends.
+4. **Even spacing, no slivers.** No two stations closer than about 10% of the local width (except deliberate loops in a joint zone), and no ring spacing bigger than about 3× the local width across a bending zone. The `rig` check reports both.
 5. **Round cross-sections where it bends.** `ellipse` with 6-8 sides deforms evenly. `rect` and `diamond` sections crush flat on the inside of a bend and flare on the outside. Keep them for parts that do not bend.
 6. **Bulge the joint station 5-10%** (wider and taller than its neighbours) on joints that bend more than 60°. Linear blend skinning loses about that much volume, and the bulge cancels it out. Real elbows and knees are thicker anyway.
-7. **Keep pointed ends away from joints.** An apex station (`w: 0, h: 0`) makes a fan of thin triangles. Leave at least one full ring between a joint zone and an apex, or the tip will pinch and fold.
+7. **Keep pointed ends away from joints.** An apex station (`w: 0, h: 0`) makes a fan of thin triangles. Leave at least one full ring between a joint zone and an apex, or the tip will pinch and fold. The `rig` check reports an apex inside a bend zone or right next to one.
 8. **Bones run through the centre.** Put each bone's pivot at the centre of the cross-section at that point (the station's `dy` / `dx`), not on the top or belly surface. An off-centre bone stretches one side and crushes the other. The `rig` check reports any bone outside the body or more than 40% off-centre.
 9. **Model the rest pose in the middle of the motion.**
    - A tail that bends both ways: model it straight.
@@ -82,7 +82,8 @@ Rigid parts do not deform, so the problems become gaps, poke-through and visible
 ## 7. Hair, capes, tails, ropes (chains that may get runtime physics)
 
 - **Hair lock / ponytail / tail:** a `loft` along its length with a flattened `ellipse` or `roundrect` section, 3-5 bones, `"weights": "smooth"`, `"loops": 1-2`, tapering to a point only after the last bone. Bangs are several short locks (2-3 bones each) hung from a head bone.
-- **Cape / flag / skirt panel:** a skinned strip needs rings across its length. Use a loft with a thin `rect` section, or a `mesh` with rows of vertices, and one bone per row of rings.
+- **Cape / flag / skirt panel:** a skinned strip needs rings across its length. Use a loft with a thin `rect` section, or a `mesh` with rows of vertices, and one bone per row of rings. A single-sided `mesh` sheet needs `"openSurface": true`, or the watertight test fails it. Thin skinned sheets get the edge-loop count (`rig`: "rows of vertices") and the fold / pinch / stretch tests (`deform`), not the bone-centre and volume tests.
+- **Extra rows on a fin go on a free edge.** Points added along a fin's buried root edge a few mm apart shear its thin rim faces in a narrow blend zone and fold them; one point on the trailing edge inside the zone gives the row without that.
 - **Runtime physics** (Roblox spring / Verlet bone scripts such as SmartBone, Godot's `SpringBoneSimulator3D`) drives these same bones. The topology rules are the same, and physics swings further than keyframes, so give the chain 1 extra loop per joint. Name the chain bones consistently (`Hair1`, `Hair2`, …) so a script can find them.
 
 ## 8. What the tests report
@@ -94,9 +95,15 @@ Rigid parts do not deform, so the problems become gaps, poke-through and visible
 | `deform:<Clip>` FAIL `folds through itself` | Triangles turn inside out: the mesh visibly breaks | More loops, `joints` weights, a wider blend, or less angle |
 | `deform:<Clip>` WARN `pinches` | A face shrinks below 30% of its area: a crease or collapse | Loops, a wider blend, a half-bent rest pose, a joint bulge |
 | `deform:<Clip>` WARN `stretches` | A face grows more than ×2.5: facets go long and thin | Add rings there, put the bone on the joint |
+| `rig` WARN `stations … only N mm apart … outside any joint` | Two rings almost on top of each other: a band of slivers that creases | Merge the stations or spread them out |
+| `rig` WARN `stations … N× the local width apart across a bending zone` | Long facets across a bend shear and flatten | Add a station in the gap, or `"loops"` |
+| `rig` WARN `the pointed end … is inside … bend zone` / `has no full ring between it and …` | A fan of thin triangles at the tip bends | End the loft on a small ring, add a station before the tip, or move the joint |
+| `rig` WARN `the sheet has K rows of vertices` | A thin skinned sheet (fin, cape) has no vertices where it bends, so it creases at one line | Add outline points / rows inside the joint zone, on a free edge |
 | `deform:<Clip>` WARN `loses N% of its volume` | More than 12% volume change: the joint collapses or twists like a candy wrapper | Spread the bend or twist over more bones, bulge the joint |
 
-The `deform` pass line prints the range of face-area change and the volume change, which shows how close a joint is to the limits. The area and volume checks are skipped for clips that scale the bones, since scaling changes them on purpose.
+The `deform` pass line prints the range of face-area change and the volume change (thin sheets: area only), which shows how close a joint is to the limits.
+
+The `geometry` test covers the static mesh of every part, rigid or skinned: open or non-manifold edges (FAIL; `"openSurface": true` for a deliberate sheet), inside-out or inconsistently wound faces (FAIL), a part cutting through itself (FAIL, with the positions of the crossing faces), zero-area and near-flat sliver triangles (a corner over 175°) and near-duplicate vertices (an edge under 0.1% of the part) (WARN). Long thin triangles on long thin parts (a pole, a strap's side wall) are normal and not reported. Extrude and polygon caps are triangulated best-ear-first with edge flips, so spiky outlines (fins, flames, leaves) do not produce slivers on their own. The area and volume checks are skipped for clips that scale the bones, since scaling changes them on purpose.
 
 ## 9. Taking a rig to Roblox
 
@@ -104,5 +111,5 @@ The `deform` pass line prints the range of face-area change and the volume chang
 - Up to 4 bone influences per vertex are supported. This engine uses at most 2, so weights import unchanged.
 - Keep bone names unique, without spaces or dots.
 - The bind pose is the rest pose you modelled, which is another reason to model limbs half-bent and arms in an A-pose.
-- Keep each mesh under Roblox's per-mesh triangle limit (20,000 at the time of writing). Low-poly models are far below it, but mobile performance favours a few hundred to a few thousand triangles per character.
+- Keep each mesh under Roblox's per-mesh triangle limit (20,000 at the time of writing). Each part exports as its own mesh, and the `budget` test fails any part over the limit. Low-poly models are far below it, but mobile performance favours a few hundred to a few thousand triangles per character.
 - For full R15 avatar animation (Motor6D poses, KeyframeSequences), use the `roblox-animation` skill. This skill builds the mesh and simple rigs.

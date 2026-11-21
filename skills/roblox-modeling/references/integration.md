@@ -16,7 +16,7 @@
 - **Quick:** File → Import → glTF 2.0 (.glb/.gltf) → pick `<Name>.glb`. Blender converts Y-up to Z-up automatically. Each clip becomes an Action. Switch between them in the Action Editor (Dope Sheet → Action Editor) or the NLA editor.
 - **Script:** Scripting tab → Open `<Name>.blender.py` (next to the .glb) → Run Script. Or headless: `blender --background --python <Name>.blender.py -- <Name>.blend` to produce a .blend file.
 - Smooth shading would round off the facets; the script sets every face flat. If you import by hand and it looks smooth, select the mesh → right-click → Shade Flat.
-- Skinned models import as an armature with the bones named like the spec (`Head`, `Spine1`...), so you can keep animating them in Blender.
+- Skinned models import as an armature with the bones named like the spec (`Head`, `Spine1`...), so you can keep animating them in Blender. Parts using `skin` or `bind` import as their own skinned meshes; keep them bound to the armature that carries the body's bones (if the importer created one armature per skin, re-bind or join them to a single one) so the fins and the body cannot drift apart.
 - Export back from Blender to glTF for engines, or to FBX for Roblox if you edit there.
 
 ## three.js
@@ -51,6 +51,7 @@ Scale: one unit is one metre. A 0.3 m fish next to a 1.8 m character is right; s
 - **3D Importer** (Home / Avatar → Import 3D, or File → Import 3D) accepts .glb / .gltf / .fbx / .obj. Import `<Name>.glb`: it creates a Model with one MeshPart per part, coloured from the materials. Roblox units are studs: set the importer's scale so the size matches your game (a 1.8 m human ≈ 5-6 studs, so roughly ×3.3 for real-world sizes; enter the scale in the importer's file settings).
 - Parts face -Z in Roblox; if the model faces backwards after import, rotate it 180° about Y.
 - Rigid-part animations: Roblox does not turn glTF node animations of a non-rigged model into Animations. Either drive the parts from a script (for a lid: a `HingeConstraint` with a servo, or `TweenService` on a pivot `CFrame`, using the pivot and angles from the spec), or rig it in Blender (armature with one bone per moving part) and import the FBX as a rig, then use the Animation Editor. Skinned models (an armature) import as a rig with bones; check the Roblox importer's current documentation for skinned-mesh and animation support, since it changes. The bind pose is the rest pose in the spec, and weights use at most 2 bones per vertex (Roblox allows 4). See `topology-and-rigging.md` § 9 for bone naming, animating with an `AnimationController`, and driving bones from scripts (hair or tail physics).
+- Parts that use `skin` or `bind` are extra skinned meshes that share the body's joints. Import them together into the same rig: if each one ends up with its own copy of the bones, the body animates and the fins do not.
 - Keep triangle counts low for mobile: the counts the build reports are the final counts.
 
 ## Godot 4 and Unity

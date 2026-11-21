@@ -6,17 +6,9 @@ const M = require('./math.cjs');
 const G = require('./geometry.cjs');
 const MD = require('./model.cjs');
 const { sub, dot, len } = M;
+const { pointTriDist, distToMesh, insideByRay } = G;
+const ROBLOX_MESH_TRIS = 20000;   // per-mesh triangle limit of Roblox's 3D Importer (per MeshPart)
 
-function pointTriDist(p, a, b, c) {           // distance from point p to triangle abc (Ericson, Real-Time Collision Detection)
-  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
-  if (d1 <= 0 && d2 <= 0) return len(ap);
-  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return len(bp);
-  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return len(sub(p, M.add(a, M.mul(ab, v)))); }
-  const cpp = sub(p, c), d5 = dot(ab, cpp), d6 = dot(ac, cpp); if (d6 >= 0 && d5 <= d6) return len(cpp);
-  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return len(sub(p, M.add(a, M.mul(ac, w)))); }
-  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return len(sub(p, M.add(b, M.mul(sub(c, b), w)))); }
-  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return len(sub(p, M.add(a, M.add(M.mul(ab, v), M.mul(ac, w)))));
-}
 // Closest distance between two meshes (vertex-to-triangle both ways; exact enough for low-poly parts). 0 when they overlap.
 function meshGap(A, B) {
   const bA = G.bounds(A.pos), bB = G.bounds(B.pos);
@@ -53,21 +45,6 @@ function samplePoints(A) {
   }
   return (A.samples = out);
 }
-// 0 when p is on or inside B, else the distance from p to B's surface.
-function distToMesh(p, B) {
-  const planes = B.planes !== undefined ? B.planes : (B.planes = G.convexPlanes(B));
-  if (planes ? planes.every(pl => dot(pl.n, p) - pl.d <= 1e-9) : insideByRay(p, B)) return 0;
-  let d = Infinity; for (const t of B.tris) d = Math.min(d, pointTriDist(p, B.pos[t[0]], B.pos[t[1]], B.pos[t[2]])); return d;
-}
-function insideByRay(p, B) {
-  const dir = M.unit([0.5773, 0.5774, 0.5775]); let hits = 0;
-  for (const t of B.tris) {                     // Möller–Trumbore
-    const a = B.pos[t[0]], e1 = sub(B.pos[t[1]], a), e2 = sub(B.pos[t[2]], a), h = M.cross(dir, e2), det = dot(e1, h);
-    if (Math.abs(det) < 1e-12) continue; const f = 1 / det, s = sub(p, a), u = f * dot(s, h); if (u < 0 || u > 1) continue;
-    const q = M.cross(s, e1), v = f * dot(dir, q); if (v < 0 || u + v > 1) continue; if (f * dot(e2, q) > 1e-9) hits++;
-  }
-  return hits % 2 === 1;
-}
 // Coplanar, same-facing, overlapping faces of two different parts flicker ("z-fighting") in every engine.
 function zFight(A, B, eps) {
   const bA = G.bounds(A.pos), bB = G.bounds(B.pos);
@@ -99,6 +76,17 @@ function overlap2D(P, Q) {                     // area of the intersection of tw
 }
 const posed = (model, clip, t) => MD.posedMeshes(model, clip, t).map(m => ({ name: m.node.name, node: m.node, pos: m.pos, tris: m.tris }));
 const timeOf = (clip, at) => (at === 'end' || at == null ? clip.duration : at === 'start' ? 0 : at === 'mid' ? clip.duration / 2 : +at);
+// Vertices of A on the weld seam against B: inside B and touching a vertex outside B, plus the inside ring next to it.
+function seamBand(A, B) {
+  const inside = A.pos.map(p => distToMesh(p, B) <= 1e-6), seam = new Set(), edges = [];
+  for (const t of A.tris) for (let e = 0; e < 3; e++) {
+    const a = t[e], b = t[(e + 1) % 3]; edges.push([a, b]);
+    if (inside[a] !== inside[b]) seam.add(inside[a] ? a : b);
+  }
+  const band = new Set(seam);
+  for (const [a, b] of edges) { if (seam.has(a) && inside[b]) band.add(b); if (seam.has(b) && inside[a]) band.add(a); }
+  return [...band];
+}
 
 function run(model, opts) {
   opts = opts || {}; const out = [], add = (id, status, msg) => out.push({ id, status, msg });
@@ -112,16 +100,38 @@ function run(model, opts) {
   // 1. geometry health
   const tris = rest.reduce((s, m) => s + m.tris.length, 0);
   add('budget', tris <= model.budget ? 'pass' : 'fail', `${tris} triangles (budget ${model.budget})`);
-  let geomOk = true;
+  let geomOk = true, openParts = 0;
   for (const m of rest) {
-    const n = m.node, e = G.edgeReport(n.mesh), vol = G.signedVolume(n.mesh), degenerate = n.mesh.tris.filter(t => G.triArea(n.mesh.pos, t) < 1e-12).length;
-    if (n.mesh.pos.some(p => p.some(v => !Number.isFinite(v)))) { add('geometry', 'fail', `${n.name}: NaN/Infinity in vertices`); geomOk = false; continue; }
-    if (e.open || e.nonManifold) { add('geometry', 'warn', `${n.name}: ${e.open} open edges, ${e.nonManifold} non-manifold edges (not watertight)`); geomOk = false; }
+    const n = m.node, P = n.mesh.pos, T = n.mesh.tris;
+    if (P.some(p => p.some(v => !Number.isFinite(v)))) { add('geometry', 'fail', `${n.name}: NaN/Infinity in vertices`); geomOk = false; continue; }
+    // Roblox imports each part as its own MeshPart, and the importer refuses a mesh over its triangle limit
+    if (T.length > ROBLOX_MESH_TRIS) add('budget', 'fail', `${n.name}: ${T.length} triangles in one part, over Roblox's ${ROBLOX_MESH_TRIS} per-mesh limit — the 3D Importer will not take it; split the part or lower its segments / sides / stations`);
+    const e = G.edgeReport(n.mesh), vol = G.signedVolume(n.mesh), degenerate = T.filter(t => G.triArea(P, t) < 1e-12).length;
+    if (e.open || e.nonManifold) {
+      if (n.openSurface && !e.nonManifold) openParts++;
+      else { add('geometry', 'fail', `${n.name}: ${e.open} open edges, ${e.nonManifold} non-manifold edges — not watertight, so it shows holes or see-through faces and the inside / overlap tests are unreliable. Close the shape (caps on lofts and lathes, every outline point joined) or, for a deliberately open sheet (flag, cape, leaf), add "openSurface": true`); geomOk = false; }
+    }
     else if (vol <= 0) { add('geometry', 'fail', `${n.name}: inside-out (faces point inwards, it will render see-through)`); geomOk = false; }
+    if (e.flipped) { add('geometry', 'fail', `${n.name}: ${e.flipped} edges where neighbouring faces wind opposite ways — some faces point inwards and render see-through; fix the vertex order of those faces (counter-clockwise seen from outside)`); geomOk = false; }
     if (degenerate) { add('geometry', 'warn', `${n.name}: ${degenerate} zero-area triangles`); geomOk = false; }
+    // slivers: near-flat triangles (one corner over 175°, a vertex lying on the opposite edge) and near-duplicate
+    // vertices (an edge under 0.1% of the part). Long thin triangles on long thin parts are normal and allowed.
+    const diag = len(G.bounds(P).size) || 1; let flat = 0, dup = 0;
+    for (const t of T) {
+      if (G.triArea(P, t) < 1e-12) continue;
+      if (G.triAngles(P, t)[1] > 175) flat++;
+      else if (Math.min(M.dist(P[t[0]], P[t[1]]), M.dist(P[t[1]], P[t[2]]), M.dist(P[t[2]], P[t[0]])) < diag * 1e-3) dup++;
+    }
+    if (flat || dup) { add('geometry', 'warn', `${n.name}: ${flat ? `${flat} near-flat sliver triangle${flat > 1 ? 's' : ''} (a corner over 175°)` : ''}${flat && dup ? ' and ' : ''}${dup ? `${dup} triangle${dup > 1 ? 's' : ''} with an edge under 0.1% of the part (near-duplicate vertices)` : ''} — they shade badly and flip when the mesh bends; remove outline points / stations that almost repeat or lie on a straight line between their neighbours`); geomOk = false; }
+    // a part cutting through itself (a loft whose rings cross, a raw mesh with crossing faces)
+    const si = G.selfIntersections(n.mesh, size * 1e-5);
+    if (si.count) {
+      const at = si.tris.slice(0, 3).map(([i]) => { const c = si.welded[i].map(k => si.pos[k]); return '[' + [0, 1, 2].map(a => ((c[0][a] + c[1][a] + c[2][a]) / 3).toFixed(3)).join(', ') + ']'; });
+      add('geometry', 'fail', `${n.name}: cuts through itself (${si.count} crossing triangle pair${si.count > 1 ? 's' : ''}, near ${at.join(', ')}) — the surface folds into its own inside; space the stations / profile points out, keep each ring inside its neighbours' offsets, or split it into separate parts`); geomOk = false;
+    }
     const bs = G.bounds(m.pos).size; if (Math.min(...bs) < size * 0.002) add('geometry', 'warn', `${n.name}: paper-thin (${Math.min(...bs).toFixed(4)} m) — flickers and vanishes edge-on`);
   }
-  if (geomOk) add('geometry', 'pass', `${rest.length} parts watertight, outward-facing, no degenerate triangles`);
+  if (geomOk) add('geometry', 'pass', `${rest.length} parts watertight${openParts ? ` (except ${openParts} declared open surface${openParts > 1 ? 's' : ''})` : ''}, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections`);
 
   // 1b. z-fighting between parts, at rest and at the end of each clip (an open lid shows its underside)
   {
@@ -133,8 +143,10 @@ function run(model, opts) {
     if (seen.size) add('z-fighting', 'fail', `coplanar overlapping faces will flicker: ${[...seen.values()].join('; ')}. Offset one face by a few mm or make one part slightly smaller.`);
     else add('z-fighting', 'pass', 'no coplanar overlapping faces between parts');
   }
-  // 1c. rig readiness of skinned parts: edge loops where they bend, bones inside the body on its centre line
-  for (const m of rest) if (m.node.skinBones) rigCheck(model, m, add);
+  // 1c. rig readiness of skinned parts: edge loops where they bend, bones inside the body on its centre line.
+  // Thin plates (fins, membranes, capes) get the edge-loop and fold/pinch/stretch checks, not the volume ones.
+  const thick = m => { const b = G.bounds(m.pos).size; return Math.min(...b) >= 0.1 * Math.max(...b); };
+  for (const m of rest) if (m.node.skinBones && !m.node.bindTo) rigCheck(model, m, add, !thick(m));
   // 2. assembly: every part touches the rest (no floating pieces), rests on the ground
   if (rest.length > 1) {
     const adj = rest.map(() => new Set());
@@ -170,19 +182,94 @@ function run(model, opts) {
   {
     const above = (a, n) => { for (let k = n; k; k = k.parent) if (k === a) return true; return false; };   // a is n or one of its ancestors
     const linked = (A, B) => above(A.node, B.node.parent) || above(B.node, A.node.parent) ||
-      (A.node.skinBones && A.node.skinBones.some(b => above(b, B.node))) || (B.node.skinBones && B.node.skinBones.some(b => above(b, A.node)));
+      (A.node.skinBones && A.node.skinBones.some(b => above(b, B.node))) || (B.node.skinBones && B.node.skinBones.some(b => above(b, A.node))) ||
+      (A.node.bindTo && A.node.bindTo === B.node.name) || (B.node.bindTo && B.node.bindTo === A.node.name);
     for (let i = 0; i < rest.length; i++) for (let j = i + 1; j < rest.length; j++) {
       if (!linked(rest[i], rest[j]) || meshGap(rest[i], rest[j]) > tol * 1.5) continue;
-      // the joint = every vertex of one part that sits on or inside the other at rest; all of it must stay welded
-      const ai = rest[i].pos.map((p, k) => (distToMesh(p, rest[j]) <= tol ? k : -1)).filter(k => k >= 0);
-      const aj = rest[j].pos.map((p, k) => (distToMesh(p, rest[i]) <= tol ? k : -1)).filter(k => k >= 0);
-      attached.push([i, j, ai, aj]);
+      // the joint = the seam band: child vertices inside the parent that have an edge to a vertex outside it, plus
+      // one ring inward. A buried fin tip has no outside neighbour and is not part of the weld; the crossing line is.
+      // For a rigid appendage on a deforming body, only the root near its pivot is welded: the rest of the fin is
+      // free to sweep out of the surface (the seam moves when it flaps).
+      const bandFor = (A, B) => {
+        const idx = seamBand(A, B);
+        if (A.node.skin || A.node.bindTo) return idx;
+        if (above(A.node, B.node.parent) || above(B.node, A.node.parent)) return idx;   // direct parent/child hinge
+        const r = 0.3 * len(G.bounds(A.pos).size);
+        return idx.filter(k => M.dist(A.node.pivot, A.pos[k]) <= r);
+      };
+      attached.push([i, j, bandFor(rest[i], rest[j]), bandFor(rest[j], rest[i])]);
     }
   }
+  // 4a. welding: an appendage that meets a deforming body must sink into it, not kiss it, and its root edge must
+  // stay on the body along its whole length (a straight chord across a curved back shows as a cut).
+  const ownTracks = new Set(); model.clips.forEach(c => c.tracks.forEach(t => { if (t.rot || t.pos || t.scale) ownTracks.add(t.node); }));
+  const soft = m => !!(m.node.skin || m.node.bindTo);
+  const above = (a, n) => { for (let k = n; k; k = k.parent) if (k === a) return true; return false; };
+  const iIsChild = (i, j) => above(rest[j].node, rest[i].node.parent), jIsChild = (i, j) => above(rest[i].node, rest[j].node.parent);
+  const syncTol = Math.max(tol * 1.5, 0.0015);
+  const partTol = m => Math.max(1e-4, Math.min(tol, 0.02 * len(G.bounds(m.pos).size)));
+  const closestN = (m, other, n) => m.pos.map((p, k) => [distToMesh(p, other), k]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]);
+  let softPairs = 0, shallowRoots = 0, cutSeams = 0;
+  for (const [i, j, ai, aj] of attached) {
+    if (!soft(rest[i]) && !soft(rest[j])) continue;
+    softPairs++;
+    const childIsI = iIsChild(i, j) || (!jIsChild(i, j) && rest[i].pos.length <= rest[j].pos.length);
+    const child = childIsI ? rest[i] : rest[j], parent = childIsI ? rest[j] : rest[i];
+    const ci = (childIsI ? ai : aj).length ? (childIsI ? ai : aj) : closestN(child, parent, 3);
+    const name = `${child.name} / ${parent.name}`;
+    const pen = penetration(child, parent);
+    const weldTol = partTol(child) * 0.5;
+    // spheres (eyes, knobs) are meant to sit half in a socket; only thin/blunt appendages need a sunk root line
+    if (child.node.shape !== 'sphere' && child.node.shape !== 'torus' && pen < weldTol) {
+      shallowRoots++;
+      const hinged = ownTracks.has(child.node);
+      add('weld', hinged ? 'fail' : 'warn', `${name}: ${child.name} sinks ${(pen * 1000).toFixed(1)} mm into ${parent.name}${hinged ? '' : ' (a root needs 3-5 mm)'} — its root only touches the surface, so a rotated joint or a bend opens a visible crack; sink the root line 3-5 mm into the body`);
+    }
+    if (ci.length >= 2 && child.node.shape !== 'sphere' && child.node.shape !== 'torus') {
+      let worst = 0; const set = new Set(ci);
+      for (const t of child.tris) for (let e = 0; e < 3; e++) {
+        const a = t[e], b = t[(e + 1) % 3]; if (!set.has(a) || !set.has(b)) continue;
+        for (let s = 1; s < 4; s++) worst = Math.max(worst, distToMesh(M.vlerp(child.pos[a], child.pos[b], s / 4), parent));
+      }
+      if (worst > weldTol) { cutSeams++; add('seam', worst > weldTol * 2 ? 'fail' : 'warn', `${name}: the root edge leaves ${parent.name} by ${(worst * 1000).toFixed(1)} mm between two welded points — its straight edge cuts through the air; add an outline point that follows the body contour so the whole root stays inside`); }
+    }
+  }
+  if (softPairs && !shallowRoots) add('weld', 'pass', `${softPairs} appendage roots are sunk into their bodies`);
+  if (softPairs && !cutSeams) add('seam', 'pass', 'root edges follow the body contour along their whole length');
+  // 4b. fins vs body: a part touching a skinned surface must move with the weights under its root. A rigid fin
+  // on one bone drifts as soon as that part of the body blends two bones; a fin skinned to different bones does too.
+  const syncPairs = [];
+  {
+    const WmRest = MD.worldMatrices(model, null), seen = new Set();
+    const rotates = new Set(), translates = new Set();
+    model.clips.forEach(c => c.tracks.forEach(t => { if (t.rot) rotates.add(t.node); if (t.pos || t.scale) translates.add(t.node); }));
+    for (const [i, j, ai, aj] of attached) for (const [s, r, idx0] of [[i, j, aj], [j, i, ai]]) {
+      const S = rest[s].node, R = rest[r].node;
+      if (!S.skinBones || !S.skin || S.bindTo) continue;
+      if (R.bindTo) continue;                                   // bound parts follow this surface by construction
+      if (translates.has(R)) continue;                          // a part that slides/scales itself is meant to move relative to the body
+      if (R.skinBones && rest[r].pos.length > rest[s].pos.length) continue;   // both skinned: compare the appendage
+      const k = pairKey(rest[r], rest[s]); if (seen.has(k)) continue; seen.add(k);
+      const ax = S.skin.axis || 'z';
+      // A hinged part deliberately rotates about its pivot, so its root vertices necessarily move a little. Sample
+      // the pivot instead: an unfixed pivot slides along the body, which is the drift that matters.
+      const pivotOnly = rotates.has(R);
+      const idx = pivotOnly ? [] : (idx0.length ? idx0 : closestN(rest[r], rest[s], 3));
+      const pts = pivotOnly ? [R.pivot] : idx.map(n => rest[r].pos[n]);
+      const sp = { s, r, idx, pts, pivotOnly, S, R, ax, tol: Math.max(1e-4, Math.min(syncTol, 0.015 * len(G.bounds(rest[r].pos).size))), weights: pts.map(p => MD.weightAt(S, p[G.AX[ax]])) };
+      const restMats = S.skinBones.map(b => M.mat4Mul(WmRest.get(b), M.mat4Translate(M.mul(b.pivot, -1))));
+      const predict = (mats, p, w) => { let pred = [0, 0, 0]; for (let b = 0; b < mats.length; b++) if (w[b]) pred = M.add(pred, M.mul(M.mat4Point(mats[b], p), w[b])); return pred; };
+      sp.restPred = pts.map((p, k2) => predict(restMats, p, sp.weights[k2]));
+      sp.restAct = pivotOnly ? [R.pivot.slice()] : idx.map(n => rest[r].pos[n]);   // constant rest offsets are not sliding
+      syncPairs.push(sp);
+    }
+  }
+
   for (const clip of model.clips) {
     const id = `anim:${clip.name}`, N = Math.max(12, Math.min(48, Math.round(clip.duration * 24))), frames = [];
     for (let k = 0; k <= N; k++) frames.push((k / N) * clip.duration);
     const poses = frames.map(t => posed(model, clip, t));
+    const Wms = syncPairs.length ? frames.map(t => MD.worldMatrices(model, MD.poseAt(model, clip, t))) : null;
     const bad = poses.some(p => p.some(m => m.pos.some(v => v.some(x => !Number.isFinite(x)))));
     if (bad) { add(id, 'fail', 'pose produces NaN'); continue; }
     const moved = Math.max(...poses.map(p => maxDev(p, rest)));
@@ -218,8 +305,35 @@ function run(model, opts) {
     else if (attached.length) add(id, 'pass', `${attached.length} attached part pairs stay joined`);
     if (hits.size) for (const [k, h] of hits) add(id, 'fail', `${k.replace('|', ' passes through ')} by ${h.d.toFixed(3)} m at ${h.t.toFixed(2)} s (move the pivot, limit the angle, or add clearance)`);
     else add(id, 'pass', 'no parts pass through each other');
+    // sync: every root point must stay where the body's own weights put it
+    if (syncPairs.length) {
+      const drift = new Map();
+      for (const sp of syncPairs) {
+        let worst = 0, at = 0;
+        poses.forEach((p, fi) => {
+          const mats = sp.S.skinBones.map(b => M.mat4Mul(Wms[fi].get(b), M.mat4Translate(M.mul(b.pivot, -1))));
+          for (let n = 0; n < sp.pts.length; n++) {
+            const w = sp.weights[n];
+            let pred = [0, 0, 0];
+            for (let b = 0; b < mats.length; b++) if (w[b]) pred = M.add(pred, M.mul(M.mat4Point(mats[b], sp.pts[n]), w[b]));
+            const actual = sp.pivotOnly ? (m => [m[12], m[13], m[14]])(Wms[fi].get(sp.R)) : p[sp.r].pos[sp.idx[n]];
+            const d = M.dist(M.sub(pred, sp.restPred[n]), M.sub(actual, sp.restAct[n]));
+            if (d > worst) { worst = d; at = frames[fi]; }
+          }
+        });
+        if (worst > sp.tol) drift.set(`${sp.R.name} / ${sp.S.name}`, { worst, at, per: sp.weights, S: sp.S, R: sp.R });
+      }
+      for (const [k, h] of drift) {
+        const ranges = h.S.skinBones.map((b, bi) => [b.name, Math.min(...h.per.map(w => w[bi])), Math.max(...h.per.map(w => w[bi]))]).filter(x => x[2] > 0.05);
+        const desc = ranges.map(([n, a, z]) => `${n} ${Math.round(a * 100)}-${Math.round(z * 100)}%`).join(' / ');
+        const how = h.R.skinBones ? `it is skinned with ${h.R.skinBones.map(b => b.name).join(' / ')}` : `it is rigid on ${h.R.parent ? h.R.parent.name : 'the root'}`;
+        const fix = h.R.skinBones ? `give it exactly ${h.S.name}'s bone list and axis (${h.S.skinBones.map(b => b.name).join(' / ')})` : `give it "skin" with ${h.S.name}'s bones and axis, add "bind": "${h.S.name}" (rigid follow), or parent it to the bone that owns its root`;
+        add(id, 'fail', `${k}: ${h.R.name} drifts ${(h.worst * 1000).toFixed(1)} mm from ${h.S.name}'s surface at ${h.at.toFixed(2)} s, while the body under its root is weighted ${desc}. ${how.charAt(0).toUpperCase() + how.slice(1)} but the surface is not: ${fix}.`);
+      }
+      if (!drift.size) add(id, 'pass', `${syncPairs.length} appendages follow the body surface`);
+    }
     // deformation quality of skinned parts: folds, pinching, stretching, volume loss
-    rest.forEach((m, i) => { if (m.node.skinBones) deformCheck(model, clip, frames, poses.map(p => p[i]), m, `deform:${clip.name}`, add); });
+    rest.forEach((m, i) => { if (m.node.skinBones && !m.node.bindTo) deformCheck(model, clip, frames, poses.map(p => p[i]), m, `deform:${clip.name}`, add, !thick(m)); });
     // speed sanity
     let maxW = 0, at = 0;
     for (let k = 1; k < frames.length; k++) for (const tr of clip.tracks) {
@@ -251,16 +365,26 @@ function skinJoints(model, n) {
     return { bone: s.b, c: s.c, r: r[k], bend, clip: clipName, inside: s.c > lo + (hi - lo) * 0.01 && s.c < hi - (hi - lo) * 0.01 };
   });
 }
-const loopsNeeded = bend => (bend < 1 ? 0 : bend <= 20 ? 1 : bend <= 50 ? 2 : 3);
+const loopsNeeded = bend => (bend < 1 ? 0 : bend <= 20 ? 1 : bend <= 50 ? 2 : bend <= 110 ? 3 : 4);
+const loopsHint = need => (need === 1 ? 'skin.loops: 1' : need <= 3 ? 'skin.loops: 3' : 'skin.loops: 5 with a wider skin.blend, or split the bend over another bone');
 
-function rigCheck(model, m, add) {
+// plate: a thin skinned sheet (fin, cape strip, membrane). It only needs vertices where it bends; the bone-centre
+// and ring-spacing rules are for volumes.
+function rigCheck(model, m, add, plate) {
   const n = m.node, ax = G.AX[n.skin.axis || 'z'], axName = n.skin.axis || 'z', P = n.mesh.pos;
   const vals = P.map(p => p[ax]), lo = Math.min(...vals), hi = Math.max(...vals), q = (hi - lo || 1) * 1e-4;
-  const rings = [...new Set(vals.map(v => Math.round(v / q)))].map(k => k * q);
+  const rings = [...new Set(vals.map(v => Math.round(v / q)))].map(k => k * q).sort((a, b) => a - b);
   const issues = [], joints = skinJoints(model, n), mesh = { pos: P, tris: n.mesh.tris };
   let bending = 0;
   for (const j of joints) {
     if (!j.inside) continue;
+    if (plate) {
+      const need = loopsNeeded(j.bend); if (!need) continue;
+      bending++;
+      const have = rings.filter(c => c >= j.c - j.r - q * 2 && c <= j.c + j.r + q * 2).length;
+      if (have < need) issues.push(`${j.bone.name} bends it up to ${j.bend.toFixed(0)}° (${j.clip}) but the sheet has ${have} row${have === 1 ? '' : 's'} of vertices within ±${(j.r * 100).toFixed(1)} cm of the joint (want ${need}): between rows it stays flat and creases — add outline points / rows near ${axName} = ${j.c.toFixed(3)}`);
+      continue;
+    }
     // bone position: inside the body and near the centre of its cross-section
     const d = distToMesh(j.bone.pivot, mesh);
     if (d > 0) issues.push(`bone ${j.bone.name} sits ${(d * 1000).toFixed(1)} mm outside ${n.name}: move its pivot onto the body's centre line`);
@@ -276,14 +400,43 @@ function rigCheck(model, m, add) {
     const need = loopsNeeded(j.bend); if (!need) continue;
     bending++;
     const have = rings.filter(c => c >= j.c - j.r - q * 2 && c <= j.c + j.r + q * 2).length;
-    if (have < need) issues.push(`${j.bone.name} bends up to ${j.bend.toFixed(0)}° (${j.clip}) but ${n.name} has ${have} edge loop${have === 1 ? '' : 's'} within ±${(j.r * 100).toFixed(1)} cm of it (want ${need}): add stations near ${axName} = ${j.c.toFixed(3)} or set skin.loops: ${need === 1 ? 1 : 3}`);
+    if (have < need) issues.push(`${j.bone.name} bends up to ${j.bend.toFixed(0)}° (${j.clip}) but ${n.name} has ${have} edge loop${have === 1 ? '' : 's'} within ±${(j.r * 100).toFixed(1)} cm of it (want ${need}): add stations near ${axName} = ${j.c.toFixed(3)} or set ${loopsHint(need)}`);
+  }
+  // ring layout of a loft (its stations): even spacing, no slivers, no pointed end next to a joint
+  if (!plate && n.shape === 'loft' && rings.length >= 2) {
+    const zones = joints.filter(j => j.inside && loopsNeeded(j.bend)), inZone = c => zones.some(j => Math.abs(c - j.c) <= j.r + q * 2);
+    const width = c => {
+      const ring = P.filter(p => Math.abs(p[ax] - c) <= q * 1.5); let w = 0;
+      for (const k of [0, 1, 2]) if (k !== ax) { const vs = ring.map(p => p[k]); w = Math.max(w, Math.max(...vs) - Math.min(...vs)); }
+      return w;
+    };
+    const W = rings.map(width), maxW = Math.max(...W), apex = W.map(w => w <= maxW * 1e-3);
+    for (let i = 0; i + 1 < rings.length; i++) {
+      const gap = rings[i + 1] - rings[i], w = Math.max(W[i], W[i + 1]), mid = (rings[i] + rings[i + 1]) / 2;
+      if (w <= 0) continue;
+      if (gap < 0.1 * w && !(inZone(rings[i]) && inZone(rings[i + 1])) && !apex[i] && !apex[i + 1])
+        issues.push(`stations at ${axName} = ${rings[i].toFixed(3)} and ${rings[i + 1].toFixed(3)} are only ${(gap * 1000).toFixed(1)} mm apart (${(100 * gap / w).toFixed(0)}% of the local width) outside any joint: the ring between them is a band of slivers that creases when it bends — merge them or spread them out`);
+      else if (gap > 3 * w && zones.some(j => mid >= j.c - j.r && mid <= j.c + j.r))
+        issues.push(`stations at ${axName} = ${rings[i].toFixed(3)} and ${rings[i + 1].toFixed(3)} are ${(gap / w).toFixed(1)}× the local width apart across a bending zone: the long facets between them shear and flatten — add a station near ${axName} = ${mid.toFixed(3)}`);
+    }
+    // a pointed end (apex station) inside a joint zone, or with no full ring between it and the zone, makes a fan of
+    // thin triangles bend: the tip pinches and folds
+    rings.forEach((c, i) => {
+      if (!apex[i]) return;
+      for (const j of zones) {
+        const edge = c < j.c ? j.c - j.r : j.c + j.r, between = rings.filter((r, k) => !apex[k] && (c < j.c ? r > c + q && r < edge - q : r < c - q && r > edge + q)).length;
+        if (Math.abs(c - j.c) <= j.r) issues.push(`the pointed end at ${axName} = ${c.toFixed(3)} is inside ${j.bone.name}'s bend zone (±${(j.r * 100).toFixed(1)} cm): the fan of thin triangles at the tip pinches and folds — move the joint away from the tip or end the loft on a small ring instead of a point`);
+        else if (!between) issues.push(`the pointed end at ${axName} = ${c.toFixed(3)} has no full ring between it and ${j.bone.name}'s bend zone: add a station between them so the tip moves rigidly`);
+      }
+    });
   }
   const extra = n.loopsAdded && n.loopsAdded.length ? ` (skin.loops added ${n.loopsAdded.length} ring${n.loopsAdded.length > 1 ? 's' : ''})` : '';
   if (issues.length) for (const s of issues) add('rig', 'warn', `${n.name}: ${s}`);
-  else add('rig', 'pass', `${n.name}: ${bending} bending joint${bending === 1 ? '' : 's'} with enough edge loops, bones inside the body on its centre line${extra}`);
+  else if (plate) add('rig', 'pass', `${n.name}: thin sheet, ${bending} bending joint${bending === 1 ? '' : 's'} with enough rows of vertices`);
+  else add('rig', 'pass', `${n.name}: ${bending} bending joint${bending === 1 ? '' : 's'} with enough edge loops, bones inside the body on its centre line${n.shape === 'loft' ? ', evenly spaced stations' : ''}${extra}`);
 }
 
-function deformCheck(model, clip, frames, posedList, restMesh, id, add) {
+function deformCheck(model, clip, frames, posedList, restMesh, id, add, plate) {
   const n = restMesh.node, P0 = restMesh.pos, T = restMesh.tris, ax = G.AX[n.skin.axis || 'z'];
   const nRaw = (P, t) => M.cross(sub(P[t[1]], P[t[0]]), sub(P[t[2]], P[t[0]]));
   const a0 = T.map(t => len(nRaw(P0, t))), v0 = G.signedVolume({ pos: P0, tris: T });
@@ -309,7 +462,7 @@ function deformCheck(model, clip, frames, posedList, restMesh, id, add) {
       if (r > stretch.r) stretch = { r, t: frames[fi], ti };
     });
     if (folds && (!fold || folds > fold.n)) fold = { n: folds, t: frames[fi], ti: worst };
-    if (!scaled && v0 > 0) { const d = G.signedVolume({ pos: P, tris: T }) / v0 - 1; if (Math.abs(d) > Math.abs(vol.d)) vol = { d, t: frames[fi] }; }
+    if (!scaled && !plate && v0 > 0) { const d = G.signedVolume({ pos: P, tris: T }) / v0 - 1; if (Math.abs(d) > Math.abs(vol.d)) vol = { d, t: frames[fi] }; }
   });
   const fixes = 'add edge loops there (skin.loops: 3), use skin.weights "joints" or widen skin.blend, model the rest pose half-bent, or reduce the angle';
   let bad = false;
@@ -317,7 +470,7 @@ function deformCheck(model, clip, frames, posedList, restMesh, id, add) {
   if (pinch.r < 0.3) { bad = true; add(id, 'warn', `${n.name} pinches near ${nearJoint(pinch.ti)} at ${pinch.t.toFixed(2)} s (a face shrinks to ${(pinch.r * 100).toFixed(0)}% of its area): ${fixes}`); }
   if (stretch.r > 2.5) { bad = true; add(id, 'warn', `${n.name} stretches near ${nearJoint(stretch.ti)} at ${stretch.t.toFixed(2)} s (a face grows ×${stretch.r.toFixed(1)}): add loops there or move the bone to the joint`); }
   if (Math.abs(vol.d) > 0.12) { bad = true; add(id, 'warn', `${n.name} ${vol.d < 0 ? 'loses' : 'gains'} ${Math.abs(vol.d * 100).toFixed(0)}% of its volume at ${vol.t.toFixed(2)} s (collapsing joint or candy-wrapper twist): spread the bend or twist over more bones, bulge the joint station 5-10%`); }
-  if (!bad) add(id, 'pass', `${n.name} deforms cleanly (no folds${scaled ? '' : `, faces ×${pinch.r.toFixed(2)}-${stretch.r.toFixed(2)}, volume ${vol.d >= 0 ? '+' : ''}${(vol.d * 100).toFixed(1)}%`})`);
+  if (!bad) add(id, 'pass', `${n.name} deforms cleanly (no folds${scaled ? '' : `, faces ×${pinch.r.toFixed(2)}-${stretch.r.toFixed(2)}${plate ? '' : `, volume ${vol.d >= 0 ? '+' : ''}${(vol.d * 100).toFixed(1)}%`}`})`);
 }
 
 function maxDev(a, b) { let m = 0; for (let i = 0; i < a.length; i++) for (let k = 0; k < a[i].pos.length; k++) { const d = M.dist(a[i].pos[k], b[i].pos[k]); if (d > m) m = d; } return m; }

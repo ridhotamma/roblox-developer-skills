@@ -17,7 +17,7 @@
   {
    "id": "geometry",
    "status": "pass",
-   "msg": "21 parts watertight, outward-facing, no degenerate triangles"
+   "msg": "21 parts watertight, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections"
   },
   {
    "id": "z-fighting",

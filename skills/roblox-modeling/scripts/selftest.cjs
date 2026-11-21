@@ -34,6 +34,8 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const hb = G.bounds(G.SHAPES.box({ size: [1, 2, 3] }).pos).size; ok(near(hb[0], 1) && near(hb[1], 2) && near(hb[2], 3), 'box has the requested size');
   ok(G.triangulate2D([[0, 0], [2, 0], [2, 2], [1, 0.5], [0, 2]]).length === 3, 'ear clipping handles a concave outline');
   ok(G.convexPlanes(G.SHAPES.box({ size: [1, 1, 1] })) && !G.convexPlanes(G.SHAPES.torus({ radius: 1, tube: 0.2 })), 'convexity detection');
+  const ex = G.SHAPES.extrude({ outline: [[0, 0], [1, 0], [1, 1], [0, 1]], depth: 0.1, taper: 0.5, taperAt: [0, 0] });
+  ok(near(ex.pos[0][0], ex.pos[4][0], 1e-9) && near(ex.pos[0][1], ex.pos[4][1], 1e-9), 'extrude taperAt keeps the anchored root edge full size (a fin root stays welded)');
 }
 // 3. hierarchy, pivots, mirror, skinning
 {
@@ -81,6 +83,34 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const off = CK.run(MD.compile(flap([0.3, 0, 0]))), on = CK.run(MD.compile(flap([0.1, 0, 0])));
   ok(off.some(r => r.id === 'anim:Flap' && r.status === 'fail' && /come apart/.test(r.msg)), 'a part hinged away from its joint fails the attachment test');
   ok(on.some(r => r.id === 'anim:Flap' && r.status === 'pass' && /stay joined/.test(r.msg)) && !on.some(r => /come apart/.test(r.msg)), 'hinged on its joint it stays joined');
+  // pivot "weld": the hinge is found on the contact with the parent, so a posed fin keeps its root in the body
+  const finSpec = extra => ({ name: 'W', ground: false, parts: [
+    { name: 'Body', shape: 'box', size: [0.2, 0.2, 0.6] },
+    Object.assign({ name: 'Fin', parent: 'Body', shape: 'extrude', plane: 'zy', depth: 0.01, at: [0.095, 0, 0],
+      outline: [[0.18, 0.04], [0.13, 0.18], [0.10, 0.12], [0.26, 0.02]] }, extra)],
+    animations: [{ name: 'Flap', duration: 1, loop: true, tracks: [{ part: 'Fin', rot: { wave: { axis: 'z', amp: 30, cycles: 1 } } }] }] });
+  const welded = MD.compile(finSpec({ pivot: 'weld', rot: [0, 0, -10] })), free = MD.compile(finSpec({ rot: [0, 0, -10] }));
+  const wp = welded.byName.get('Fin').pivot;
+  ok(near(wp[1], 0.03, 0.015) && near(wp[2], 0.22, 0.03), 'pivot "weld" sits on the root edge, not the fin centre');
+  const rw = CK.run(welded), rf = CK.run(free);
+  ok(!rw.some(r => /come apart/.test(r.msg)) && rw.some(r => r.id === 'anim:Flap' && /stay joined/.test(r.msg)), 'a fin on a weld pivot keeps its root while it flaps');
+  ok(rf.some(r => r.id === 'anim:Flap' && /come apart/.test(r.msg)), 'the same fin on its shape centre swings off the body');
+  // fins on a bending body: rigid on one bone drifts; bind or skin follows the surface
+  const fishSpec = extra => ({ name: 'S', ground: false, parts: [
+    { name: 'B0', shape: 'none', pivot: [0, 0, 0.5] }, { name: 'B1', parent: 'B0', shape: 'none', pivot: [0, 0, -0.5] },
+    { name: 'Body', shape: 'loft', sides: 6, skin: { bones: ['B0', 'B1'], axis: 'z' }, stations: [{ at: -1, w: 0.2, h: 0.2 }, { at: 1, w: 0.2, h: 0.2 }] },
+    Object.assign({ name: 'Fin', parent: 'B1', shape: 'extrude', plane: 'zy', depth: 0.01, outline: [[-0.24, 0.08], [-0.26, 0.08], [-0.26, 0.18], [-0.24, 0.18]] }, extra)],
+    animations: [{ name: 'Bend', duration: 1, tracks: [{ part: 'B1', rot: [[0, [0, 0, 0]], [1, [0, 60, 0]]] }] }] });
+  const rigid = CK.run(MD.compile(fishSpec({})));
+  ok(rigid.some(r => r.id === 'anim:Bend' && r.status === 'fail' && /drifts/.test(r.msg)), 'a rigid fin on a body blending two bones fails the fin/body sync test');
+  const bound = CK.run(MD.compile(fishSpec({ bind: 'Body' }))), skinned = CK.run(MD.compile(fishSpec({ skin: { bones: ['B0', 'B1'], axis: 'z' } })));
+  ok(!bound.some(r => /drifts/.test(r.msg)), '"bind": "Body" makes the rigid fin follow the blended surface');
+  ok(!skinned.some(r => /drifts/.test(r.msg)), 'a fin skinned with the body bones follows the surface exactly');
+  const kiss = CK.run(MD.compile({ name: 'K', ground: false, parts: [
+    { name: 'B0', shape: 'none', pivot: [0, 0, 1] }, { name: 'B1', parent: 'B0', shape: 'none', pivot: [0, 0, -1] },
+    { name: 'Body', shape: 'box', size: [0.2, 0.2, 2], skin: { bones: ['B0', 'B1'], axis: 'z' } },
+    { name: 'Fin', parent: 'B1', shape: 'extrude', plane: 'zy', depth: 0.01, at: [0, 0.002, 0], outline: [[-0.24, 0.1], [-0.26, 0.1], [-0.26, 0.2], [-0.24, 0.2]] }] }));
+  ok(kiss.some(r => r.id === 'weld' && /sinks/.test(r.msg)), 'a fin root laid on the surface is reported as not welded');
   const bad = MD.compile({ name: 'E', parts: [{ name: 'A', shape: 'blob' }, { name: 'B', shape: 'box', parent: 'Nope' }], animations: [{ name: 'X', duration: 1, tracks: [{ part: 'Z', rot: [] }] }] });
   ok(bad.errors.length >= 3, 'bad shape, missing parent and missing track part are spec errors');
 }
@@ -102,6 +132,41 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const folded = CK.run(MD.compile(arm({}, 170)));
   ok(folded.some(r => r.id === 'deform:Bend' && r.status === 'fail' && /folds through itself/.test(r.msg)), 'a 170° bend on a bare tube fails as a fold');
   ok(CK.run(MD.compile(arm({ loops: 3 }, 60, 0.2))).some(r => r.id === 'rig' && /outside Skin/.test(r.msg)), 'a bone pivot outside the body is reported');
+  ok(rb.some(r => r.id === 'rig' && /× the local width apart across a bending zone/.test(r.msg)), 'two stations far apart across a bending joint are reported');
+  const tightSpec = arm({ loops: 3, weights: 'joints' }, 90); tightSpec.parts[2].stations = [{ at: -0.5, w: 0.12, h: 0.12 }, { at: -0.4, w: 0.12, h: 0.12 }, { at: -0.395, w: 0.12, h: 0.12 }, { at: 0.5, w: 0.12, h: 0.12 }];
+  ok(CK.run(MD.compile(tightSpec)).some(r => r.id === 'rig' && /mm apart .* outside any joint/.test(r.msg)), 'two stations almost on top of each other away from a joint are reported');
+  const tipSpec = arm({ weights: 'joints', loops: 3 }, 60); tipSpec.parts[2].stations = [{ at: -0.5, w: 0.12, h: 0.12 }, { at: 0.12, w: 0.12, h: 0.12 }, { at: 0.2, w: 0, h: 0 }];
+  ok(CK.run(MD.compile(tipSpec)).some(r => r.id === 'rig' && /pointed end/.test(r.msg)), 'a pointed loft end next to a bending joint is reported');
+  // thin skinned sheets (cape strip, long fin): rows of vertices where they bend
+  const sheet = outline => ({ name: 'Sheet', ground: false, parts: [
+    { name: 'B0', shape: 'none', pivot: [0, 0, 1] }, { name: 'B1', parent: 'B0', shape: 'none', pivot: [0, 0.15, 0] },
+    { name: 'Strip', shape: 'extrude', plane: 'zy', depth: 0.01, outline, skin: { bones: ['B0', 'B1'], axis: 'z' } }],
+    animations: [{ name: 'Flap', duration: 1, tracks: [{ part: 'B1', rot: [[0, [0, 0, 0]], [1, [0, 60, 0]]] }] }] });
+  const bareSheet = CK.run(MD.compile(sheet([[-1, 0], [1, 0], [1, 0.3], [-1, 0.3]])));
+  ok(bareSheet.some(r => r.id === 'rig' && r.status === 'warn' && /0 rows of vertices/.test(r.msg)), 'a skinned sheet with no vertices at its joint is reported');
+  const rowsSheet = CK.run(MD.compile(sheet([[-1, 0], [-0.2, 0], [0, 0], [0.2, 0], [1, 0], [1, 0.3], [0.2, 0.3], [0, 0.3], [-0.2, 0.3], [-1, 0.3]])));
+  ok(status(rowsSheet, 'rig', 'pass') && status(rowsSheet, 'deform:Flap', 'pass'), 'with rows at the joint the sheet passes rig and deform');
+}
+// 4c. mesh topology: slivers, self-intersections, open and mis-wound surfaces, the Roblox per-mesh limit, triangulation
+{
+  const one = (part, extra) => CK.run(MD.compile(Object.assign({ name: 'T', ground: false, budget: 100000 }, extra || {}, { parts: [Object.assign({ name: 'P' }, part)] })));
+  const geo = (res, st, re) => res.some(r => r.id === 'geometry' && r.status === st && (!re || re.test(r.msg)));
+  const TET = [[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]];
+  const tet = (c, d) => [[0, 0, 0], [1, 0, 0], c, d || [0.5, 0.4, 0.8]];
+  ok(geo(one({ shape: 'mesh', vertices: tet([0.5, 0.8, 0]), faces: TET }), 'pass'), 'a clean tetrahedron passes the geometry check');
+  ok(geo(one({ shape: 'mesh', vertices: tet([0.5, 0.004, 0]), faces: TET }), 'warn', /near-flat sliver/), 'a near-flat sliver triangle is reported');
+  const two = off => ({ shape: 'mesh', vertices: tet([0.5, 0.8, 0]).concat(tet([0.5, 0.8, 0]).map(p => p.map((v, i) => v + off[i]))), faces: TET.concat(TET.map(f => f.map(i => i + 4))) });
+  ok(geo(one(two([0.3, 0.1, 0.2])), 'fail', /cuts through itself/), 'two shells crossing inside one part fail as a self-intersection');
+  ok(!geo(one(two([3, 0, 0])), 'fail', /cuts through itself/), 'two separate shells in one part are not a self-intersection');
+  const quad = [[0, 0, 0], [1, 0, 0], [1, 0, 1], [0, 0, 1]];
+  ok(geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 3, 2]] }), 'fail', /open edges/), 'an open surface fails the watertight check');
+  ok(!geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 3, 2]], openSurface: true }), 'fail'), '"openSurface": true accepts a deliberately open sheet');
+  ok(geo(one({ shape: 'mesh', vertices: quad, faces: [[0, 2, 1], [0, 2, 3]], openSurface: true }), 'fail', /wind opposite ways/), 'neighbouring faces wound opposite ways fail, even on an open sheet');
+  ok(one({ shape: 'sphere', radius: 1, segments: [160, 70] }).some(r => r.id === 'budget' && r.status === 'fail' && /per-mesh limit/.test(r.msg)), "a part over Roblox's 20,000-triangle mesh limit fails");
+  // spiky outlines (fins, flames, leaves) triangulate without slivers
+  const spiky = [[0, 0]]; for (let i = 0; i <= 8; i++) spiky.push([i * 0.1, i % 2 ? 0.5 : 0.08]); spiky.push([0.8, 0]);
+  const tris = G.triangulate2D(spiky), minAng = Math.min(...tris.map(t => G.triAngles(spiky.map(p => [p[0], p[1], 0]), t)[0]));
+  ok(tris.length === spiky.length - 2 && minAng > 5, `a spiky outline triangulates without slivers (smallest angle ${minAng.toFixed(1)}°)`);
 }
 // 5. exports: glb structure, obj, scripts
 {
@@ -109,7 +174,7 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const glb = EX.toGlb(m), errs = EX.validateGlb(glb);
   ok(!errs.length, 'fish .glb passes structural validation' + (errs.length ? ': ' + errs.join('; ') : ''));
   const json = JSON.parse(glb.toString('utf8', 20, 20 + glb.readUInt32LE(12)));
-  ok(json.skins && json.skins.length === 1 && json.animations.map(a => a.name).join() === 'Swim,Idle,Die', 'glb carries the skin and all three clips');
+  ok(json.skins && json.skins.length >= 1 && json.animations.map(a => a.name).join() === 'Swim,Idle,Die', 'glb carries the skins and all three clips');
   ok(json.accessors.every(a => a.byteOffset == null) && json.bufferViews.every(v => v.byteOffset % 4 === 0), 'buffer views are 4-byte aligned');
   const { obj } = EX.toObj(m); ok(/^o Body$/m.test(obj) && /^f /m.test(obj), 'obj has named objects and faces');
   ok(/import_scene\.gltf/.test(EX.blenderScript(m)) && /GLTFLoader/.test(EX.threeModule(m)), 'Blender script and three.js loader are generated');

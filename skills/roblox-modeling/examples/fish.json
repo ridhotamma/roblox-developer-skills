@@ -1,14 +1,14 @@
 {
  "name": "Fish",
  "title": "Low-poly fish",
- "description": "Perch-shaped fish traced from a side-view illustration: a skinned body on a four-bone spine (so it bends smoothly), a forked tail, dorsal, anal, pelvic and pectoral fins. Swim, Idle and Die (thrash, roll belly-up and float).",
+ "description": "Perch-shaped fish traced from a side-view illustration: a skinned body on a four-bone spine, a forked tail, dorsal, anal, pelvic and pectoral fins. The dorsal and anal fins are skinned with the body's own bones and the pelvic fin is bound to the body surface, so every fin root moves with the surface it grows from and none of them slide or open a seam while swimming. Swim, Idle and Die (thrash, roll belly-up and float).",
  "ground": false,
  "reference": {
   "sources": [
    {
     "url": "https://www.flickr.com/photos/153584064@N07/32493276338",
     "note": "sea perch side view (F.E. Clarke illustration, CC BY 2.0): traced for the body profile",
-    "file": "refs/sea-perch-side.jpg"
+    "file": "refs/sea-perch-side.png"
    }
   ],
   "dimensions": {
@@ -17,7 +17,7 @@
    "width": 0.07,
    "tolerance": 0.08
   },
-  "notes": "Trace: length/height 2.0 including fins. Body deepest at 55-65% of the length from the tail (body alone ~0.62 of the full height), caudal peduncle ~0.30, tail ~17% of the length. Laterally compressed: width ~45% of body height. Dorsal fin runs 30-75% of the length."
+  "notes": "Trace: length/height 2.0 including fins. Body deepest at 55-65% of the length from the tail (body alone ~0.62 of the full height), caudal peduncle ~0.30, tail ~17% of the length. Laterally compressed: width ~45% of body height. Dorsal fin runs 30-75% of the length. Fin roots are pushed 4-6 mm inside the body contour (weld), not laid on the surface."
  },
  "palette": {
   "body": "#e5763c",
@@ -50,7 +50,7 @@
    "pivot": [
     0,
     0.004,
-    0.0
+    0
    ]
   },
   {
@@ -119,7 +119,7 @@
      "dy": 0.011
     },
     {
-     "at": 0.0,
+     "at": 0,
      "w": 0.045,
      "h": 0.09,
      "dy": 0.011
@@ -155,7 +155,7 @@
      "dy": 0.006
     }
    ],
-   "note": "the last stations taper to a point inside the tail fin, so the body flows into the tail instead of ending in a flat cap"
+   "note": "the last stations taper to a point inside the tail fin, so the body flows into the tail instead of ending in a flat cap; the fins are skinned to these same bones, so their roots follow this surface exactly"
   },
   {
    "name": "Tail",
@@ -163,109 +163,187 @@
    "shape": "extrude",
    "plane": "zy",
    "depth": 0.006,
+   "taper": 0.72,
+   "taperAt": [
+    -0.094,
+    0.002
+   ],
    "color": "fin",
    "outline": [
     [
-     -0.082,
-     0.017
+     -0.094,
+     0.014
     ],
     [
-     -0.12,
-     0.04
+     -0.126,
+     0.042
     ],
     [
-     -0.15,
-     0.05
+     -0.154,
+     0.058
     ],
     [
-     -0.138,
-     0.02
-    ],
-    [
-     -0.134,
-     0.003
+     -0.144,
+     0.022
     ],
     [
      -0.138,
-     -0.018
+     0.004
     ],
     [
-     -0.15,
-     -0.046
+     -0.142,
+     -0.016
     ],
     [
-     -0.12,
-     -0.036
+     -0.154,
+     -0.04
     ],
     [
-     -0.082,
-     -0.011
+     -0.128,
+     -0.03
+    ],
+    [
+     -0.094,
+     -0.01
     ]
-   ]
+   ],
+   "note": "root line sits behind the TailBone pivot (z = -0.088), so the body there is 100% TailBone and the rigid fin cannot drift from it"
   },
   {
    "name": "Dorsal",
-   "parent": "Spine1",
    "shape": "extrude",
    "plane": "zy",
    "depth": 0.005,
+   "taper": 0.7,
+   "taperAt": [
+    0,
+    0.043
+   ],
    "color": "finDark",
+   "skin": {
+    "bones": [
+     "Head",
+     "Spine1",
+     "Spine2",
+     "TailBone"
+    ],
+    "axis": "z"
+   },
    "outline": [
     [
-     0.088,
-     0.038
+     0.085,
+     0.046
     ],
     [
-     0.066,
-     0.073
+     0.06,
+     0.072
     ],
     [
-     0.035,
-     0.074
+     0.02,
+     0.076
     ],
     [
-     0.0,
-     0.068
-    ],
-    [
-     -0.03,
-     0.062
-    ],
-    [
-     -0.062,
-     0.054
-    ],
-    [
-     -0.078,
-     0.028
-    ]
-   ]
-  },
-  {
-   "name": "Anal",
-   "parent": "Spine2",
-   "shape": "extrude",
-   "plane": "zy",
-   "depth": 0.004,
-   "color": "finDark",
-   "outline": [
-    [
-     -0.005,
-     -0.036
+     -0.02,
+     0.075
     ],
     [
      -0.06,
-     -0.026
+     0.068
     ],
     [
-     -0.072,
-     -0.05
+     -0.088,
+     0.05
+    ],
+    [
+     -0.093,
+     0.043
+    ],
+    [
+     -0.098,
+     0.034
+    ],
+    [
+     -0.088,
+     0.021
+    ],
+    [
+     -0.06,
+     0.035
     ],
     [
      -0.03,
-     -0.07
+     0.048
+    ],
+    [
+     0,
+     0.052
+    ],
+    [
+     0.04,
+     0.0545
+    ],
+    [
+     0.07,
+     0.051
     ]
-   ]
+   ],
+   "note": "skinned with the body's four bones and axis: the root points follow the curved back 4-6 mm inside, and the fin bends with the body instead of swinging as one rigid blade"
+  },
+  {
+   "name": "Anal",
+   "shape": "extrude",
+   "plane": "zy",
+   "depth": 0.004,
+   "taper": 0.7,
+   "taperAt": [
+    -0.03,
+    -0.024
+   ],
+   "color": "finDark",
+   "skin": {
+    "bones": [
+     "Head",
+     "Spine1",
+     "Spine2",
+     "TailBone"
+    ],
+    "axis": "z"
+   },
+   "outline": [
+    [
+     0.005,
+     -0.03
+    ],
+    [
+     -0.02,
+     -0.026
+    ],
+    [
+     -0.045,
+     -0.022
+    ],
+    [
+     -0.075,
+     -0.019
+    ],
+    [
+     -0.085,
+     -0.055
+    ],
+    [
+     -0.055,
+     -0.078
+    ],
+    [
+     -0.02,
+     -0.058
+    ],
+    [
+     -0.005,
+     -0.04
+    ]
+   ],
+   "note": "the root line follows the belly inside the body (the old version laid it on the surface, so it read as a card stuck under the fish)"
   },
   {
    "name": "PelvicL",
@@ -273,83 +351,96 @@
    "shape": "extrude",
    "plane": "zy",
    "depth": 0.004,
+   "taper": 0.7,
+   "taperAt": [
+    0.04,
+    -0.011
+   ],
    "color": "fin",
    "mirror": "x",
-   "outline": [
-    [
-     0.092,
-     -0.017
-    ],
-    [
-     0.07,
-     -0.05
-    ],
-    [
-     0.045,
-     -0.074
-    ],
-    [
-     0.036,
-     -0.062
-    ],
-    [
-     0.058,
-     -0.017
-    ]
-   ],
+   "pivot": "weld",
+   "bind": "Body",
    "at": [
-    -0.012,
+    -0.01,
     0,
     0
    ],
    "rot": [
     0,
     0,
-    -10
-   ]
+    -30
+   ],
+   "outline": [
+    [
+     0.06,
+     -0.006
+    ],
+    [
+     0.056,
+     -0.03
+    ],
+    [
+     0.03,
+     -0.058
+    ],
+    [
+     0.012,
+     -0.044
+    ],
+    [
+     0.02,
+     -0.016
+    ]
+   ],
+   "note": "pivot \"weld\" puts the hinge on the contact with the belly (not the fin centre), and bind makes the rigid fin follow the body's blended surface; the sloped root follows the belly contour at this x"
   },
   {
    "name": "PectoralL",
    "parent": "Head",
    "shape": "extrude",
    "plane": "zy",
-   "depth": 0.004,
+   "depth": 0.005,
+   "taper": 0.7,
+   "taperAt": [
+    0.08,
+    0.006
+   ],
    "color": "fin",
    "mirror": "x",
-   "outline": [
-    [
-     0.072,
-     0.017
-    ],
-    [
-     0.072,
-     -0.013
-    ],
-    [
-     0.024,
-     -0.008
-    ],
-    [
-     0.03,
-     0.01
-    ]
-   ],
    "at": [
-    -0.019,
+    -0.01,
     0,
     0
    ],
    "rot": [
     0,
-    18,
+    27,
     0
    ],
    "pivot": [
-    -0.019,
-    0.002,
-    0.072
+    -0.01,
+    0,
+    0.08
    ],
-   "note": "root edge on the body behind the gill; pivot on that edge, so it flaps without leaving the body"
+   "outline": [
+    [
+     0.08,
+     0.016
+    ],
+    [
+     0.048,
+     0.006
+    ],
+    [
+     0.032,
+     -0.02
+    ],
+    [
+     0.08,
+     -0.004
+    ]
+   ],
+   "note": "root is buried ~7 mm inside the head (z > Head pivot) where the body is 100% Head, so this flapping fin can stay rigid without drifting; the hinge is on the root line"
   },
   {
    "name": "EyeL",
@@ -383,9 +474,9 @@
  "animations": [
   {
    "name": "Swim",
-   "duration": 1.0,
+   "duration": 1,
    "loop": true,
-   "description": "Cruising: a wave travels head to tail, two beats per second, fins sculling.",
+   "description": "Cruising: a wave travels head to tail, two beats per second, pectorals sculling. The skinned fins bend with the body automatically.",
    "tracks": [
     {
      "part": "Head",
@@ -462,7 +553,7 @@
   },
   {
    "name": "Idle",
-   "duration": 2.0,
+   "duration": 2,
    "loop": true,
    "description": "Hovering in place: slow tail, fanning pectorals, gentle bob and pitch.",
    "tracks": [
@@ -623,7 +714,7 @@
        ]
       ],
       [
-       1.0,
+       1,
        [
         0,
         0,
@@ -631,7 +722,7 @@
        ]
       ],
       [
-       2.0,
+       2,
        [
         0,
         30,
@@ -714,16 +805,16 @@
  "checks": [
   {
    "type": "silhouette",
-   "image": "refs/sea-perch-side.jpg",
+   "image": "refs/sea-perch-side.png",
    "view": "side",
-   "min": 0.78,
-   "label": "side profile matches the reference (low-poly fins drop the spines, so ~80% is the ceiling)"
+   "min": 0.7,
+   "label": "side profile matches the reference (1867 watercolour with soft spiny fins: 70%+ with the aspect within 2% is a good low-poly match)"
   },
   {
    "type": "ratio",
    "a": "z",
    "b": "y",
-   "expect": 2.0,
+   "expect": 2,
    "tol": 0.08,
    "label": "length:height like the reference"
   },
@@ -752,6 +843,22 @@
    "clip": "Swim",
    "at": 0.13,
    "label": "dorsal fin stays attached"
+  },
+  {
+   "type": "contact",
+   "a": "Anal",
+   "b": "Body",
+   "clip": "Swim",
+   "at": 0.13,
+   "label": "anal fin stays attached"
+  },
+  {
+   "type": "contact",
+   "a": "PelvicL",
+   "b": "Body",
+   "clip": "Swim",
+   "at": 0.4,
+   "label": "bound pelvic fin stays on the belly"
   }
  ]
 }

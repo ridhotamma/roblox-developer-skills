@@ -29,9 +29,12 @@ function triangulate2D(pts) {
   const idx = [...Array(n).keys()]; if (area < 0) idx.reverse();
   const out = [], cr = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
   const inside = (p, a, b, c) => cr(a, b, p) >= -1e-12 && cr(b, c, p) >= -1e-12 && cr(c, a, p) >= -1e-12;
+  const minAng = t => triAngles2D(pts, t);
   let guard = 0;
   while (idx.length > 3 && guard++ < 10000) {
-    let cut = false;
+    // clip the best-shaped ear (largest smallest angle) rather than the first one: plain ear clipping fans
+    // long slivers out of spiky outlines (fins, leaves, flames)
+    let best = -1, bestQ = -1;
     for (let i = 0; i < idx.length; i++) {
       const i0 = idx[(i + idx.length - 1) % idx.length], i1 = idx[i], i2 = idx[(i + 1) % idx.length];
       const a = pts[i0], b = pts[i1], c = pts[i2];
@@ -39,14 +42,45 @@ function triangulate2D(pts) {
       let ear = true;
       for (const j of idx) if (j !== i0 && j !== i1 && j !== i2 && inside(pts[j], a, b, c)) { ear = false; break; }
       if (!ear) continue;
-      out.push([i0, i1, i2]); idx.splice(i, 1); cut = true; break;
+      const q = minAng([i0, i1, i2]); if (q > bestQ) { bestQ = q; best = i; }
     }
-    if (!cut) { // degenerate (collinear) leftovers: drop one vertex
-      idx.splice(0, 1);
-    }
+    if (best < 0) { idx.splice(0, 1); continue; }   // degenerate (collinear) leftovers: drop one vertex
+    out.push([idx[(best + idx.length - 1) % idx.length], idx[best], idx[(best + 1) % idx.length]]); idx.splice(best, 1);
   }
   if (idx.length === 3) out.push([idx[0], idx[1], idx[2]]);
-  return out;
+  return flipToImprove(pts, out);
+}
+// Smallest corner angle (radians) of a 2D triangle.
+function triAngles2D(pts, t) {
+  let m = Infinity;
+  for (let k = 0; k < 3; k++) {
+    const p = pts[t[k]], q = pts[t[(k + 1) % 3]], r = pts[t[(k + 2) % 3]], u = [q[0] - p[0], q[1] - p[1]], v = [r[0] - p[0], r[1] - p[1]];
+    const lu = Math.hypot(u[0], u[1]), lv = Math.hypot(v[0], v[1]); if (lu < 1e-15 || lv < 1e-15) return 0;
+    m = Math.min(m, Math.acos(Math.max(-1, Math.min(1, (u[0] * v[0] + u[1] * v[1]) / (lu * lv)))));
+  }
+  return m;
+}
+// Lawson flips inside the polygon: swap the diagonal of two triangles that form a convex quad whenever that
+// raises the smaller of their smallest angles. Outline edges are never touched, so the shape stays the same.
+function flipToImprove(pts, tris) {
+  const cr = (a, b, c) => (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
+  for (let pass = 0; pass < 50; pass++) {
+    let changed = false;
+    const owner = new Map();
+    tris.forEach((t, ti) => { for (let e = 0; e < 3; e++) owner.set(t[e] + '>' + t[(e + 1) % 3], ti); });
+    for (let ti = 0; ti < tris.length && !changed; ti++) for (let e = 0; e < 3 && !changed; e++) {
+      const t = tris[ti], p = t[e], q = t[(e + 1) % 3], r = t[(e + 2) % 3], tj = owner.get(q + '>' + p);
+      if (tj == null || tj === ti) continue;
+      const u = tris[tj], s = u.find(v => v !== p && v !== q);
+      const A = [p, s, r], B = [s, q, r];                  // quad p, s, q, r (counter-clockwise), new diagonal r-s
+      const area = Math.abs(cr(pts[p], pts[q], pts[r])) + Math.abs(cr(pts[q], pts[p], pts[s]));
+      if (cr(pts[p], pts[s], pts[r]) <= 1e-9 * area || cr(pts[s], pts[q], pts[r]) <= 1e-9 * area) continue;   // not convex
+      const before = Math.min(triAngles2D(pts, t), triAngles2D(pts, u)), after = Math.min(triAngles2D(pts, A), triAngles2D(pts, B));
+      if (after > before + 1e-9) { tris[ti] = A; tris[tj] = B; changed = true; }
+    }
+    if (!changed) break;
+  }
+  return tris;
 }
 // Triangulate a planar 3D polygon (vertex indices into P) so the result faces along `normal`.
 function capPolygon(P, ring, normal) {
@@ -182,11 +216,14 @@ function loft(o) {
   return m;
 }
 // Extrude a 2D outline. plane "xy": outline in x/y, extruded along z (front view outline)
-// "zy": outline in z/y (side view: u = z forward, v = y up), extruded along x · "xz": top view (u = x, v = z), extruded along y
+// "zy": outline in z/y (side view: u = z forward, v = y up), extruded along x · "xz": top view (u = x, v = z), extruded along y.
+// taper shrinks the outer face toward "taperAt" (an outline point, default the outline centre): put it on a fin's
+// root line so the welded edge stays full size and only the free edge gets the bevel.
 function extrude(o) {
   const out = o.outline || [], d = o.depth == null ? 0.1 : o.depth, tp = o.taper == null ? 1 : o.taper, plane = o.plane || 'xy';
   let cx = 0, cy = 0; out.forEach(p => { cx += p[0] / out.length; cy += p[1] / out.length; });
-  const ring = (k, w) => out.map(([u, v]) => { const uu = cx + (u - cx) * k, vv = cy + (v - cy) * k; return [uu, vv, w]; });
+  const ax = o.taperAt ? o.taperAt[0] : cx, ay = o.taperAt ? o.taperAt[1] : cy;
+  const ring = (k, w) => out.map(([u, v]) => [ax + (u - ax) * k, ay + (v - ay) * k, w]);
   let m = fixClosed(ringsMesh([ring(1, -d / 2), ring(tp, d / 2)]));
   m.pos = m.pos.map(([u, v, w]) => (plane === 'zy' ? [w, v, u] : plane === 'xz' ? [u, w, v] : [u, v, w]));
   return outward(m);
@@ -225,17 +262,112 @@ function rawMesh(o) {                     // { vertices: [[x,y,z]], faces: [[i,j
 
 const SHAPES = { box, wedge, cylinder: o => cylinder(o, false), cone: o => cylinder(o, true), sphere, torus, lathe, loft, extrude, hull: o => hull(o.points || []), mesh: rawMesh };
 
-// Open-edge / non-manifold edge count on the welded mesh (0 = watertight).
+// Edge topology of the welded mesh: open edges (used by one triangle), non-manifold edges (used by 3+) and
+// flipped edges (two neighbouring triangles walk the shared edge the same way, so one of them faces the wrong way;
+// this works on open surfaces too, where the signed-volume test cannot).
 function edgeReport(mesh) {
   const w = weld(mesh, 1e-5), cnt = new Map();
-  for (const t of w.tris) for (let e = 0; e < 3; e++) { const a = t[e], b = t[(e + 1) % 3], k = a < b ? a + '_' + b : b + '_' + a; cnt.set(k, (cnt.get(k) || 0) + 1); }
-  let open = 0, nonManifold = 0; for (const c of cnt.values()) { if (c === 1) open++; else if (c > 2) nonManifold++; }
-  return { open, nonManifold };
+  for (const t of w.tris) for (let e = 0; e < 3; e++) {
+    const a = t[e], b = t[(e + 1) % 3], k = a < b ? a + '_' + b : b + '_' + a, c = cnt.get(k) || { n: 0, fwd: 0 };
+    c.n++; if (a < b) c.fwd++; cnt.set(k, c);
+  }
+  let open = 0, nonManifold = 0, flipped = 0;
+  for (const c of cnt.values()) { if (c.n === 1) open++; else if (c.n > 2) nonManifold++; else if (c.fwd !== 1) flipped++; }
+  return { open, nonManifold, flipped };
+}
+// Smallest and largest corner angle of a triangle, in degrees.
+function triAngles(P, t) {
+  const p = t.map(i => P[i]), out = [];
+  for (let k = 0; k < 3; k++) {
+    const u = sub(p[(k + 1) % 3], p[k]), v = sub(p[(k + 2) % 3], p[k]), lu = len(u), lv = len(v);
+    out.push(lu < 1e-12 || lv < 1e-12 ? 0 : Math.acos(Math.max(-1, Math.min(1, dot(u, v) / (lu * lv)))) / D2R);
+  }
+  return [Math.min(...out), Math.max(...out)];
+}
+// Pairs of triangles of one mesh that cut through each other (an edge of one pierces the inside of the other).
+// Triangles that share a vertex after welding are neighbours and are skipped; so are triangles that only touch
+// within eps. Returns { count, tris: [[i, j], ...] (up to 20 examples) }.
+function selfIntersections(mesh, eps) {
+  const w = weld(mesh, 1e-5), P = w.pos, T = w.tris;
+  eps = eps || 1e-6;
+  const box = T.map(t => { const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity]; for (const i of t) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], P[i][k]); hi[k] = Math.max(hi[k], P[i][k]); } return { lo, hi }; });
+  const order = T.map((_, i) => i).sort((a, b) => box[a].lo[0] - box[b].lo[0]);
+  // does segment p->q cross the inside of triangle (a, b, c)? (Moller-Trumbore, strict with a margin)
+  const pierce = (p, q, a, b, c) => {
+    const d = sub(q, p), e1 = sub(b, a), e2 = sub(c, a), h = cross(d, e2), det = dot(e1, h), L = len(d);
+    if (Math.abs(det) < 1e-14 * (len(e1) * len(e2) * L + 1e-30)) return false;          // parallel / coplanar
+    const s = sub(p, a), u = dot(s, h) / det; if (u <= 1e-4 || u >= 1 - 1e-4) return false;
+    const qv = cross(s, e1), v = dot(d, qv) / det; if (v <= 1e-4 || u + v >= 1 - 1e-4) return false;
+    const tt = dot(e2, qv) / det, m = eps / (L || 1); return tt > m && tt < 1 - m;
+  };
+  const hits = []; let count = 0;
+  for (let oi = 0; oi < order.length; oi++) {
+    const i = order[oi], A = T[i], bi = box[i];
+    for (let oj = oi + 1; oj < order.length; oj++) {
+      const j = order[oj], bj = box[j]; if (bj.lo[0] > bi.hi[0]) break;
+      if (bj.lo[1] > bi.hi[1] || bj.hi[1] < bi.lo[1] || bj.lo[2] > bi.hi[2] || bj.hi[2] < bi.lo[2]) continue;
+      const Bt = T[j]; if (A.some(v => Bt.includes(v))) continue;
+      let hit = false;
+      for (let e = 0; e < 3 && !hit; e++) hit = pierce(P[A[e]], P[A[(e + 1) % 3]], P[Bt[0]], P[Bt[1]], P[Bt[2]]) || pierce(P[Bt[e]], P[Bt[(e + 1) % 3]], P[A[0]], P[A[1]], P[A[2]]);
+      if (hit) { count++; if (hits.length < 20) hits.push([i, j]); }
+    }
+  }
+  return { count, tris: hits, pos: P, welded: T };
 }
 function bounds(P) {
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const p of P) for (let i = 0; i < 3; i++) { if (p[i] < lo[i]) lo[i] = p[i]; if (p[i] > hi[i]) hi[i] = p[i]; }
   return { lo, hi, size: sub(hi, lo), center: mul(add(lo, hi), 0.5) };
+}
+// Closest point on a triangle: distance, the point, and barycentric weights [wA, wB, wC].
+// Same cases as the fast distance-only routine below (Ericson, Real-Time Collision Detection).
+function closestOnTri(p, a, b, c) {
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) return { d: len(ap), q: a.slice(), w: [1, 0, 0] };
+  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return { d: len(bp), q: b.slice(), w: [0, 1, 0] };
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3), q = add(a, mul(ab, v)); return { d: len(sub(p, q)), q, w: [1 - v, v, 0] }; }
+  const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp); if (d6 >= 0 && d5 <= d6) return { d: len(cp), q: c.slice(), w: [0, 0, 1] };
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6), q = add(a, mul(ac, w)); return { d: len(sub(p, q)), q, w: [1 - w, 0, w] }; }
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)), q = add(b, mul(sub(c, b), w)); return { d: len(sub(p, q)), q, w: [0, 1 - w, w] }; }
+  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den, q = add(a, add(mul(ab, v), mul(ac, w)));
+  return { d: len(sub(p, q)), q, w: [1 - v - w, v, w] };
+}
+function pointTriDist(p, a, b, c) {           // distance from point p to triangle abc
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a), d1 = dot(ab, ap), d2 = dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) return len(ap);
+  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp); if (d3 >= 0 && d4 <= d3) return len(bp);
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) { const v = d1 / (d1 - d3); return len(sub(p, M.add(a, M.mul(ab, v)))); }
+  const cpp = sub(p, c), d5 = dot(ab, cpp), d6 = dot(ac, cpp); if (d6 >= 0 && d5 <= d6) return len(cpp);
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) { const w = d2 / (d2 - d6); return len(sub(p, M.add(a, M.mul(ac, w)))); }
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); return len(sub(p, M.add(b, M.mul(sub(c, b), w)))); }
+  const den = 1 / (va + vb + vc), v = vb * den, w = vc * den; return len(sub(p, M.add(a, M.add(M.mul(ab, v), M.mul(ac, w)))));
+}
+// Closest point on any mesh: { d, q, tri, w } (w are barycentrics on tri).
+function closestOnMesh(p, mesh) {
+  let best = { d: Infinity, q: null, tri: -1, w: null };
+  for (let i = 0; i < mesh.tris.length; i++) {
+    const t = mesh.tris[i], r = closestOnTri(p, mesh.pos[t[0]], mesh.pos[t[1]], mesh.pos[t[2]]);
+    if (r.d < best.d) { best = { d: r.d, q: r.q, tri: i, w: r.w }; if (r.d === 0) break; }
+  }
+  return best;
+}
+// 0 when p is on or inside B, else the distance from p to B's surface.
+function distToMesh(p, B) {
+  const planes = B.planes !== undefined ? B.planes : (B.planes = convexPlanes(B));
+  if (planes ? planes.every(pl => dot(pl.n, p) - pl.d <= 1e-9) : insideByRay(p, B)) return 0;
+  let d = Infinity; for (const t of B.tris) d = Math.min(d, pointTriDist(p, B.pos[t[0]], B.pos[t[1]], B.pos[t[2]])); return d;
+}
+function insideByRay(p, B) {
+  const dir = M.unit([0.5773, 0.5774, 0.5775]); let hits = 0;
+  for (const t of B.tris) {                     // Möller–Trumbore
+    const a = B.pos[t[0]], e1 = sub(B.pos[t[1]], a), e2 = sub(B.pos[t[2]], a), h = M.cross(dir, e2), det = dot(e1, h);
+    if (Math.abs(det) < 1e-12) continue; const f = 1 / det, s = sub(p, a), u = f * dot(s, h); if (u < 0 || u > 1) continue;
+    const q = M.cross(s, e1), v = f * dot(dir, q); if (v < 0 || u + v > 1) continue; if (f * dot(e2, q) > 1e-9) hits++;
+  }
+  return hits % 2 === 1;
 }
 // Planes of a closed convex mesh (null if not convex) for penetration tests.
 function convexPlanes(mesh, tol) {
@@ -249,4 +381,5 @@ function convexPlanes(mesh, tol) {
   return planes;
 }
 
-module.exports = { SHAPES, weld, flip, outward, signedVolume, triangulate2D, capPolygon, ringsMesh, hull, edgeReport, bounds, convexPlanes, triArea, triNormalRaw, AX };
+module.exports = { SHAPES, weld, flip, outward, signedVolume, triangulate2D, capPolygon, ringsMesh, hull, edgeReport, triAngles, selfIntersections, bounds, convexPlanes, triArea, triNormalRaw, AX,
+  closestOnTri, closestOnMesh, pointTriDist, distToMesh, insideByRay };

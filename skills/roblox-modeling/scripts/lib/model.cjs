@@ -6,8 +6,8 @@ const M = require('./math.cjs');
 const G = require('./geometry.cjs');
 const { add, sub, mul, D2R } = M;
 
-const PART_KEYS = new Set(('name parent pivot shape at rot scale color material mirror mirrorName jitter seed skin hidden note ' +
-  'size taper chamfer hollow open radius height segments axis squash phase detail ico stagger tube arc profile stations sides outline depth plane points vertices faces').split(' '));
+const PART_KEYS = new Set(('name parent pivot shape at rot scale color material mirror mirrorName jitter seed skin bind hidden note openSurface ' +
+  'size taper taperAt chamfer hollow open radius height segments axis squash phase detail ico stagger tube arc profile stations sides outline depth plane points vertices faces').split(' '));
 const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags'.split(' '));
 const EASE = {
   linear: t => t, step: t => (t < 1 ? 0 : 1), in: t => t * t, out: t => 1 - (1 - t) * (1 - t), inOut: t => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t)),
@@ -25,8 +25,17 @@ function color(v, palette, E, where) {
 }
 const vec3 = (v, def) => (v == null ? def.slice() : typeof v === 'number' ? [v, v, v] : v.slice());
 const mirrorName = n => (/L$/.test(n) ? n.replace(/L$/, 'R') : /Left/.test(n) ? n.replace(/Left/, 'Right') : /_l$/.test(n) ? n.replace(/_l$/, '_r') : n + '_R');
+const OUTLINE_SHAPES = new Set(['extrude', 'hull', 'mesh', 'loft', 'lathe']);
+// Centre of the vertices that sit inside (or within `tol` of) another part: where a fin actually meets the body.
+function contactCentroid(mesh, target, tol) {
+  const idx = [];
+  for (let i = 0; i < mesh.pos.length; i++) if (G.distToMesh(mesh.pos[i], target) <= tol) idx.push(i);
+  if (!idx.length) return null;
+  let c = [0, 0, 0]; for (const i of idx) c = add(c, mesh.pos[i]);
+  return mul(c, 1 / idx.length);
+}
 
-function buildPartMesh(p, E, warn) {
+function buildPartMesh(p, parentMesh, E, W) {
   const gen = G.SHAPES[p.shape];
   if (!gen) { E.push(`part "${p.name}": unknown shape "${p.shape}" (use ${Object.keys(G.SHAPES).join(', ')}, or "none" for an empty pivot/bone)`); return null; }
   let m;
@@ -38,11 +47,33 @@ function buildPartMesh(p, E, warn) {
     m.pos = m.pos.map(v => [v[0] + (r() * 2 - 1) * amt, v[1] + (r() * 2 - 1) * amt, v[2] + (r() * 2 - 1) * amt]);
   }
   // rot and scale act around the part's pivot when it has one (a fin posed on its hinge stays on its hinge),
-  // otherwise around the shape's own centre (a tilted fin stays where it was drawn); at then moves it
-  const c = p.pivot ? sub(p.pivot, at) : p.shape === 'extrude' || p.shape === 'hull' || p.shape === 'mesh' || p.shape === 'loft' || p.shape === 'lathe' ? G.bounds(m.pos).center : [0, 0, 0];
-  m.pos = m.pos.map(v => add(add(M.quatRot(q, M.vmul(sub(v, c), s)), c), at));
+  // otherwise around the shape's own centre (a tilted fin stays where it was drawn); at then moves it.
+  // "pivot": "weld" finds the pivot on the contact with the parent instead of guessing: the part can then be
+  // posed at any angle without lifting its root off the body.
+  let c, pivot;
+  if (p.pivot === 'weld') {
+    m.pos = m.pos.map(v => add(v, at));
+    const tol = parentMesh ? Math.max(5e-4, M.len(G.bounds(parentMesh.pos).size) * 0.01) : 0;
+    c = (parentMesh && contactCentroid(m, parentMesh, tol)) || null;
+    if (!c) { W.push(`part "${p.name}": pivot "weld" found no contact with its parent; using the shape centre instead`); c = G.bounds(m.pos).center; }
+    m.pos = m.pos.map(v => add(M.quatRot(q, M.vmul(sub(v, c), s)), c));
+    pivot = c.slice();
+  } else if (p.pivot != null && !Array.isArray(p.pivot)) {
+    E.push(`part "${p.name}": pivot must be [x, y, z] or "weld"`);
+    c = OUTLINE_SHAPES.has(p.shape) ? G.bounds(m.pos).center : [0, 0, 0];
+    m.pos = m.pos.map(v => add(add(M.quatRot(q, M.vmul(sub(v, c), s)), c), at));
+    pivot = G.bounds(m.pos).center;
+  } else if (Array.isArray(p.pivot)) {
+    c = sub(p.pivot, at);
+    m.pos = m.pos.map(v => add(add(M.quatRot(q, M.vmul(sub(v, c), s)), c), at));
+    pivot = p.pivot.slice();
+  } else {
+    c = OUTLINE_SHAPES.has(p.shape) ? G.bounds(m.pos).center : [0, 0, 0];
+    m.pos = m.pos.map(v => add(add(M.quatRot(q, M.vmul(sub(v, c), s)), c), at));
+    pivot = G.bounds(m.pos).center;
+  }
   if (s[0] * s[1] * s[2] < 0) G.flip(m);
-  return m;
+  return { mesh: m, pivot };
 }
 
 // ---------------------------------------------------------------- skinning helpers
@@ -99,36 +130,46 @@ const smoothstep = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 //          (tails, spines, snakes, tentacles, hair).
 //  joints: each segment follows one bone rigidly (the bone at the segment's parent end) and blends to the next one
 //          with a smoothstep over the joint zone (limbs, necks, fingers: rigid between joints, a clean bend at them).
-function skinWeights(n, bones, E) {
+// Prepared skin data: bones sorted along the axis, joint blend zones and segment owners. weightAt() uses it both
+// for the mesh's own vertices and for any other point measured against this surface (bind, fin/body sync checks).
+function prepareSkin(n, bones, E) {
   const ax = G.AX[n.skin.axis || 'z'], mode = n.skin.weights || 'smooth';
   if (mode !== 'smooth' && mode !== 'joints') E.push(`part "${n.name}": skin.weights must be "smooth" or "joints"`);
   const sorted = bones.map((b, i) => ({ i, c: b.pivot[ax] })).sort((a, b) => a.c - b.c), cs = sorted.map(s => s.c), m = sorted.length;
-  const hat = c => {
-    const w = new Array(bones.length).fill(0);
-    if (c <= cs[0]) w[sorted[0].i] = 1;
-    else if (c >= cs[m - 1]) w[sorted[m - 1].i] = 1;
-    else for (let k = 0; k + 1 < m; k++) if (c >= cs[k] && c <= cs[k + 1]) {
-      const t = (c - cs[k]) / ((cs[k + 1] - cs[k]) || 1); w[sorted[k].i] = 1 - t; w[sorted[k + 1].i] = t; break;
-    }
-    return w;
-  };
-  if (mode !== 'joints') return n.mesh.pos.map(p => hat(p[ax]));
+  const vals = n.mesh.pos.map(p => p[ax]);
+  const r = jointHalfWidths(cs, n.skin, Math.min(...vals), Math.max(...vals));
   const isAnc = (a, b) => { for (let k = b.parent; k; k = k.parent) if (k === a) return true; return false; };
   // owner of region k (between cs[k] and cs[k+1]); -1 = before the first pivot, m-1 = after the last; -1 result = siblings
   const owners = []; for (let k = 0; k + 1 < m; k++) { const A = bones[sorted[k].i], B = bones[sorted[k + 1].i]; owners.push(isAnc(A, B) ? sorted[k].i : isAnc(B, A) ? sorted[k + 1].i : -1); }
+  return { ax, mode, sorted, cs, m, r, owners };
+}
+// Weight vector (in `bones` order) at coordinate c along the skin axis.
+//  smooth: piecewise linear "hat" weights between neighbouring pivots: the bend spreads over whole segments
+//  joints: each segment follows one bone rigidly and blends to the next with a smoothstep over the joint zone
+function weightAt(n, c) {
+  const S = n._skin; if (!S) return null;
+  const { mode, sorted, cs, m, r, owners } = S, w = new Array(m).fill(0);
+  const hat = () => {
+    if (c <= cs[0]) { w[sorted[0].i] = 1; return w; }
+    if (c >= cs[m - 1]) { w[sorted[m - 1].i] = 1; return w; }
+    for (let k = 0; k + 1 < m; k++) if (c >= cs[k] && c <= cs[k + 1]) { const t = (c - cs[k]) / ((cs[k + 1] - cs[k]) || 1); w[sorted[k].i] = 1 - t; w[sorted[k + 1].i] = t; return w; }
+    return w;
+  };
+  if (mode !== 'joints') return hat();
   const regionOwner = k => (k < 0 ? sorted[0].i : k >= m - 1 ? sorted[m - 1].i : owners[k]);
-  const vals = n.mesh.pos.map(p => p[ax]), r = jointHalfWidths(cs, n.skin, Math.min(...vals), Math.max(...vals));
-  return vals.map(c => {
-    const w = new Array(bones.length).fill(0);
-    for (let k = 0; k < m; k++) if (r[k] > 1e-9 && Math.abs(c - cs[k]) < r[k]) {
-      const left = regionOwner(k - 1), right = regionOwner(k);
-      if (left < 0 || right < 0) break;
-      const u = smoothstep((c - cs[k] + r[k]) / (2 * r[k])); w[left] += 1 - u; w[right] += u; return w;
-    }
-    let k = -1; while (k + 1 < m && c >= cs[k + 1]) k++;
-    const o = regionOwner(k); if (o < 0) return hat(c);
-    w[o] = 1; return w;
-  });
+  for (let k = 0; k < m; k++) if (r[k] > 1e-9 && Math.abs(c - cs[k]) < r[k]) {
+    const left = regionOwner(k - 1), right = regionOwner(k);
+    if (left < 0 || right < 0) break;
+    const u = smoothstep((c - cs[k] + r[k]) / (2 * r[k])); w[left] += 1 - u; w[right] += u; return w;
+  }
+  let k = -1; while (k + 1 < m && c >= cs[k + 1]) k++;
+  const o = regionOwner(k); if (o < 0) return hat();
+  w[o] = 1; return w;
+}
+function skinWeights(n, bones, E) {
+  n.skinBones = bones;
+  n._skin = prepareSkin(n, bones, E);
+  return n.mesh.pos.map(p => weightAt(n, p[n._skin.ax]));
 }
 
 function compile(spec) {
@@ -160,21 +201,53 @@ function compile(spec) {
   const pivotOf = new Map();
   for (const p of parts) { const pv = p.pivot || p.at; if (Array.isArray(pv)) pivotOf.set(p.name, pv.slice()); }
 
-  for (const p of parts) {
+  // build parents before children so "pivot": "weld" can measure the contact against the finished parent
+  const byPart = new Map();
+  for (const p of parts) { if (byPart.has(p.name)) { E.push(`duplicate part name "${p.name}"`); continue; } byPart.set(p.name, p); }
+  const order = [], state = new Map();
+  const visit = p => {
+    const s = state.get(p.name);
+    if (s === 2) return;
+    if (s === 1) { E.push(`part "${p.name}": parent chain loops`); return; }
+    state.set(p.name, 1);
+    if (p.parent && byPart.has(p.parent)) visit(byPart.get(p.parent));
+    state.set(p.name, 2); order.push(p);
+  };
+  for (const p of byPart.values()) visit(p);
+  const ancestorMesh = p => {
+    let q = p;
+    while (q && q.parent) { const par = byPart.get(q.parent); if (!par) return null; if (par._mesh) return par._mesh; q = par; }
+    return null;
+  };
+  // a fin parented to a bone has no mesh parent; weld it to the nearest deforming body already built
+  const nearestBuiltMesh = c => {
+    let best = null, bd = Infinity;
+    for (const n of byName.values()) {
+      if (!n.mesh) continue;
+      const d = M.dist(G.bounds(n.mesh.pos).center, c) - (n.skin ? 1 : 0);
+      if (d < bd) { bd = d; best = n.mesh; }
+    }
+    return best;
+  };
+
+  for (const p of order) {
     if (byName.has(p.name)) { E.push(`duplicate part name "${p.name}"`); continue; }
     const where = `part "${p.name}"`;
-    let mesh = null, loopsAdded = null;
+    let mesh = null, loopsAdded = null, pivot = null;
     if (p.shape && p.shape !== 'none') {
       const src = p.shape === 'loft' && p.skin && p.skin.loops ? withJointLoops(p, pivotOf, W) : p;
       loopsAdded = src._loopsAdded || null;
-      mesh = buildPartMesh(src, E, W);
+      const weldTarget = src.pivot === 'weld' ? (ancestorMesh(p) || nearestBuiltMesh(vec3(p.at, [0, 0, 0]))) : null;
+      const r = buildPartMesh(src, weldTarget, E, W);
+      if (r) { mesh = r.mesh; pivot = r.pivot; }
     }
     else if (!p.shape) E.push(`${where}: needs a "shape" (or "none" for a pivot / bone)`);
     if (mesh && p._mirrored) { mesh.pos = mesh.pos.map(v => [-v[0], v[1], v[2]]); G.flip(mesh); }
-    let pivot = p.pivot ? p.pivot.slice() : mesh ? G.bounds(mesh.pos).center : vec3(p.at, [0, 0, 0]);
+    if (!pivot) pivot = mesh ? G.bounds(mesh.pos).center : (Array.isArray(p.pivot) ? p.pivot.slice() : vec3(p.at, [0, 0, 0]));
     if (p._mirrored && (p.pivot || !mesh)) pivot = [-pivot[0], pivot[1], pivot[2]];   // mesh bounds are already mirrored
+    p._mesh = mesh;
     const node = { name: p.name, parentName: p.parent || rootName, pivot, mesh, kids: [], src: p._src, mirrored: !!p._mirrored, hidden: !!p.hidden,
-      color: color(p.color, palette, E, where), material: Object.assign({ roughness: 0.85, metalness: 0, emissive: null }, p.material || {}), skin: p.skin || null, shape: p.shape || 'none', loopsAdded };
+      color: color(p.color, palette, E, where), material: Object.assign({ roughness: 0.85, metalness: 0, emissive: null }, p.material || {}), skin: p.skin || null, bind: p.bind || null, shape: p.shape || 'none', loopsAdded, openSurface: !!p.openSurface };
     if (node.material.emissive) node.material.emissive = color(node.material.emissive, palette, E, where + ' emissive');
     nodes.push(node); byName.set(node.name, node);
   }
@@ -192,13 +265,35 @@ function compile(spec) {
   // skins: weights by position along an axis between the listed bones ("smooth" hat weights or rigid "joints")
   for (const n of ordered) {
     if (!n.skin || !n.mesh) continue;
+    if (n.bind) { E.push(`part "${n.name}": use "skin" or "bind", not both`); n.skin = null; continue; }
     const bones = (n.skin.bones || []).map(b => byName.get(b));
     if (bones.some(b => !b)) { E.push(`part "${n.name}": skin lists a bone that does not exist`); n.skin = null; continue; }
     if (bones.length < 1) { E.push(`part "${n.name}": skin needs at least one bone`); n.skin = null; continue; }
     for (const k of Object.keys(n.skin)) if (!['bones', 'axis', 'weights', 'blend', 'loops'].includes(k)) W.push(`part "${n.name}": unknown skin field "${k}"`);
-    n.skinBones = bones;
     n.weights = skinWeights(n, bones, E);
     if (n.kids.length) W.push(`part "${n.name}": a skinned part should not have children; parent them to its bones instead`);
+  }
+  // bind: a rigid part that follows a skinned surface exactly. Every vertex gets the weight the body has at the
+  // root, so it stays rigid but travels with the blended surface instead of only one bone (fins, ears, armour).
+  for (const n of ordered) {
+    if (!n.bind) continue;
+    if (n.skin) continue;                                    // already reported above
+    if (!n.mesh) { E.push(`part "${n.name}": "bind" needs a mesh`); continue; }
+    const to = typeof n.bind === 'string' ? n.bind : n.bind && n.bind.to;
+    const t = to ? byName.get(to) : null;
+    if (!t) { E.push(`part "${n.name}": bind target "${to}" does not exist`); continue; }
+    if (!t.skin || !t.skinBones || !t.mesh || !t._skin) { E.push(`part "${n.name}": bind target "${to}" must be a skinned part`); continue; }
+    if (n.kids.length) E.push(`part "${n.name}": a bound part follows its target rigidly and cannot carry children; parent them to the target's bones instead`);
+    const ax = t.skin.axis || 'z';
+    const tol = (typeof n.bind === 'object' && n.bind.tol) || Math.max(5e-4, M.len(G.bounds(t.mesh.pos).size) * 0.01);
+    const contact = contactCentroid(n.mesh, t.mesh, tol);
+    if (!contact) W.push(`part "${n.name}": bind "${to}" found no contact with the body; sampled the weights at its pivot`);
+    const c = contact || n.pivot;
+    const w = weightAt(t, c[G.AX[ax]]);
+    n.skin = { bones: (t.skin.bones || []).slice(), axis: ax, bind: t.name };
+    n.skinBones = t.skinBones;
+    n.weights = n.mesh.pos.map(() => w.slice());             // constant: the part stays rigid
+    n.bindTo = t.name;
   }
 
   const model = { name, title: spec.title || name, description: spec.description || '', spec, nodes: ordered, byName, errors: E, warnings: W, palette,
@@ -251,7 +346,7 @@ function compileClip(model, a, E, W) {
   for (const tr of a.tracks || []) {
     const node = model.byName.get(tr.part);
     if (!node) { E.push(`${where}: track part "${tr.part}" does not exist`); continue; }
-    if (node.skin) E.push(`${where}: "${tr.part}" is skinned; animate its bones instead`);
+    if (node.skin) E.push(`${where}: "${tr.part}" is ${node.bindTo ? `bound to "${node.bindTo}" (it rigidly follows that surface)` : 'skinned'}; ${node.bindTo ? 'a bound part cannot have its own tracks - parent it to a bone if it must move' : 'animate its bones instead'}`);
     const t = { node, rot: channel(tr.rot, 'rot', dur || 1, E, `${where} ${tr.part}`), pos: channel(tr.pos, 'pos', dur || 1, E, `${where} ${tr.part}`), scale: channel(tr.scale, 'scale', dur || 1, E, `${where} ${tr.part}`) };
     tracks.push(t);
     if (tr.mirror) {                                  // mirrored copy: x stays, y/z rotations and x offsets flip
@@ -331,4 +426,4 @@ function bakeClip(model, clip) {
   return { times, nodes, data };
 }
 
-module.exports = { compile, jointHalfWidths, poseAt, localTRS, worldMatrices, posedMeshes, bakeClip, sampleChannel, EASE };
+module.exports = { compile, jointHalfWidths, weightAt, poseAt, localTRS, worldMatrices, posedMeshes, bakeClip, sampleChannel, EASE };
