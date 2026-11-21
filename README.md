@@ -19,7 +19,7 @@ Claude skills for Roblox development: turn a plain-language description into Stu
 | [roblox-project-structure](skills/roblox-project-structure/) | A studio-style codebase: Rojo / Wally / Rokit project scaffold, architecture guidance and audits of existing games |
 | [roblox-game-design](skills/roblox-game-design/) | Game design docs, hooks and onboarding, core loops, progression, level design and playtest plans |
 | [roblox-game-research](skills/roblox-game-research/) | Live Roblox chart and game data, teardowns of viral and top-earning games, and an original game brief with a monetization plan |
-| [roblox-vehicles](skills/roblox-vehicles/) | Reusable car chassis driven by real-life specs (torque curve, gears, brakes, grip, suspension) that never gets stuck, with drifting, tire smoke and skid marks, a performance report tool and a Luau kit |
+| [roblox-vehicles](skills/roblox-vehicles/) | Cars, motorcycles, boats, planes and helicopters that handle like the real thing and play like GTA, each driven by a spec of real-life variables: a car chassis that never gets stuck (torque curve, gears, grip, suspension, drifting, smoke and skids); bikes that lean to turn with wheelies, stoppies and cornering ABS; boats that float at their real draft, climb the hump onto the plane and bank into turns; planes with a real lift curve, stalls, ground effect, props and afterburning jets under a GTA-style flight assist; helicopters with momentum-theory rotors, translational lift, ground effect and altitude hold. Physics references per type, a performance report checked against real aircraft, bikes and boats, a Luau kit with controls on every device, and a tested JS lab |
 | [roblox-performance](skills/roblox-performance/) | Lag, FPS, memory and load-time fixes: profiling guides, device budgets, a scanner for Luau source and `.rbxlx` places, a Studio command-bar audit, and a Luau kit (frame-budget scheduler, pools, distance LOD, adaptive quality, perf HUD, server heartbeat and leak monitor) |
 | [roblox-security](skills/roblox-security/) | Anti-exploit and anti-cheat: secure remotes, a server-side anti-cheat kit, and a scanner for backdoors and exploitable code |
 
@@ -39,7 +39,7 @@ npx skills add ridhotamma/roblox-developer-skills --skill roblox-animation
 
 For the Claude apps, upload the packaged `.skill` file from [`dist/`](dist/) in Claude's skills settings.
 
-Then ask for what you want, for example "make an R15 uppercut animation", "build me a low poly fish with swimming, idle and dying animation", "make a set of shop icons for my potions and a game pass icon for VIP", "make a waterfall with splashes and mist for my jungle map", "make GTA-style chase music that gets more intense with the wanted level", "make an RE4-style suplex finisher when an enemy kneels", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
+Then ask for what you want, for example "make an R15 uppercut animation", "build me a low poly fish with swimming, idle and dying animation", "make a set of shop icons for my potions and a game pass icon for VIP", "make a waterfall with splashes and mist for my jungle map", "make GTA-style chase music that gets more intense with the wanted level", "make an RE4-style suplex finisher when an enemy kneels", "add a helicopter and a speedboat to my open-world map", "set up a new Roblox project with Rojo" or "design the first five minutes of my tycoon".
 
 ## Layout
 

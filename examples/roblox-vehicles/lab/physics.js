@@ -800,5 +800,5 @@
   }
   function applyImpulse(b, j, r) { b.v = V.add(b.v, V.mul(j, 1 / b.mass)); b.w = V.add(b.w, b.worldInvI(V.cross(r, j))); }
 
-  return { V, M, VM, World, Car, normalize, carGeometry, clamp, lookAtR, HULL, EXPERIMENT };
+  return { V, M, VM, World, Car, Body, collide, hullSamples, applyImpulse, mat3mul, rotateAxis, quatFromAxisAngle, quatMul, quatNorm, normalize, carGeometry, clamp, lookAtR, HULL, EXPERIMENT };
 });

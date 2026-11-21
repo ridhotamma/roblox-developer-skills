@@ -1,22 +1,31 @@
 --!strict
--- Turns any car model into a working chassis, so one spec drives any mesh.
+-- Turns any vehicle model into a working chassis, so one spec drives any mesh. The spec's Type picks
+-- the physics: Car (default), Motorcycle, Boat, Plane or Helicopter.
 --
 -- A vehicle model needs:
---   * attribute Vehicle = a key of VehicleSpecs (Hatchback, SportsCar, PickupTruck, Kart...)
+--   * attribute Vehicle = a key of VehicleSpecs (Hatchback, SportBike, Speedboat, LightPlane...)
 --   * the CollectionService tag "Vehicle"
---   * wheels named WheelFL, WheelFR, WheelRL, WheelRR (BaseParts or Models); add more axles
---     as WheelRL2, WheelRR2 ... (F = front/steered, R = rear; L/R = side)
 --   * a VehicleSeat (named DriverSeat, or the first VehicleSeat found)
---   * optional: attribute EngineSound = "rbxassetid://..." (engine loop, pitched by rpm)
+--   * cars: wheels named WheelFL, WheelFR, WheelRL, WheelRR (BaseParts or Models); more axles as
+--     WheelRL2, WheelRR2 ... (F = front/steered, R = rear; L/R = side)
+--   * motorcycles: WheelF and WheelR
+--   * planes: landing gear wheels (WheelF nose + WheelRL/WheelRR mains, or WheelFL/WheelFR mains +
+--     WheelR tail wheel for a tail-dragger), optional Propeller, Aileron*, Elevator, Rudder, Flap*
+--   * helicopters: Skid* parts (long thin landing skids) or gear wheels; MainRotor, TailRotor
+--   * boats: nothing else; the lowest point of the body is the keel. Optional Propeller.
+--   * all but cars: the model's pivot faces forward (LookVector to the nose or bow, UpVector up)
+--   * optional: attribute EngineSound = "rbxassetid://..." (engine loop)
 --   * optional per wheel: attribute WheelRadius (studs) if the mesh's bounding box is misleading
 --
--- Building (once per model): an invisible ChassisRoot part at the spec's centre of mass (from
--- FrontWeight and ComHeight) carries all the mass; body parts are welded to it and made
--- massless; wheels become anchored visuals; each wheel gets a suspension mount and a tire
--- contact attachment with VectorForces. Performance comes only from the spec.
+-- Building (once per model): an invisible ChassisRoot part at the spec's centre of mass carries all
+-- the mass; body parts are welded to it, made massless and stop colliding (a rounded low-friction
+-- hull collides instead); wheels, rotors, propellers and control surfaces become anchored visuals.
+-- Cars get suspension mounts with VectorForces (VehicleSim); the other types get one SimForce and
+-- one SimTorque (SimUtil) plus wheel or skid mounts. Performance comes only from the spec.
 --
--- Ownership: the driver's client simulates the car while seated (smooth, no input lag); the
--- server simulates it when empty, and anchors it once it has settled to save work.
+-- Ownership: the driver's client simulates the vehicle while seated (smooth, no input lag); the
+-- server simulates it when empty, and anchors it once it has settled to save work. Seated players
+-- go into the VehicleRider collision group (limbs don't scrape the road, casts ignore them).
 
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
@@ -25,9 +34,10 @@ local PhysicsService = game:GetService("PhysicsService")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
+local Sims = require(ReplicatedStorage.Shared.Vehicle.Sims)
 local VehicleMath = require(ReplicatedStorage.Shared.Vehicle.VehicleMath)
-local VehicleSim = require(ReplicatedStorage.Shared.Vehicle.VehicleSim)
 local VehicleSpecs = require(ReplicatedStorage.Shared.Vehicle.VehicleSpecs)
+local Water = require(ReplicatedStorage.Shared.Vehicle.Water)
 
 local TAG = "Vehicle"
 local WHEEL_PATTERN = "^Wheel([FR])([LR])(%d*)$"
@@ -35,15 +45,23 @@ local SLEEP_AFTER = 2 -- seconds settled before a parked car is anchored
 local SPEED_MARGIN = 1.35 -- flag drivers going this much over the spec's top speed
 local COLLISION_GROUP = "VehicleHull"
 local IGNORE_GROUP = "VehicleIgnore"
+local RIDER_GROUP = "VehicleRider"
 local MIN_ROOT_MASS = 150 -- assembly mass units for the chassis root (see build)
-
+local BOAT_DENSITY = 100 -- boat roots are dense so Terrain water's own buoyancy is ~1-2% of the weight
+local LOOSE_WHEEL_PATTERN = "^Wheel([FR])([LR]?)(%d*)$"
+local SKID_RADIUS_M = 0.15
+local MPS = VehicleMath.METERS_PER_STUD
+-- Visual parts that spin (rotors, propellers) or hinge (control surfaces), by name prefix.
+local SPIN_ROLES = { "MainRotor", "TailRotor", "Rotor", "Propeller" }
+local HINGE_ROLES = { "Aileron", "Elevator", "Rudder", "Flap" }
+local CONTROL_RATE = 15 -- VehicleControl messages per second per player
 
 -- Optional: roblox-security's Sanctions for implausible speeds.
 local securityFolder = script.Parent.Parent:FindFirstChild("Security")
 local sanctionsModule = securityFolder and securityFolder:FindFirstChild("Sanctions")
 local Sanctions: any = if sanctionsModule then (require :: any)(sanctionsModule) else nil
 
-type Parked = { sim: VehicleSim.VehicleSim, settledFor: number }
+type Parked = { sim: any, kind: string, settledFor: number }
 
 local VehicleService = {}
 
@@ -96,7 +114,7 @@ local function findWheels(model: Model): { { instance: Instance, front: boolean,
 				parent = parent.Parent
 			end
 			if not nested then
-				table.insert(wheels, { instance = d, front = axle == "F", left = side == "L" })
+				table.insert(wheels, { instance = d :: Instance, front = axle == "F", left = side == "L" })
 			end
 		end
 	end
@@ -106,12 +124,23 @@ end
 -- Collision groups: vehicle hulls ignore anything in "VehicleIgnore" (grass, flowers, small
 -- rocks, bushes, debris) for both collisions and suspension casts.
 local function ensureCollisionGroups()
-	for _, group in { COLLISION_GROUP, IGNORE_GROUP } do
+	for _, group in { COLLISION_GROUP, IGNORE_GROUP, RIDER_GROUP } do
 		if not PhysicsService:IsCollisionGroupRegistered(group) then
 			PhysicsService:RegisterCollisionGroup(group)
 		end
 	end
 	PhysicsService:CollisionGroupSetCollidable(COLLISION_GROUP, IGNORE_GROUP, false)
+	-- Seated players: welded into the vehicle, so their limbs neither drag on the road (a leaning
+	-- rider's knee) nor block the vehicle's own ground casts.
+	PhysicsService:CollisionGroupSetCollidable(RIDER_GROUP, COLLISION_GROUP, false)
+	PhysicsService:CollisionGroupSetCollidable(RIDER_GROUP, "Default", false)
+end
+
+-- Roblox's own aerodynamics (Workspace.FluidForces) would double up with the sims' forces.
+local function noFluidForces(part: BasePart)
+	pcall(function()
+		part.EnableFluidForces = false
+	end)
 end
 
 -- Invisible collision hull in the root's space: a box between rounded nose and tail cylinders,
@@ -142,6 +171,7 @@ local function buildHull(root: BasePart, minCorner: Vector3, maxCorner: Vector3,
 		part.Massless = true
 		part.CustomPhysicalProperties = physics
 		part.CollisionGroup = COLLISION_GROUP
+		noFluidForces(part)
 		part.Parent = root.Parent
 		local weld = Instance.new("WeldConstraint")
 		weld.Part0 = root
@@ -166,7 +196,7 @@ local function buildHull(root: BasePart, minCorner: Vector3, maxCorner: Vector3,
 	end
 end
 
-local function build(model: Model, spec: any): boolean
+local function buildCar(model: Model, spec: any): boolean
 	local wheels = findWheels(model)
 	local fronts, rears = 0, 0
 	for _, w in wheels do
@@ -227,6 +257,7 @@ local function build(model: Model, spec: any): boolean
 	local density = math.clamp(MIN_ROOT_MASS / volume, 0.7, 100)
 	root.CustomPhysicalProperties = PhysicalProperties.new(density, 0.3, 0.5)
 	root.CollisionGroup = COLLISION_GROUP -- VehicleSim's casts use this group's rules
+	noFluidForces(root)
 	root.Parent = model
 
 	-- Body: weld to the root, massless, so the root alone defines mass and inertia.
@@ -366,12 +397,400 @@ local function build(model: Model, spec: any): boolean
 	return true
 end
 
+-- ---------------------------------------------------------------------------------------------
+-- Motorcycles, boats, planes and helicopters
+
+local function roleOf(name: string, roles: { string }): string?
+	for _, role in roles do
+		if string.sub(name, 1, #role) == role then
+			return role
+		end
+	end
+	return nil
+end
+
+local function insideAny(part: Instance, set: { [Instance]: boolean }, model: Model): boolean
+	local p: Instance? = part
+	while p and p ~= model do
+		if set[p] then
+			return true
+		end
+		p = p.Parent
+	end
+	return false
+end
+
+-- The axis of a visual in its pivot's frame: the thinnest dimension for spinning parts (a rotor or
+-- propeller disc), the longest for hinged ones (an aileron's span). Attribute Axis = "X"/"Y"/"Z"
+-- (in the pivot's frame) overrides it.
+local function visualAxis(visual: Instance, spin: boolean): Vector3
+	local override = visual:GetAttribute("Axis")
+	if override == "X" then
+		return Vector3.xAxis
+	elseif override == "Y" then
+		return Vector3.yAxis
+	elseif override == "Z" then
+		return Vector3.zAxis
+	end
+	local frame: CFrame, size: Vector3
+	if visual:IsA("BasePart") then
+		frame, size = visual.CFrame, visual.Size
+	else
+		frame, size = (visual :: Model):GetBoundingBox()
+	end
+	local pick, best = Vector3.xAxis, size.X
+	if (spin and size.Y < best) or (not spin and size.Y > best) then
+		pick, best = Vector3.yAxis, size.Y
+	end
+	if (spin and size.Z < best) or (not spin and size.Z > best) then
+		pick = Vector3.zAxis
+	end
+	return pivotOf(visual):VectorToObjectSpace(frame:VectorToWorldSpace(pick))
+end
+
+local function weldToRoot(root: BasePart, part: BasePart)
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = part
+	weld.Parent = root
+end
+
+local function makeForces(root: BasePart)
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "SimAttachment"
+	attachment.Parent = root
+	local force = Instance.new("VectorForce")
+	force.Name = "SimForce"
+	force.Attachment0 = attachment
+	force.RelativeTo = Enum.ActuatorRelativeTo.World
+	force.ApplyAtCenterOfMass = true
+	force.Force = Vector3.zero
+	force.Parent = attachment
+	local torque = Instance.new("Torque")
+	torque.Name = "SimTorque"
+	torque.Attachment0 = attachment
+	torque.RelativeTo = Enum.ActuatorRelativeTo.World
+	torque.Torque = Vector3.zero
+	torque.Parent = attachment
+end
+
+type Contact = { name: string, center: Vector3, radius: number, front: boolean, left: boolean, visual: Instance? }
+
+local function buildOther(model: Model, spec: any, kind: string): boolean
+	local pivot = model:GetPivot()
+	local forward, up = pivot.LookVector, pivot.UpVector
+
+	-- Wheels, skids and visual parts (rotors, propellers, control surfaces).
+	local wheels: { Contact } = {}
+	local skids: { BasePart } = {}
+	local visuals: { { instance: Instance, role: string, spin: boolean } } = {}
+	local special: { [Instance]: boolean } = {}
+	local isHeli = kind == "Helicopter"
+	local isBoat = kind == "Boat"
+	for _, d in model:GetDescendants() do
+		local parent = d.Parent
+		if not (d:IsA("BasePart") or d:IsA("Model")) or (parent and insideAny(parent, special, model)) then
+			continue
+		end
+		local axle, side = string.match(d.Name, LOOSE_WHEEL_PATTERN)
+		local spinRole = roleOf(d.Name, SPIN_ROLES)
+		local hingeRole = roleOf(d.Name, HINGE_ROLES)
+		if axle and not isBoat then
+			special[d] = true
+			table.insert(wheels, { name = d.Name, center = centerOf(d), radius = radiusOf(d), front = axle == "F", left = side == "L", visual = d :: Instance })
+		elseif spinRole or hingeRole then
+			special[d] = true
+			table.insert(visuals, { instance = d :: Instance, role = (spinRole or hingeRole) :: string, spin = spinRole ~= nil })
+		elseif isHeli and d:IsA("BasePart") and string.sub(d.Name, 1, 4) == "Skid" then
+			table.insert(skids, d)
+		end
+	end
+	local fronts, rears = 0, 0
+	for _, w in wheels do
+		if w.front then
+			fronts += 1
+		else
+			rears += 1
+		end
+	end
+	if kind == "Motorcycle" and (fronts ~= 1 or rears ~= 1) then
+		warn(`[VehicleService] {model:GetFullName()} needs wheels named WheelF and WheelR`)
+		return false
+	end
+
+	-- Body extents in the pivot's frame (not wheels, rotors or control surfaces).
+	local minCorner = Vector3.one * math.huge
+	local maxCorner = -Vector3.one * math.huge
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and not insideAny(d, special, model) then
+			for _, sx in { -0.5, 0.5 } do
+				for _, sy in { -0.5, 0.5 } do
+					for _, sz in { -0.5, 0.5 } do
+						local corner = pivot:PointToObjectSpace((d.CFrame * CFrame.new(d.Size * Vector3.new(sx, sy, sz))).Position)
+						minCorner = minCorner:Min(corner)
+						maxCorner = maxCorner:Max(corner)
+					end
+				end
+			end
+		end
+	end
+	if minCorner.X == math.huge then
+		warn(`[VehicleService] {model:GetFullName()} has no body parts`)
+		return false
+	end
+
+	-- Ground contacts: wheels, and skid ends (two per skid at its bottom, along its long axis).
+	local skidRadius = SKID_RADIUS_M / MPS
+	local contacts: { Contact } = {}
+	for _, w in wheels do
+		table.insert(contacts, w)
+	end
+	for i, skid in skids do
+		local size = skid.Size
+		local cf = skid.CFrame
+		local long = if size.X > size.Z then cf.RightVector * size.X / 2 else cf.LookVector * size.Z / 2
+		local bottom = cf.Position - up * (math.abs(cf.UpVector:Dot(up)) * size.Y / 2)
+		for e, sign in { -1, 1 } do
+			local p = bottom + long * sign * 0.85
+			local l = pivot:PointToObjectSpace(p)
+			table.insert(contacts, {
+				name = `{skid.Name}_{i}_{e}`,
+				center = p + up * skidRadius,
+				radius = skidRadius,
+				front = l.Z < 0,
+				left = l.X < 0,
+				visual = nil,
+			})
+		end
+	end
+
+	-- Ground height and centre of mass (in the pivot's frame).
+	local groundY = minCorner.Y
+	if #contacts > 0 then
+		groundY = 0
+		for _, c in contacts do
+			groundY += (pivot:PointToObjectSpace(c.center).Y - c.radius) / #contacts
+		end
+	end
+	local center = (minCorner + maxCorner) / 2
+	local frontAvg, rearAvg = Vector3.zero, Vector3.zero
+	for _, w in wheels do
+		local l = pivot:PointToObjectSpace(w.center)
+		if w.front then
+			frontAvg += l / fronts
+		else
+			rearAvg += l / rears
+		end
+	end
+	local rotor = model:FindFirstChild("MainRotor", true)
+	local hasRotor = rotor ~= nil and (rotor:IsA("BasePart") or rotor:IsA("Model"))
+	local com: Vector3
+	if kind == "Helicopter" and rotor and hasRotor then
+		local hub = pivot:PointToObjectSpace(pivotOf(rotor).Position)
+		com = Vector3.new(hub.X, groundY + spec.ComHeight / MPS, hub.Z)
+	elseif fronts > 0 and rears > 0 then
+		local along = rearAvg:Lerp(frontAvg, spec.FrontWeight)
+		com = Vector3.new(along.X, groundY + spec.ComHeight / MPS, along.Z)
+	elseif kind == "Boat" then
+		com = Vector3.new(center.X, minCorner.Y + spec.ComHeight / MPS, center.Z)
+	else
+		com = Vector3.new(center.X, groundY + spec.ComHeight / MPS, center.Z)
+	end
+	local comWorld = pivot:PointToWorldSpace(com)
+
+	-- The root carries all the mass; its size (from the spec) sets the inertia the sims expect.
+	local sizeM: Vector3
+	if kind == "Motorcycle" then
+		local wheelbase = math.abs(frontAvg.Z - rearAvg.Z) * MPS
+		sizeM = Vector3.new(0.5, 0.9, math.max(wheelbase, 0.5) * 1.1)
+	elseif kind == "Boat" then
+		sizeM = Vector3.new(spec.Hull.Beam * 0.8, spec.Hull.Depth * 0.6, spec.Hull.Length * 0.8)
+	elseif kind == "Plane" then
+		sizeM = Vector3.new(spec.Wing.Span * 0.55, 1.2, spec.Length * 0.8)
+	else
+		sizeM = Vector3.new(2.2, 1.8, spec.Length * 0.7)
+	end
+	local root = Instance.new("Part")
+	root.Name = "ChassisRoot"
+	root.Size = sizeM / MPS
+	root.CFrame = CFrame.lookAt(comWorld, comWorld + forward, up)
+	root.Transparency = 1
+	root.CanCollide = false
+	root.CanQuery = false
+	root.CanTouch = false
+	local volume = root.Size.X * root.Size.Y * root.Size.Z
+	local density = if kind == "Boat" then BOAT_DENSITY else math.clamp(MIN_ROOT_MASS / volume, 0.7, 100)
+	root.CustomPhysicalProperties = PhysicalProperties.new(density, 0.3, 0.5)
+	root.CollisionGroup = COLLISION_GROUP
+	noFluidForces(root)
+	root.Parent = model
+
+	-- Joints between the body and wheels or visuals would pin the vehicle to anchored visuals.
+	for _, d in model:GetDescendants() do
+		if d:IsA("JointInstance") or d:IsA("WeldConstraint") then
+			local a = (d :: any).Part0 :: Instance?
+			local b = (d :: any).Part1 :: Instance?
+			if a and b and insideAny(a, special, model) ~= insideAny(b, special, model) then
+				d:Destroy()
+			end
+		end
+	end
+
+	-- Body: welded, massless, no collision of its own unless KeepCollision.
+	local autoHull = model:GetAttribute("KeepCollision") ~= true
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") and d ~= root then
+			if insideAny(d, special, model) then
+				makeVisual(d)
+			else
+				d.Anchored = false
+				d.Massless = true
+				d.CollisionGroup = COLLISION_GROUP
+				noFluidForces(d)
+				if autoHull then
+					d.CanCollide = false
+				end
+				weldToRoot(root, d)
+			end
+		end
+	end
+
+	-- Collision hull, in the root's frame.
+	if autoHull then
+		local toRoot = root.CFrame:Inverse() * pivot
+		local mn, mx = toRoot * minCorner, toRoot * minCorner
+		for _, sx in { minCorner.X, maxCorner.X } do
+			for _, sy in { minCorner.Y, maxCorner.Y } do
+				for _, sz in { minCorner.Z, maxCorner.Z } do
+					local c = toRoot * Vector3.new(sx, sy, sz)
+					mn, mx = mn:Min(c), mx:Max(c)
+				end
+			end
+		end
+		local ground = (toRoot * Vector3.new(com.X, groundY, com.Z)).Y
+		local friction = if spec.Body and spec.Body.HullFriction then spec.Body.HullFriction else 0.12
+		if kind == "Motorcycle" then
+			-- Narrow and above 1.4 wheel radii: a 50 degree lean never scrapes it.
+			local radius = 0
+			for _, w in wheels do
+				radius = math.max(radius, w.radius)
+			end
+			local half = 0.15 / MPS
+			buildHull(root, Vector3.new(-half, mn.Y, mn.Z), Vector3.new(half, mx.Y, mx.Z), ground + 1.4 * radius, friction)
+		elseif kind == "Boat" then
+			buildHull(root, mn, mx, mn.Y, friction)
+		elseif kind == "Helicopter" then
+			buildHull(root, mn, mx, ground + 0.5 / MPS, friction)
+		else
+			local axle = ground
+			for _, w in wheels do
+				axle = math.max(axle, root.CFrame:PointToObjectSpace(w.center).Y)
+			end
+			buildHull(root, mn, mx, axle, friction)
+		end
+	end
+
+	-- Wheel and skid mounts.
+	local suspension = if kind == "Motorcycle" then spec.Suspension elseif kind == "Boat" then nil else spec.Gear
+	if suspension then
+		local staticLength = suspension.MaxLength * suspension.RideHeight
+		local frontWeight = spec.FrontWeight or 0.5
+		local tailDragger = frontWeight > 0.5
+		for _, c in contacts do
+			local mount = Instance.new("Attachment")
+			mount.Name = "Mount_" .. c.name
+			local mountCFrame = root.CFrame.Rotation + c.center + up * staticLength
+			mount.WorldCFrame = mountCFrame
+			mount:SetAttribute("WheelName", c.name)
+			mount:SetAttribute("Front", c.front)
+			mount:SetAttribute("Left", c.left)
+			mount:SetAttribute("Radius", c.radius)
+			mount:SetAttribute("StaticLength", staticLength)
+			mount:SetAttribute("MaxLength", suspension.MaxLength)
+			local visual = c.visual
+			if visual then
+				mount:SetAttribute("Wheel", true)
+				mount:SetAttribute("VisualOffset", mountCFrame:ToObjectSpace(pivotOf(visual)))
+				local link = Instance.new("ObjectValue")
+				link.Name = "Visual"
+				link.Value = visual
+				link.Parent = mount
+			end
+			if kind ~= "Motorcycle" then
+				local isWheel = visual ~= nil
+				local share = 1 / #contacts
+				if isWheel and fronts > 0 and rears > 0 then
+					share = if c.front then frontWeight / fronts else (1 - frontWeight) / rears
+				end
+				mount:SetAttribute("Gear", true)
+				mount:SetAttribute("Skid", not isWheel)
+				mount:SetAttribute("Steer", isWheel and (if tailDragger then not c.front else c.front))
+				mount:SetAttribute("Share", share)
+			end
+			mount.Parent = root
+		end
+	end
+
+	-- Visual parts: rotors and propellers spin, control surfaces hinge (VehicleVisuals).
+	local folder = Instance.new("Folder")
+	folder.Name = "Visuals"
+	folder.Parent = root
+	for _, v in visuals do
+		local link = Instance.new("ObjectValue")
+		link.Name = v.role
+		link.Value = v.instance
+		local pv = pivotOf(v.instance)
+		link:SetAttribute("Role", v.role)
+		link:SetAttribute("Spin", v.spin)
+		link:SetAttribute("Axis", visualAxis(v.instance, v.spin))
+		link:SetAttribute("Offset", root.CFrame:ToObjectSpace(pv))
+		link:SetAttribute("Side", if root.CFrame:PointToObjectSpace(pv.Position).X < 0 then -1 else 1)
+		link.Parent = folder
+	end
+	if kind == "Helicopter" then
+		local hub = Instance.new("Attachment")
+		hub.Name = "RotorHub"
+		hub.WorldPosition = if rotor and hasRotor
+			then pivotOf(rotor).Position
+			else comWorld + up * ((spec.Rotor.HubHeight - spec.ComHeight) / MPS)
+		hub.Parent = root
+	end
+
+	makeForces(root)
+	model.PrimaryPart = root
+	model:SetAttribute("ChassisBuilt", true)
+	return true
+end
+
+local function build(model: Model, spec: any): boolean
+	local kind = Sims.Kind(spec)
+	if kind == "Car" then
+		return buildCar(model, spec)
+	end
+	return buildOther(model, spec, kind)
+end
+
+-- ---------------------------------------------------------------------------------------------
+
 local function driverSeat(model: Model): VehicleSeat?
 	local named = model:FindFirstChild("DriverSeat", true)
 	if named and named:IsA("VehicleSeat") then
 		return named
 	end
 	return model:FindFirstChildWhichIsA("VehicleSeat", true)
+end
+
+-- What an empty vehicle does: hill hold (cars), kickstand (bikes), idle (boats), parking brake
+-- (planes), rotor winding down (helicopters).
+local function idleInput(model: Model, kind: string): any
+	if kind == "Motorcycle" then
+		return { Throttle = 0, Steer = 0, Handbrake = false, Lean = 0, Rider = false }
+	elseif kind == "Plane" then
+		return { Pitch = 0, Roll = 0, Yaw = 0, Power = -1, Brake = true, GearDown = model:GetAttribute("GearDown") ~= false }
+	elseif kind == "Helicopter" then
+		return { Pitch = 0, Roll = 0, Yaw = 0, Power = -1, Engine = false }
+	end
+	return { Throttle = 0, Steer = 0, Handbrake = false }
 end
 
 local function park(model: Model)
@@ -383,10 +802,45 @@ local function park(model: Model)
 	pcall(function()
 		root:SetNetworkOwner(nil)
 	end)
-	local sim = VehicleSim.new(model)
-	if sim then
-		parked[model] = { sim = sim, settledFor = 0 }
+	local sim, kind = Sims.new(model)
+	if sim and kind then
+		parked[model] = { sim = sim, kind = kind, settledFor = 0 }
 	end
+end
+
+-- Seated players join the VehicleRider collision group, restored when they leave the seat.
+local riderGroups: { [BasePart]: string } = {}
+
+local function setRider(character: Model, riding: boolean)
+	for _, part in character:GetDescendants() do
+		if part:IsA("BasePart") then
+			if riding then
+				if riderGroups[part] == nil then
+					riderGroups[part] = part.CollisionGroup
+				end
+				part.CollisionGroup = RIDER_GROUP
+			else
+				part.CollisionGroup = riderGroups[part] or "Default"
+				riderGroups[part] = nil
+			end
+		end
+	end
+end
+
+local function watchSeat(seat: Seat | VehicleSeat)
+	local current: Model? = nil
+	seat:GetPropertyChangedSignal("Occupant"):Connect(function()
+		if current then
+			setRider(current, false)
+			current = nil
+		end
+		local occupant = seat.Occupant
+		local character = occupant and occupant.Parent
+		if character and character:IsA("Model") then
+			current = character
+			setRider(character, true)
+		end
+	end)
 end
 
 local function bind(instance: Instance)
@@ -410,13 +864,18 @@ local function bind(instance: Instance)
 	end
 	seat:SetAttribute("DriverSeat", true)
 	seat.HeadsUpDisplay = false
+	for _, d in model:GetDescendants() do
+		if d:IsA("Seat") or d:IsA("VehicleSeat") then
+			watchSeat(d)
+		end
+	end
 
 	seat:GetPropertyChangedSignal("Occupant"):Connect(function()
 		local occupant = seat.Occupant
 		local player = occupant and Players:GetPlayerFromCharacter(occupant.Parent)
 		local root = model.PrimaryPart
 		if player and root then
-			-- Hand the physics to the driver; their client runs VehicleSim from now on.
+			-- Hand the physics to the driver; their client runs the sim from now on.
 			local entry = parked[model]
 			if entry then
 				entry.sim:Destroy()
@@ -462,8 +921,74 @@ function VehicleService:Spawn(name: string, cframe: CFrame, parent: Instance?): 
 	return model
 end
 
+-- The driver's client reports what other players need to see and the server can't measure (engine
+-- throttle for props, rotors and sound; landing gear; flaps) and bike crashes (bail).
+local optionalRagdoll: any = nil
+local function ragdollService(): any
+	if optionalRagdoll == nil then
+		local module = script.Parent:FindFirstChild("RagdollService")
+		optionalRagdoll = if module then (require :: any)(module) else false
+	end
+	return if optionalRagdoll then optionalRagdoll else nil
+end
+
+local rates: { [Player]: { count: number, window: number } } = {}
+
+local function onControl(player: Player, model: any, state: any)
+	if typeof(model) ~= "Instance" or not model:IsA("Model") or drivers[model] ~= player or typeof(state) ~= "table" then
+		return
+	end
+	local now = os.clock()
+	local previous = rates[player]
+	local rate = if previous and now - previous.window <= 1 then previous else { count = 0, window = now }
+	rates[player] = rate
+	rate.count += 1
+	if rate.count > CONTROL_RATE then
+		return
+	end
+	local throttle = state.Throttle
+	if typeof(throttle) == "number" and throttle == throttle then
+		model:SetAttribute("EngineThrottle", math.clamp(throttle, 0, 1))
+	end
+	if typeof(state.GearDown) == "boolean" then
+		model:SetAttribute("GearDown", state.GearDown)
+	end
+	if typeof(state.Flaps) == "boolean" then
+		model:SetAttribute("Flaps", state.Flaps)
+	end
+	if state.Bail == true then
+		-- Thrown off a crashing bike: out of the seat, ragdolled when roblox-ragdoll is installed.
+		local seat = driverSeat(model)
+		local occupant = seat and seat.Occupant
+		local character = player.Character
+		if seat and occupant and character and occupant.Parent == character then
+			local weld = seat:FindFirstChild("SeatWeld")
+			if weld then
+				weld:Destroy()
+			end
+			occupant.Sit = false
+			local root = model.PrimaryPart
+			local Ragdoll = ragdollService()
+			if Ragdoll and root then
+				Ragdoll:Ragdoll(character, { Seconds = 2.5, Velocity = root.AssemblyLinearVelocity })
+			end
+		end
+	end
+end
+
 function VehicleService:Init()
 	ensureCollisionGroups()
+	local remote = ReplicatedStorage:FindFirstChild("VehicleControl")
+	if not remote then
+		local created = Instance.new("RemoteEvent")
+		created.Name = "VehicleControl"
+		created.Parent = ReplicatedStorage
+		remote = created
+	end
+	(remote :: RemoteEvent).OnServerEvent:Connect(onControl)
+	Players.PlayerRemoving:Connect(function(player)
+		rates[player] = nil
+	end)
 end
 
 function VehicleService:Start()
@@ -473,9 +998,9 @@ function VehicleService:Start()
 		task.spawn(bind, model)
 	end
 
-	-- No pedal: VehicleSim's hill hold brakes all four wheels once stopped. (The handbrake would
-	-- only lower rear grip - it's a drift control - and let parked cars slide off slopes.)
-	local idle = { Throttle = 0, Steer = 0, Handbrake = false }
+	-- Empty vehicles: cars brake on all four wheels (hill hold), bikes stand on the kickstand,
+	-- planes hold the parking brake, helicopter rotors wind down, boats float. They sleep (anchor)
+	-- once settled; boats only on a calm sea, so they keep riding the waves.
 	RunService.PreSimulation:Connect(function(dt)
 		for model, entry in parked do
 			local root = model.PrimaryPart
@@ -486,9 +1011,10 @@ function VehicleService:Start()
 			if root.Anchored then
 				continue
 			end
-			local telemetry = entry.sim:Step(dt, idle)
+			local telemetry = entry.sim:Step(dt, idleInput(model, entry.kind))
 			local still = root.AssemblyLinearVelocity.Magnitude < 0.3 and root.AssemblyAngularVelocity.Magnitude < 0.1
-			entry.settledFor = if still and telemetry.Grounded > 0 then entry.settledFor + dt else 0
+			local calm = entry.kind ~= "Boat" or Water.IsCalm()
+			entry.settledFor = if still and calm and telemetry.Grounded > 0 then entry.settledFor + dt else 0
 			if entry.settledFor >= SLEEP_AFTER then
 				entry.sim:Destroy()
 				root.Anchored = true -- asleep until someone sits in it
@@ -496,7 +1022,7 @@ function VehicleService:Start()
 		end
 	end)
 
-	-- Plausibility check on driven cars (the driver's client owns the physics).
+	-- Plausibility check on driven vehicles (the driver's client owns the physics).
 	task.spawn(function()
 		while true do
 			task.wait(1)
@@ -504,7 +1030,7 @@ function VehicleService:Start()
 				local root = model.PrimaryPart
 				local spec = (VehicleSpecs :: any)[model:GetAttribute("Vehicle")]
 				if root and spec then
-					local limitKmh = topSpeeds[spec] or VehicleMath.TopSpeedKmh(spec)
+					local limitKmh = topSpeeds[spec] or Sims.SpeedLimitKmh(spec)
 					topSpeeds[spec] = limitKmh
 					local kmh = VehicleMath.KmhFromStudsPerSecond(root.AssemblyLinearVelocity.Magnitude)
 					if kmh > limitKmh * SPEED_MARGIN + 30 then

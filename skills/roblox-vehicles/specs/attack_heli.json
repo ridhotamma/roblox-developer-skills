@@ -1,0 +1,58 @@
+{
+  "name": "AttackHeli",
+  "type": "Helicopter",
+  "title": "Apache-class twin-turbine attack helicopter, wheels",
+  "mass": 8000,
+  "comHeight": 1.9,
+  "frontWeight": 0.8,
+  "length": 15.5,
+  "rotor": {
+    "diameter": 14.63,
+    "tipSpeed": 221,
+    "solidity": 0.093,
+    "profileCd": 0.011,
+    "inducedFactor": 1.15,
+    "tailPower": 0.1,
+    "spoolTime": 8,
+    "bladeStallMu": 0.365,
+    "heaveDamping": 0.4,
+    "hubHeight": 3.8
+  },
+  "engine": {
+    "power": 2100
+  },
+  "fuselage": {
+    "dragArea": 2.8,
+    "sideArea": 20,
+    "topArea": 30
+  },
+  "controls": {
+    "pitchRate": 45,
+    "rollRate": 80,
+    "yawRate": 55,
+    "maxPitch": 30,
+    "maxBank": 45,
+    "climbRate": 10,
+    "descentRate": 7
+  },
+  "assists": {
+    "altitudeHold": 1,
+    "level": 1,
+    "hoverHold": 0.6,
+    "coordination": 0.8,
+    "weathervane": 0.5
+  },
+  "realism": {
+    "groundEffect": 1,
+    "vortexRing": 0
+  },
+  "gear": {
+    "frequency": 2.2,
+    "dampingRatio": 0.7,
+    "maxLength": 1.2,
+    "rideHeight": 0.5,
+    "grip": 0.8,
+    "rollingResistance": 0.03,
+    "brakeG": 0.3
+  }
+}

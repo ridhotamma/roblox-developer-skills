@@ -55,7 +55,7 @@ check('warns on grabby hull friction', R.report(R.normalize({ name: 'F', body: {
 
 // Bundled specs land in realistic ranges for their class.
 const specsDir = path.join(__dirname, '..', 'specs');
-const specs = fs.readdirSync(specsDir).filter((f) => f.endsWith('.json')).map((f) => R.normalize(JSON.parse(fs.readFileSync(path.join(specsDir, f), 'utf8'))));
+const specs = fs.readdirSync(specsDir).filter((f) => f.endsWith('.json')).sort().map((f) => R.normalize(JSON.parse(fs.readFileSync(path.join(specsDir, f), 'utf8'))));
 const byName = Object.fromEntries(specs.map((s) => [s.name, R.report(s)]));
 const expect = {
   Hatchback: { t100: [8.5, 12], top: [175, 210], brake: [36, 46] },
@@ -73,6 +73,66 @@ for (const [name, e] of Object.entries(expect)) {
   check(`${name} top speed ${e.top.join('-')} km/h`, r.top.kmh >= e.top[0] && r.top.kmh <= e.top[1], r.top.kmh);
   check(`${name} 100-0 in ${e.brake.join('-')} m`, r.brake.meters >= e.brake[0] && r.brake.meters <= e.brake[1], r.brake.meters);
   check(`${name} has no warnings`, r.warnings.length === 0, r.warnings.join(' | '));
+}
+
+// ---------------------------------------------------------------------------------- other types
+const C = require('./types/common.cjs');
+const { Motorcycle: MB, Boat: BT, Plane: PL, Helicopter: HE } = R.TYPES;
+
+// Momentum theory: static thrust (2 rho A P^2)^(1/3); at speed thrust -> P / V.
+const A1 = Math.PI * 0.5 ** 2;
+check('disk thrust static matches (2 rho A P^2)^(1/3)', near(C.diskThrust(50000, 1.225, A1, 0, 1), Math.cbrt(2 * 1.225 * A1 * 50000 ** 2), 2));
+check('disk thrust at speed tends to P / V', near(C.diskThrust(50000, 1.225, 50, 100, 1) * 100, 50000, 600));
+check('induced velocity in hover sqrt(T / 2 rho A)', near(C.inducedVelocity(1000, 1.225, A1, 0), Math.sqrt(1000 / (2 * 1.225 * A1)), 1e-9));
+
+// Motorcycle: wheelie and stoppie limits from geometry.
+const bike = R.normalize({ name: 'B', type: 'Motorcycle', wheelbase: 1.4, frontWeight: 0.5, comHeight: 0.7 });
+check('wheelie limit = g b / h', near(MB.wheelieG(bike), 0.7 / 0.7, 1e-9));
+check('report flags a bike that wheelies at the slightest throttle', MB.report(R.normalize({ name: 'W', type: 'Motorcycle', comHeight: 1.4 })).warnings.some((w) => w.includes('wheelie limit')));
+
+// Boat: floats at the draft the spec implies; displacement hulls are held near hull speed.
+const boat = R.normalize({ name: 'S', type: 'Boat', mass: 2000, hull: { length: 6, beam: 2.5, blockCoefficient: 0.4, waterDensity: 1025 } });
+check('boat draft = mass / (rho L B Cb)', near(BT.draft(boat), 2000 / 1025 / (6 * 2.5 * 0.4), 1e-9));
+check('planing lift lifts the hull at speed', BT.steadyImmersion(boat, 15) < 0.4 && BT.steadyImmersion(boat, 0) === 1);
+check('wave resistance peaks near Fn 0.56 for planing hulls', BT.waveBump(boat, 0.56) > BT.waveBump(boat, 0.4) && BT.waveBump(boat, 0.56) > BT.waveBump(boat, 1.0));
+
+// Plane: lift slope from aspect ratio, stall speed from C_Lmax.
+const plane = R.normalize({ name: 'P', type: 'Plane', wing: { area: 16, span: 12 } });
+check('lift slope 2 pi AR / (AR + 2)', near(PL.liftSlope(plane), (2 * Math.PI * 9) / 11, 1e-9));
+check('stall speed sqrt(2 W / (rho S C_Lmax))', near(PL.stallSpeed(plane, 0), Math.sqrt((2 * plane.mass * 9.81) / (1.225 * 16 * plane.wing.clMax)), 1e-9));
+check('lift collapses past the stall', PL.liftCoefficient(plane, PL.stallAlpha(plane, 0) + 0.25, 0) < plane.wing.clMax * 0.8);
+
+// Helicopter: Glauert inflow falls with forward speed (translational lift); ground effect helps.
+const heli = R.normalize({ name: 'H', type: 'Helicopter' });
+const W = heli.mass * 9.81;
+check('forward flight needs less induced power (translational lift)', HE.powerRequired(heli, W, 1.225, 25, 0) < HE.powerRequired(heli, W, 1.225, 0, 0));
+check('ground effect adds thrust near the ground', HE.groundEffect(heli, 3) > 1.1 && near(HE.groundEffect(heli, 100), 1, 0.01));
+
+// Validation for the new types.
+check('rejects an unknown type', bad({ name: 'X', type: 'Submarine' }, 'type must be'));
+check('rejects a boat drive type', bad({ name: 'X', type: 'Boat', drive: { type: 'sail' } }, 'outboard, inboard or jet'));
+check('rejects a hull that sinks', bad({ name: 'X', type: 'Boat', mass: 50000 }, 'sinks'));
+check('rejects a jet without thrust', bad({ name: 'X', type: 'Plane', engine: { type: 'jet', thrust: 0 } }, 'needs engine.thrust'));
+check('warns when a helicopter cannot hover', HE.report(R.normalize({ name: 'X', type: 'Helicopter', engine: { power: 100 } })).warnings.some((w) => w.includes("can't hover")));
+
+// Bundled specs of the new types land in real-world ranges.
+const expectOther = {
+  SportBike: (r) => [['0-100 2.6-3.4 s', r.launch.t100, 2.6, 3.4], ['top 290-300 km/h', r.top.kmh, 290, 300], ['100-0 30-42 m', r.brake.meters, 30, 42], ['wheelie limit 1.0-1.25 g', r.wheelieG, 1.0, 1.25]],
+  DirtBike: (r) => [['0-100 3-4.5 s', r.launch.t100, 3, 4.5], ['top 140-175 km/h', r.top.kmh, 140, 175], ['100-0 38-52 m', r.brake.meters, 38, 52]],
+  Speedboat: (r) => [['top 80-100 km/h', r.top.kmh, 80, 100], ['0-50 km/h 3-7 s', r.launch.t50, 3, 7], ['hump R/W 0.08-0.2', r.humpRW, 0.08, 0.2]],
+  JetSki: (r) => [['top 100-110 km/h', r.top.kmh, 100, 110], ['0-50 km/h 1-2.5 s', r.launch.t50, 1, 2.5]],
+  FishingBoat: (r) => [['top 14-20 km/h (hull speed)', r.top.kmh, 14, 20], ['draft 0.3-0.8 m', r.draft, 0.3, 0.8]],
+  LightPlane: (r) => [['stall 90-105 km/h', r.stallKmh, 90, 105], ['top 220-240 km/h', r.top.kmh, 220, 240], ['climb 3-4.5 m/s', r.climb.rate, 3, 4.5], ['takeoff roll 200-330 m', r.takeoff.meters, 200, 330]],
+  JetFighter: (r) => [['stall 215-260 km/h', r.stallKmh, 215, 260], ['afterburner top 1300-1500 km/h', r.topAb.kmh, 1300, 1500], ['afterburner climb 200-300 m/s', r.climbAb.rate, 200, 300]],
+  LightHeli: (r) => [['top 190-230 km/h', r.top.kmh, 190, 230], ['vertical climb 4-8 m/s', r.verticalClimb, 4, 8], ['hover margin 10-40%', r.margin, 0.1, 0.4]],
+  AttackHeli: (r) => [['top 270-310 km/h', r.top.kmh, 270, 310], ['vertical climb 8-14 m/s', r.verticalClimb, 8, 14]],
+};
+for (const [name, fn] of Object.entries(expectOther)) {
+  const r = byName[name];
+  if (!r) { check(`${name} spec present`, false); continue; }
+  for (const [label, value, lo, hi] of fn(r)) check(`${name} ${label}`, value >= lo && value <= hi, value);
+  const allowed = name === 'JetFighter' ? r.warnings.filter((w) => !w.includes('speedLimitKmh')) : r.warnings;
+  check(`${name} has no warnings`, allowed.length === 0, allowed.join(' | '));
 }
 
 // Kit's generated VehicleSpecs.luau is in sync with the specs folder.

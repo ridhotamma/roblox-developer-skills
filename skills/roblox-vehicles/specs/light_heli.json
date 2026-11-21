@@ -1,0 +1,55 @@
+{
+  "name": "LightHeli",
+  "type": "Helicopter",
+  "title": "Bell 206-class turbine helicopter, skids",
+  "mass": 1360,
+  "comHeight": 1.4,
+  "length": 9.5,
+  "rotor": {
+    "diameter": 10.16,
+    "tipSpeed": 210,
+    "solidity": 0.042,
+    "profileCd": 0.011,
+    "inducedFactor": 1.15,
+    "tailPower": 0.1,
+    "spoolTime": 6,
+    "bladeStallMu": 0.38,
+    "heaveDamping": 0.4,
+    "hubHeight": 2.9
+  },
+  "engine": {
+    "power": 236
+  },
+  "fuselage": {
+    "dragArea": 1.2,
+    "sideArea": 7,
+    "topArea": 10
+  },
+  "controls": {
+    "pitchRate": 50,
+    "rollRate": 70,
+    "yawRate": 60,
+    "maxPitch": 28,
+    "maxBank": 35,
+    "climbRate": 6,
+    "descentRate": 5
+  },
+  "assists": {
+    "altitudeHold": 1,
+    "level": 1,
+    "hoverHold": 0.6,
+    "coordination": 0.8,
+    "weathervane": 0.5
+  },
+  "realism": {
+    "groundEffect": 1,
+    "vortexRing": 0
+  },
+  "gear": {
+    "frequency": 2.5,
+    "dampingRatio": 0.7,
+    "maxLength": 0.8,
+    "rideHeight": 0.5,
+    "grip": 0.8
+  }
+}

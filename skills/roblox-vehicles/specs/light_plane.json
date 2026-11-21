@@ -1,0 +1,55 @@
+{
+  "name": "LightPlane",
+  "type": "Plane",
+  "title": "Cessna 172-class trainer at gross weight, 180 hp fixed-pitch prop, tricycle gear",
+  "mass": 1157,
+  "frontWeight": 0.12,
+  "comHeight": 1.3,
+  "length": 8.3,
+  "wing": {
+    "area": 16.2,
+    "span": 11,
+    "cl0": 0.3,
+    "clMax": 1.5,
+    "postStall": 0.6,
+    "cd0": 0.034,
+    "oswald": 0.8,
+    "flapsCl": 0.5,
+    "flapsCd": 0.03,
+    "cyBeta": 0.6
+  },
+  "engine": {
+    "type": "prop",
+    "power": 134,
+    "propDiameter": 1.9,
+    "efficiency": 0.78,
+    "staticEfficiency": 0.42,
+    "efficiencySpeedKmh": 200,
+    "spool": 1
+  },
+  "controls": {
+    "rollRate": 90,
+    "pitchRate": 40,
+    "yawRate": 25,
+    "maxG": 3.8,
+    "minG": -1.5,
+    "maxBeta": 10
+  },
+  "assists": {
+    "stallProtection": 0.8,
+    "autoTrim": 1,
+    "autoLevel": 0.3,
+    "coordination": 1
+  },
+  "gear": {
+    "retractable": false,
+    "frequency": 2.2,
+    "dampingRatio": 0.65,
+    "maxLength": 1.2,
+    "rideHeight": 0.5,
+    "steerAngle": 30,
+    "brakeG": 0.45,
+    "grip": 0.8,
+    "rollingResistance": 0.025
+  }
+}

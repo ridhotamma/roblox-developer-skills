@@ -1,0 +1,54 @@
+{
+  "name": "JetFighter",
+  "type": "Plane",
+  "title": "F-16-class fighter, 76 kN dry / 127 kN afterburner, retractable gear",
+  "mass": 12000,
+  "frontWeight": 0.15,
+  "comHeight": 1.6,
+  "length": 15,
+  "wing": {
+    "area": 27.87,
+    "span": 9.96,
+    "cl0": 0.05,
+    "clMax": 1.6,
+    "postStall": 0.65,
+    "cd0": 0.0175,
+    "oswald": 0.8,
+    "flapsCl": 0.35,
+    "flapsCd": 0.02,
+    "cyBeta": 0.8,
+    "machDragRise": 1.8
+  },
+  "engine": {
+    "type": "jet",
+    "thrust": 76,
+    "afterburner": 127,
+    "spool": 3
+  },
+  "controls": {
+    "rollRate": 240,
+    "pitchRate": 30,
+    "yawRate": 20,
+    "maxG": 9,
+    "minG": -3,
+    "maxBeta": 8
+  },
+  "assists": {
+    "stallProtection": 1,
+    "autoTrim": 1,
+    "autoLevel": 0.2,
+    "coordination": 1
+  },
+  "gear": {
+    "retractable": true,
+    "drag": 0.018,
+    "frequency": 2.4,
+    "dampingRatio": 0.7,
+    "maxLength": 1.4,
+    "rideHeight": 0.5,
+    "steerAngle": 25,
+    "brakeG": 0.5,
+    "grip": 0.8,
+    "rollingResistance": 0.02
+  }
+}

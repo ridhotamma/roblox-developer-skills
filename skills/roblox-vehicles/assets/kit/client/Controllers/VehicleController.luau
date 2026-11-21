@@ -1,53 +1,93 @@
 --!strict
--- Drives the car the local player sits in (as driver):
---   * input from the VehicleSeat (keyboard WASD/arrows, gamepad stick, mobile thumbstick all
---     come for free), plus handbrake on LeftShift / gamepad X / a touch button
---   * runs VehicleSim every physics step (the server gave this client network ownership)
---   * in the air the same keys steer the car, GTA-style (VehicleSim): W/S pitch, A/D roll,
---     handbrake + A/D spin; keys held at take-off are ignored until released
---   * speed-dependent field of view and a small HUD: speed, gear, rpm bar
---   * Reset (R / gamepad Y / touch button) puts the car back on its wheels, with a cooldown
---   * drift score: points build while sliding (angle x speed), banked shortly after the slide
---     ends; reset by a spin-out or a stuck assist. Cosmetic here: validate on the server
---     before rewarding anything (see references/drifting.md).
--- When the player leaves the seat the sim stops and the server takes the car back.
+-- Drives the vehicle the local player sits in (as driver), for every vehicle type:
+--   * input from the VehicleSeat (keyboard WASD/arrows, gamepad stick, mobile thumbstick come for
+--     free) plus per-type actions (keyboard, gamepad, touch buttons), bound at High priority so
+--     they win over default bindings (R2/L2 stop feeding the seat's throttle in aircraft)
+--   * runs the vehicle's sim every physics step (the server gave this client network ownership)
+--   * speed-dependent field of view and a small HUD per type
+--   * Reset (R / gamepad Y / touch) puts the vehicle back on its wheels or keel, with a cooldown
+--   * tells the server what others should see (engine throttle, landing gear, flaps) and bike
+--     crashes (the rider is thrown off), through the VehicleControl remote
+--
+-- Controls (see references/vehicle-setup.md §6):
+--   Car         W/S throttle-brake, A/D steer, LeftShift / X handbrake ("Drift")
+--   Motorcycle  W/S, A/D (lean), LeftShift / X rear brake, Q / L1 lean back (wheelie), E / R1 lean forward
+--   Boat        W/S throttle-reverse, A/D helm
+--   Plane       W/S pitch (W = nose down), A/D roll, Q/E / L1-R1 rudder, LeftShift / R2 throttle up
+--               (hold at full = afterburner), LeftCtrl / L2 throttle down (and wheel brakes),
+--               G / D-pad down gear, F / D-pad up flaps
+--   Helicopter  W/S pitch (fly forward / back), A/D yaw (turn), Q/E / L1-R1 roll (strafe),
+--               LeftShift / R2 up, LeftCtrl / L2 down
+-- The drift score (cars) is cosmetic: validate on the server before rewarding anything.
 
 local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local VehicleSim = require(ReplicatedStorage.Shared.Vehicle.VehicleSim)
-local VehicleSpecs = require(ReplicatedStorage.Shared.Vehicle.VehicleSpecs)
+local Sims = require(ReplicatedStorage.Shared.Vehicle.Sims)
 
-local USE_MPH = false -- HUD units
-local FOV_BOOST = 14 -- extra degrees of field of view at high speed
-local FOV_BOOST_KMH = 220
+local USE_MPH = false -- HUD units for cars, bikes and helicopters; boats show knots, planes km/h
 local RESET_COOLDOWN = 3
 local DRIFT_BANK_DELAY = 1.2 -- seconds after a drift ends before its points are banked
+local AIM_FLIGHT = false -- planes: with the stick centred, fly toward where the camera looks
+local CONTROL_HZ = 8
+local HIGH = Enum.ContextActionPriority.High.Value
+local FOV_BOOST = { Car = { 14, 220 }, Motorcycle = { 16, 220 }, Boat = { 10, 90 }, Plane = { 10, 700 }, Helicopter = { 8, 250 } }
 
 local player = Players.LocalPlayer
 
 local VehicleController = {}
 
+type Hud = { gui: ScreenGui, speed: TextLabel, badge: TextLabel, fill: Frame, info: TextLabel, banner: TextLabel }
+
 local session: {
-	sim: VehicleSim.VehicleSim,
+	sim: any,
+	kind: string,
 	seat: VehicleSeat,
+	model: Model,
 	spec: any,
 	connection: RBXScriptConnection,
 	baseFov: number,
-	gui: ScreenGui,
+	hud: Hud,
+	actions: { string },
 }? = nil
-local handbrake = false
 
-local function buildHud(): (ScreenGui, TextLabel, TextLabel, Frame, TextLabel)
+local held = {
+	handbrake = false,
+	leanBack = false,
+	leanForward = false,
+	yawLeft = false,
+	yawRight = false,
+	rollLeft = false,
+	rollRight = false,
+	powerUp = false,
+	powerDown = false,
+}
+local toggles = { gearDown = true, flaps = false }
+
+local function label(parent: Instance, position: UDim2, size: UDim2, font: Enum.Font, color: Color3): TextLabel
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Position = position
+	l.Size = size
+	l.Font = font
+	l.TextScaled = true
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.TextColor3 = color
+	l.Text = ""
+	l.Parent = parent
+	return l
+end
+
+local function buildHud(): Hud
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "VehicleHud"
 	gui.ResetOnSpawn = false
 	local panel = Instance.new("Frame")
 	panel.AnchorPoint = Vector2.new(1, 1)
 	panel.Position = UDim2.new(1, -20, 1, -20)
-	panel.Size = UDim2.fromOffset(190, 92)
+	panel.Size = UDim2.fromOffset(210, 112)
 	panel.BackgroundColor3 = Color3.fromRGB(15, 17, 22)
 	panel.BackgroundTransparency = 0.25
 	panel.Parent = gui
@@ -55,24 +95,10 @@ local function buildHud(): (ScreenGui, TextLabel, TextLabel, Frame, TextLabel)
 	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = panel
 
-	local speed = Instance.new("TextLabel")
-	speed.BackgroundTransparency = 1
-	speed.Position = UDim2.fromOffset(12, 6)
-	speed.Size = UDim2.fromOffset(120, 50)
-	speed.Font = Enum.Font.GothamBlack
-	speed.TextScaled = true
-	speed.TextXAlignment = Enum.TextXAlignment.Left
-	speed.TextColor3 = Color3.new(1, 1, 1)
-	speed.Parent = panel
-
-	local gear = Instance.new("TextLabel")
-	gear.BackgroundTransparency = 1
-	gear.Position = UDim2.new(1, -56, 0, 10)
-	gear.Size = UDim2.fromOffset(44, 44)
-	gear.Font = Enum.Font.GothamBold
-	gear.TextScaled = true
-	gear.TextColor3 = Color3.fromRGB(255, 196, 61)
-	gear.Parent = panel
+	local speed = label(panel, UDim2.fromOffset(12, 6), UDim2.fromOffset(140, 46), Enum.Font.GothamBlack, Color3.new(1, 1, 1))
+	local badge = label(panel, UDim2.new(1, -62, 0, 10), UDim2.fromOffset(52, 36), Enum.Font.GothamBold, Color3.fromRGB(255, 196, 61))
+	badge.TextXAlignment = Enum.TextXAlignment.Right
+	local info = label(panel, UDim2.fromOffset(12, 56), UDim2.new(1, -24, 0, 18), Enum.Font.GothamMedium, Color3.fromRGB(200, 205, 215))
 
 	local bar = Instance.new("Frame")
 	bar.Position = UDim2.new(0, 12, 1, -22)
@@ -86,20 +112,13 @@ local function buildHud(): (ScreenGui, TextLabel, TextLabel, Frame, TextLabel)
 	fill.BorderSizePixel = 0
 	fill.Parent = bar
 
-	local drift = Instance.new("TextLabel")
-	drift.AnchorPoint = Vector2.new(0.5, 0)
-	drift.Position = UDim2.new(0.5, 0, 0, 90)
-	drift.Size = UDim2.fromOffset(320, 48)
-	drift.BackgroundTransparency = 1
-	drift.Font = Enum.Font.GothamBlack
-	drift.TextScaled = true
-	drift.TextColor3 = Color3.fromRGB(255, 196, 61)
-	drift.TextStrokeTransparency = 0.3
-	drift.Text = ""
-	drift.Parent = gui
+	local banner = label(gui, UDim2.new(0.5, 0, 0, 90), UDim2.fromOffset(360, 48), Enum.Font.GothamBlack, Color3.fromRGB(255, 196, 61))
+	banner.AnchorPoint = Vector2.new(0.5, 0)
+	banner.TextXAlignment = Enum.TextXAlignment.Center
+	banner.TextStrokeTransparency = 0.3
 
 	gui.Parent = player:WaitForChild("PlayerGui")
-	return gui, speed, gear, fill, drift
+	return { gui = gui, speed = speed, badge = badge, fill = fill, info = info, banner = banner }
 end
 
 local function stop()
@@ -110,87 +129,269 @@ local function stop()
 	session = nil
 	s.connection:Disconnect()
 	s.sim:Destroy()
-	s.gui:Destroy()
-	ContextActionService:UnbindAction("VehicleHandbrake")
-	ContextActionService:UnbindAction("VehicleReset")
+	s.hud.gui:Destroy()
+	for _, name in s.actions do
+		ContextActionService:UnbindAction(name)
+	end
 	local camera = workspace.CurrentCamera
 	if camera then
 		camera.FieldOfView = s.baseFov
 	end
-	handbrake = false
+	for key in held do
+		(held :: any)[key] = false
+	end
+end
+
+local function axis(positive: boolean, negative: boolean): number
+	return (if positive then 1 else 0) - (if negative then 1 else 0)
+end
+
+local function speedText(kmh: number, kind: string): string
+	if kind == "Boat" then
+		return `{math.floor(kmh / 1.852)} kn`
+	elseif USE_MPH and kind ~= "Plane" then
+		return `{math.floor(kmh / 1.609)} mph`
+	end
+	return `{math.floor(kmh)} km/h`
 end
 
 local function start(seat: VehicleSeat, model: Model)
 	stop()
-	local sim = VehicleSim.new(model)
-	local spec = (VehicleSpecs :: any)[model:GetAttribute("Vehicle")]
-	if not sim or not spec then
+	local sim, kind = Sims.new(model)
+	local spec = Sims.Spec(model)
+	if not sim or not kind or not spec then
 		return
 	end
 	local camera = workspace.CurrentCamera
-	local gui, speedLabel, gearLabel, rpmFill, driftLabel = buildHud()
+	local hud = buildHud()
+	local actions: { string } = {}
 
-	ContextActionService:BindAction("VehicleHandbrake", function(_, state)
-		handbrake = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonX)
-	ContextActionService:SetTitle("VehicleHandbrake", "Drift")
-	ContextActionService:SetPosition("VehicleHandbrake", UDim2.new(1, -150, 1, -150))
+	local function hold(name: string, key: string, title: string?, position: UDim2?, ...: Enum.KeyCode)
+		ContextActionService:BindActionAtPriority(name, function(_, state)
+			(held :: any)[key] = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
+			return Enum.ContextActionResult.Sink
+		end, title ~= nil, HIGH, ...)
+		if title then
+			ContextActionService:SetTitle(name, title)
+			if position then
+				ContextActionService:SetPosition(name, position)
+			end
+		end
+		table.insert(actions, name)
+	end
+	local function press(name: string, fn: () -> (), title: string?, position: UDim2?, ...: Enum.KeyCode)
+		ContextActionService:BindActionAtPriority(name, function(_, state)
+			if state == Enum.UserInputState.Begin then
+				fn()
+			end
+			return Enum.ContextActionResult.Sink
+		end, title ~= nil, HIGH, ...)
+		if title then
+			ContextActionService:SetTitle(name, title)
+			if position then
+				ContextActionService:SetPosition(name, position)
+			end
+		end
+		table.insert(actions, name)
+	end
 
 	local lastReset = -math.huge
-	ContextActionService:BindAction("VehicleReset", function(_, state)
-		if state == Enum.UserInputState.Begin and os.clock() - lastReset >= RESET_COOLDOWN then
+	press("VehicleReset", function()
+		if os.clock() - lastReset >= RESET_COOLDOWN then
 			lastReset = os.clock()
 			sim:Recover()
 		end
-		return Enum.ContextActionResult.Sink
-	end, true, Enum.KeyCode.R, Enum.KeyCode.ButtonY)
-	ContextActionService:SetTitle("VehicleReset", "Reset")
-	ContextActionService:SetPosition("VehicleReset", UDim2.new(1, -230, 1, -190))
+	end, "Reset", UDim2.new(1, -230, 1, -190), Enum.KeyCode.R, Enum.KeyCode.ButtonY)
 
-	local driftPoints, bankedPoints, sinceDrift = 0, 0, 0
-	local connection = RunService.PreSimulation:Connect(function(dt)
-		local t = sim:Step(dt, { Throttle = seat.ThrottleFloat, Steer = seat.SteerFloat, Handbrake = handbrake })
-
-		-- Drift score: angle x speed while sliding; a spin-out (way past the max angle) or a
-		-- stuck assist loses the current drift, a clean exit banks it.
-		if t.Drifting then
-			sinceDrift = 0
-			driftPoints += math.abs(t.DriftAngle) * math.abs(t.SpeedKmh) * dt * 0.05
-			if math.abs(t.DriftAngle) > spec.Drift.MaxAngle + 25 or t.Stuck then
-				driftPoints = 0
+	if kind == "Car" then
+		hold("VehicleHandbrake", "handbrake", "Drift", UDim2.new(1, -150, 1, -150), Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonX)
+	elseif kind == "Motorcycle" then
+		hold("VehicleHandbrake", "handbrake", "Brake", UDim2.new(1, -150, 1, -150), Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonX)
+		hold("VehicleLeanBack", "leanBack", "Wheelie", UDim2.new(1, -150, 1, -230), Enum.KeyCode.Q, Enum.KeyCode.ButtonL1)
+		hold("VehicleLeanForward", "leanForward", nil, nil, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
+	elseif kind == "Plane" or kind == "Helicopter" then
+		local up = if kind == "Plane" then "Throttle +" else "Up"
+		local down = if kind == "Plane" then "Throttle -" else "Down"
+		hold("VehiclePowerUp", "powerUp", up, UDim2.new(1, -150, 1, -230), Enum.KeyCode.LeftShift, Enum.KeyCode.ButtonR2)
+		hold("VehiclePowerDown", "powerDown", down, UDim2.new(1, -150, 1, -150), Enum.KeyCode.LeftControl, Enum.KeyCode.ButtonL2)
+		if kind == "Plane" then
+			hold("VehicleYawLeft", "yawLeft", nil, nil, Enum.KeyCode.Q, Enum.KeyCode.ButtonL1)
+			hold("VehicleYawRight", "yawRight", nil, nil, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
+			toggles.gearDown = model:GetAttribute("GearDown") ~= false
+			toggles.flaps = model:GetAttribute("Flaps") == true
+			if spec.Gear.Retractable then
+				press("VehicleGear", function()
+					toggles.gearDown = not toggles.gearDown
+				end, "Gear", UDim2.new(1, -230, 1, -110), Enum.KeyCode.G, Enum.KeyCode.DPadDown)
 			end
-		elseif driftPoints > 0 then
-			sinceDrift += dt
-			if sinceDrift >= DRIFT_BANK_DELAY then
-				bankedPoints += math.floor(driftPoints)
-				driftPoints = 0
-			end
+			press("VehicleFlaps", function()
+				toggles.flaps = not toggles.flaps
+			end, nil, nil, Enum.KeyCode.F, Enum.KeyCode.DPadUp)
+		else
+			hold("VehicleRollLeft", "rollLeft", nil, nil, Enum.KeyCode.Q, Enum.KeyCode.ButtonL1)
+			hold("VehicleRollRight", "rollRight", nil, nil, Enum.KeyCode.E, Enum.KeyCode.ButtonR1)
 		end
-		driftLabel.Text = if driftPoints >= 1
-			then `DRIFT +{math.floor(driftPoints)}`
-			elseif bankedPoints > 0 then `{bankedPoints} pts`
-			else ""
-		local kmh = math.abs(t.SpeedKmh)
-		speedLabel.Text = if USE_MPH then `{math.floor(kmh / 1.609)} mph` else `{math.floor(kmh)} km/h`
-		gearLabel.Text = if t.Gear < 0 then "R" else tostring(t.Gear)
-		local rpmFraction = math.clamp(t.Rpm / spec.Engine.RedlineRpm, 0, 1)
-		rpmFill.Size = UDim2.fromScale(rpmFraction, 1)
-		local redZone = rpmFraction > 0.9
-		rpmFill.BackgroundColor3 = if redZone then Color3.fromRGB(255, 80, 70) else Color3.fromRGB(90, 200, 120)
+	end
+
+	local remote = ReplicatedStorage:FindFirstChild("VehicleControl") :: RemoteEvent?
+	local sent: { [string]: any } = {}
+	local sinceSend = 0
+	local bailed = false
+	local driftPoints, bankedPoints, sinceDrift = 0, 0, 0
+	local fov = FOV_BOOST[kind] or FOV_BOOST.Car
+
+	local connection = RunService.PreSimulation:Connect(function(dt)
+		local throttle, steer = seat.ThrottleFloat, seat.SteerFloat
+		local t: any
+		if kind == "Motorcycle" then
+			t = sim:Step(dt, {
+				Throttle = throttle,
+				Steer = steer,
+				Handbrake = held.handbrake,
+				Lean = axis(held.leanForward, held.leanBack),
+				Rider = true,
+			})
+		elseif kind == "Boat" then
+			t = sim:Step(dt, { Throttle = throttle, Steer = steer })
+		elseif kind == "Plane" then
+			local pitch, roll = throttle, steer
+			if AIM_FLIGHT and camera and math.abs(pitch) < 0.05 and math.abs(roll) < 0.05 then
+				pitch, roll = (sim :: any):AimInput(camera.CFrame.LookVector)
+			end
+			t = sim:Step(dt, {
+				Pitch = pitch,
+				Roll = roll,
+				Yaw = axis(held.yawRight, held.yawLeft),
+				Power = axis(held.powerUp, held.powerDown),
+				Brake = held.powerDown,
+				Flaps = toggles.flaps,
+				GearDown = toggles.gearDown,
+			})
+		elseif kind == "Helicopter" then
+			t = sim:Step(dt, {
+				Pitch = throttle,
+				Yaw = steer,
+				Roll = axis(held.rollRight, held.rollLeft),
+				Power = axis(held.powerUp, held.powerDown),
+				Engine = true,
+			})
+		else
+			t = sim:Step(dt, { Throttle = throttle, Steer = steer, Handbrake = held.handbrake })
+		end
+
+		-- HUD.
+		local kmh = math.abs(if kind == "Plane" or kind == "Helicopter" then t.AirspeedKmh else t.SpeedKmh)
+		hud.speed.Text = speedText(kmh, kind)
+		local fill, red, banner = 0, false, ""
+		if kind == "Car" or kind == "Motorcycle" then
+			hud.badge.Text = if t.Gear < 0 then "R" else tostring(t.Gear)
+			fill = math.clamp(t.Rpm / spec.Engine.RedlineRpm, 0, 1)
+			red = fill > 0.9
+			if kind == "Motorcycle" then
+				hud.info.Text = `LEAN {math.floor(math.abs(t.Lean))}°`
+				banner = if t.Wheelie then "WHEELIE" elseif t.Stoppie then "STOPPIE" else ""
+			else
+				-- Drift score: angle x speed while sliding; a spin-out or a stuck assist loses it.
+				if t.Drifting then
+					sinceDrift = 0
+					driftPoints += math.abs(t.DriftAngle) * kmh * dt * 0.05
+					if math.abs(t.DriftAngle) > spec.Drift.MaxAngle + 25 or t.Stuck then
+						driftPoints = 0
+					end
+				elseif driftPoints > 0 then
+					sinceDrift += dt
+					if sinceDrift >= DRIFT_BANK_DELAY then
+						bankedPoints += math.floor(driftPoints)
+						driftPoints = 0
+					end
+				end
+				banner = if driftPoints >= 1 then `DRIFT +{math.floor(driftPoints)}` elseif bankedPoints > 0 then `{bankedPoints} pts` else ""
+			end
+		elseif kind == "Boat" then
+			hud.badge.Text = if t.Throttle < -0.05 then "R" else `{math.floor(math.abs(t.Throttle) * 100)}%`
+			fill = math.abs(t.Throttle)
+			hud.info.Text = if t.Planing > 0.5 then "ON THE PLANE" elseif t.Stuck then "AGROUND" else ""
+		elseif kind == "Plane" then
+			hud.badge.Text = if t.Afterburner then "AB" else `{math.floor(t.Throttle * 100)}%`
+			fill = t.Throttle
+			red = t.Afterburner
+			hud.info.Text = `ALT {math.floor(t.Altitude)} m  V/S {string.format("%+.1f", t.VerticalSpeed)}`
+				.. (if spec.Gear.Retractable then (if t.GearDown then "  GEAR" else "") else "")
+				.. (if t.Flaps > 0.5 then "  FLAPS" else "")
+			banner = if t.Stall then "STALL" else ""
+		elseif kind == "Helicopter" then
+			hud.badge.Text = `{math.floor(t.RotorSpeed * 100)}%`
+			fill = t.PowerShare
+			red = t.PowerShare > 0.97
+			local altitude = if t.Altitude then `{math.floor(t.Altitude)} m` else "—"
+			hud.info.Text = `ALT {altitude}  V/S {string.format("%+.1f", t.VerticalSpeed)}`
+			banner = if t.RotorSpeed < 0.95 then `ROTOR {math.floor(t.RotorSpeed * 100)}%` else ""
+		end
+		hud.fill.Size = UDim2.fromScale(math.clamp(fill, 0, 1), 1)
+		hud.fill.BackgroundColor3 = if red then Color3.fromRGB(255, 80, 70) else Color3.fromRGB(90, 200, 120)
+		hud.banner.Text = banner
+
 		if camera then
-			local target = (session and session.baseFov or 70) + FOV_BOOST * math.clamp(kmh / FOV_BOOST_KMH, 0, 1)
+			local target = (session and session.baseFov or 70) + fov[1] * math.clamp(kmh / fov[2], 0, 1)
 			camera.FieldOfView += (target - camera.FieldOfView) * math.min(1, dt * 3)
+		end
+
+		-- Tell the server what other players should see; bike crashes throw the rider off.
+		if remote then
+			sinceSend += dt
+			local state: { [string]: any } = {}
+			if kind == "Plane" then
+				state.Throttle = t.Throttle
+				state.GearDown = toggles.gearDown
+				state.Flaps = toggles.flaps
+			elseif kind == "Boat" then
+				state.Throttle = math.abs(t.Throttle)
+			elseif kind == "Helicopter" then
+				state.Throttle = t.PowerShare * t.RotorSpeed
+			end
+			local changed = false
+			for key, value in state do
+				local old = sent[key]
+				if old == nil or (typeof(value) == "number" and math.abs(value - old) > 0.05) or (typeof(value) ~= "number" and value ~= old) then
+					changed = true
+				end
+			end
+			if changed and sinceSend >= 1 / CONTROL_HZ then
+				sinceSend = 0
+				for key, value in state do
+					sent[key] = value
+				end
+				remote:FireServer(model, state)
+			end
+			if kind == "Motorcycle" and t.Crashed and not bailed then
+				bailed = true
+				remote:FireServer(model, { Bail = true })
+				local character = player.Character
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+				local bike = model.PrimaryPart
+				if humanoid and rootPart and rootPart:IsA("BasePart") and bike then
+					local velocity = bike.AssemblyLinearVelocity
+					humanoid.Sit = false
+					task.defer(function()
+						rootPart.AssemblyLinearVelocity = velocity + Vector3.yAxis * 15
+						humanoid:ChangeState(Enum.HumanoidStateType.FallingDown)
+					end)
+				end
+			end
 		end
 	end)
 
 	session = {
 		sim = sim,
+		kind = kind,
 		seat = seat,
+		model = model,
 		spec = spec,
 		connection = connection,
 		baseFov = if camera then camera.FieldOfView else 70,
-		gui = gui,
+		hud = hud,
+		actions = actions,
 	}
 end
 

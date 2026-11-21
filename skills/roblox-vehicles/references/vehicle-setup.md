@@ -40,6 +40,24 @@ SportsCarBlue (Model)              attribute Vehicle = "SportsCar", tag "Vehicle
 - Optional attributes on the model: `EngineSound` and `TireSound` (`rbxassetid://...` loops), `KeepCollision = true` to keep the body's own collision instead of the generated hull (must then pass the stuck test course in anti-stuck.md).
 - Body collision is replaced by a hidden rounded hull (`HullBody`, `HullEnd` parts) unless `KeepCollision` is set; body parts end up `CanCollide = false`.
 
+### Motorcycles, boats, planes, helicopters
+
+```
+SportBikeRed     Vehicle = "SportBike"    WheelF, WheelR, DriverSeat
+Speedboat        Vehicle = "Speedboat"    DriverSeat, optional Propeller (the lowest body point is the keel)
+LightPlane       Vehicle = "LightPlane"   WheelF + WheelRL/WheelRR (tail-dragger: WheelFL/WheelFR + WheelR),
+                                          optional Propeller, AileronL, AileronR, Elevator, Rudder, FlapL, FlapR
+LightHeli        Vehicle = "LightHeli"    SkidL, SkidR (or gear wheels), MainRotor, TailRotor, DriverSeat
+```
+
+- **The pivot faces forward.** Cars work out forward from their wheels; every other type uses the model's pivot: LookVector toward the nose or bow, UpVector up. Set it with Studio's pivot tool (or `WorldPivot` / the PrimaryPart) before tagging.
+- **Centre of mass** comes from the spec: bikes and wheeled aircraft put it `frontWeight` of the way from the rear wheels to the front; helicopters put it under `MainRotor`; boats at the body's centre; height is `comHeight` above the wheel contacts, skid bottoms or keel.
+- **Wheels** are visuals with sprung contacts, as on cars (`WheelRadius` attribute if the mesh misleads). Plane and helicopter gear steers with the nose wheel (tricycle) or tail wheel (tail-dragger, `frontWeight` above 0.5). Retractable gear hides on G.
+- **Skids** (`Skid*`, long thin parts) get two contacts each, at their ends; they stay part of the body.
+- **Visual parts** named `MainRotor`, `TailRotor`, `Rotor*`, `Propeller*` spin about their thinnest dimension; `Aileron*`, `Elevator*`, `Rudder*`, `Flap*` hinge about their longest. Put the part's pivot (`PivotOffset`) on the hub or hinge line. Attributes: `Axis` = `"X"`/`"Y"`/`"Z"` to override the axis, `Invert = true` to flip a surface, `MaxDeflection` (degrees). They are excluded from the collision hull, so a helicopter's rotor disk never snags trees.
+- **Boats** need water: Workspace attribute `SeaLevel` (studs, optional `WaveHeight` m, `WaveLength` m, `WaveDirection` degrees), Terrain water, or `Water.SetHeightFunction` (boat-physics.md §8). Spawn the boat with its keel at the surface.
+- Every vehicle part gets `EnableFluidForces = false`, so Roblox's own aerodynamics (Workspace.FluidForces) doesn't double up with the sims.
+
 ## 2. Reusing one chassis across many meshes
 
 - The spec defines how it drives; the model defines how it looks. Ten different car bodies can all use `Vehicle = "SportsCar"` and will drive identically, because mass, gearing and grip come from the spec (wheel radius for gearing is `wheelRadius` in the spec, not the mesh).
@@ -80,16 +98,29 @@ SportsCarBlue (Model)              attribute Vehicle = "SportsCar", tag "Vehicle
 
 VehicleSeat input is digital on keyboard (−1, 0, 1); the sim's steering speed smooths it. For analog triggers on gamepad (R2 throttle, L2 brake), read `UserInputService` trigger positions in the controller and pass them as `Throttle`. On touch, consider an auto-throttle racing mode (hold to brake) since steering with a thumb is already hard.
 
+The other types (all bound by `VehicleController` at `ContextActionPriority.High`, so they win over default bindings; the VehicleSeat still supplies W/S and A/D, arrows, left stick and the touch thumbstick):
+
+| Type | W/S · left stick Y | A/D · left stick X | Extra keys (keyboard / gamepad / touch) |
+|---|---|---|---|
+| Motorcycle | throttle / brake | lean (steer) | LeftShift / X / "Brake": rear brake · Q / L1 / "Wheelie": lean back · E / R1: lean forward |
+| Boat | throttle / reverse | helm | — |
+| Plane | pitch (W = nose down) | roll | Q, E / L1, R1: rudder · LeftShift / R2 / "Throttle +" (hold at full = afterburner) · LeftCtrl / L2 / "Throttle −" (and wheel brakes) · G / D-pad down / "Gear" · F / D-pad up: flaps |
+| Helicopter | pitch (fly forward / back) | yaw (turn) | Q, E / L1, R1: roll (strafe) · LeftShift / R2 / "Up" · LeftCtrl / L2 / "Down" |
+
+All types: R / Y / "Reset". Space (jump) leaves the seat, so nothing is bound to it. In aircraft R2/L2 are sunk at High priority; otherwise Roblox's vehicle controller would add them to the seat's ThrottleFloat (the pitch stick). Set `AIM_FLIGHT = true` in the controller for point-to-fly: with the stick centred, the plane flies toward where the camera looks (`PlaneSim.AimInput`), which suits mouse and touch players. Keyboard helicopter pilots usually prefer A/D as yaw (GTA's layout); swap `Yaw`/`Roll` in the controller's helicopter input for a stick-style layout.
+
 ## 7. Camera
 
 - The default follow camera works; the controller adds a speed-based field of view (+14° at 220 km/h) for a sense of speed.
 - Racing feel: a chase camera that lags slightly behind the car's yaw (spring on the camera angle), looks a little into turns, and lowers at speed. Implement it in a `CameraController` with `RenderPriority.Camera` and `CameraType.Scriptable`, following the root's velocity direction rather than its facing during slides.
 - Add a first-person/hood camera toggle for players who want precision.
+- Aircraft: Roblox's default vehicle camera follows the seat well enough for a start; a flight camera should follow the velocity vector rather than the nose (so stalls and slips read), pull back with speed, and keep the horizon level in hover for helicopters. The controller widens the field of view with speed per type (planes up to +10° by 700 km/h).
 - Small camera shake proportional to rough-surface suspension speed and on hard landings (the `roblox-combat` skill's CameraFx can be reused).
 
 ## 8. HUD
 
 - Speed (km/h or mph setting), gear (R, 1..n), rpm bar with a red zone; the kit has a minimal version.
+- The kit's HUD per type: bikes add lean and a WHEELIE / STOPPIE banner; boats show knots, throttle and ON THE PLANE / AGROUND; planes show airspeed, throttle (AB with afterburner), altitude, vertical speed, GEAR and FLAPS, and a STALL banner; helicopters show airspeed, rotor %, power used, height above ground, vertical speed and ROTOR while it spools.
 - Racing: position, lap, lap time, best lap, minimap. Keep it in the bottom corners on phones, clear of the thumbstick and buttons.
 
 ## 9. Sound
@@ -100,10 +131,11 @@ VehicleSeat input is digital on keyboard (−1, 0, 1); the sim's steering speed 
 - **Impacts**: a thud scaled by the speed change on collisions.
 - **Wind**: rising with speed.
 - Turbo whistle, exhaust pops on lift-off for sports cars.
+- **Boats, planes, helicopters**: the engine loop follows the `EngineThrottle` attribute (set by the server from the driver's `VehicleControl` messages); helicopter pitch and volume follow rotor spool. Add rotor blade slap at speed and wind noise with airspeed.
 
 ## 10. Effects
 
-Tire smoke, skid marks and tire squeal are built into `VehicleVisuals` (drifting.md §6). The rest below are ideas to add.
+Tire smoke, skid marks and tire squeal are built into `VehicleVisuals` (drifting.md §6), as are spinning rotors and propellers, hinged control surfaces, hidden retracted gear, boat wake and bow spray (from the water height at the stern and bow), and rotor downwash dust under a low helicopter. The rest below are ideas to add.
 
 
 - **Exhaust**: small smoke puffs with rate from throttle; flame pops on lift-off at high rpm.
@@ -114,7 +146,7 @@ Expose slip, throttle and brake to clients cheaply: the driver's client knows th
 
 ## 11. Anti-cheat
 
-The driver's client owns the car's physics, so it can move it anywhere. The kit's server loop flags speeds well above the spec's top speed (and calls `roblox-security`'s `Sanctions.Flag` if installed). Also:
+The driver's client owns the vehicle's physics, so it can move it anywhere. The kit's server loop flags speeds well above the spec's top speed (`Sims.SpeedLimitKmh`: the car or bike top speed, the boat's thrust-limited top, the plane's top with a dive margin, the helicopter's blade-stall limit) and calls `roblox-security`'s `Sanctions.Flag` if installed. The `VehicleControl` remote only accepts messages from the vehicle's current driver, type-checks and clamps them, and is rate-limited. Also:
 - validate race progress on the server (checkpoints in order, minimum time between them)
 - check teleport-like jumps of the car (distance between server checks)
 - never let the client grant rewards for races or drifts; the server measures them

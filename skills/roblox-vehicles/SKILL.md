@@ -1,18 +1,32 @@
 ---
 name: roblox-vehicles
-description: Build Roblox cars and other wheeled vehicles that drive like real ones - a reusable raycast-suspension chassis where every vehicle is defined by real-life variables (mass, weight distribution, centre-of-mass height, engine torque curve, redline, gear ratios, final drive, speed limiter, drivetrain FWD/RWD/AWD, brake deceleration and bias, handbrake, steering lock and speed sensitivity, tire grip and slip curve, spring frequency, damping ratio, ride height, anti-roll, drag and downforce), and any car mesh or model becomes drivable just by naming its wheels. Cars never get stuck: sphere-cast wheels roll over kerbs and terrain, a low-friction rounded collision hull replaces snag-prone body meshes, and stuck assist, auto-flip, air control and a reset button guarantee the player can always keep driving. Drifting is built in (slide grip, handbrake, countersteer assist, yaw stabilizer, drift score) with tire smoke, skid marks and tire squeal driven by per-wheel slip. Includes a spec tool that reports real-world performance (0-100 km/h, quarter mile, top speed, braking distance, gear speeds, suspension checks) and exports Luau, plus a Luau kit (chassis builder, physics sim on the driver's client, wheel visuals, engine sound, HUD, parked-car sleep, speed sanity checks). Use this whenever the user wants a car, kart, truck, racing or drift game, driving mechanics, vehicle chassis or suspension, acceleration, braking, top speed, gears, drifting, tire smoke or skid marks, handling tuning, or asks why their Roblox car gets stuck, flips, bounces, slides or feels floaty, even if they only say "make this car drivable".
+description: Build Roblox vehicles that handle like real ones and play like GTA - cars, karts, trucks, motorcycles, dirt bikes, speedboats, jet skis, fishing boats, light planes, jet fighters and helicopters - from one reusable kit where every vehicle is a spec of real-life variables and any mesh becomes drivable by naming its wheels, rotors or propellers. Cars - raycast suspension, engine torque curve, gears, brakes, tire slip and friction circle, drifting with smoke and skid marks, never-stuck hull and assists. Motorcycles - lean to turn (tan φ = vω/g, steering divided by cos φ), camber thrust, wheelies and stoppies at the real g·b/h limits with wheelie control, cornering ABS, rider bail-off with ragdoll. Boats - buoyancy columns that float at the spec draft, planing lift and the resistance hump, momentum-theory props and water jets, rudders, banking, waves, terrain or custom water. Planes - lift curve, stall, drag polar, ground effect, props and afterburning jets, landing gear, flaps, flight-path hold, stall protection, auto-coordination, point-to-fly. Helicopters - momentum theory with Glauert inflow (translational lift), power-limited climb, ground effect, blade stall, collective with altitude hold, self-levelling cyclic, coordinated yaw, rotor spool-up. Includes a spec tool reporting real-world performance per type (0-100, top speed, braking, wheelie limit, hull speed, planing, stall speed, takeoff roll, climb rate, hover power) and exporting Luau, a Luau kit (builder, client physics, controls on keyboard, gamepad and touch, HUD, visuals, anti-cheat speed checks) and a tested JS lab. Use this whenever the user wants any drivable, rideable, sailable or flyable vehicle in Roblox, vehicle physics or handling, or asks why their car, bike, boat, plane or helicopter gets stuck, flips, sinks, won't take off, wobbles or feels floaty, even if they only say "make this drivable" or "add a helicopter".
 ---
 
 # Roblox vehicles
 
 Drivable vehicles have two halves that this skill keeps separate:
 
-- **The chassis** (physics): an invisible root part plus four or more raycast suspensions, driven entirely by a **spec** of real-life variables. It's the same code for every car.
-- **The body** (looks): any mesh or model. It only needs its wheels named so the builder can find them. Swap the body and the car drives identically; swap the spec and the same body drives like a different car.
+- **The chassis** (physics): an invisible root part at the centre of mass carrying all the mass, driven entirely by a **spec** of real-life variables. It's the same code for every vehicle of a type.
+- **The body** (looks): any mesh or model. It only needs its wheels (or rotors, propellers, skids) named so the builder can find them. Swap the body and the vehicle handles identically; swap the spec and the same body handles like a different vehicle.
 
 That separation is what makes chassis reusable across meshes: performance never depends on part sizes or masses, only on the spec.
 
-## How the physics works (short)
+## Vehicle types
+
+A spec's `type` picks the physics. Each type has a theory reference: read it before building or tuning one.
+
+| Type | Sim | How it works (short) | Reference |
+|---|---|---|---|
+| `Car` (default) | `VehicleSim` | Sphere-cast suspension per wheel, tire slip + friction circle, engine torque curve and gears, drifting, never-stuck layer. Lives in Roblox gravity with slope and load-transfer corrections. | below, `vehicle-physics.md` |
+| `Motorcycle` | `BikeSim` | Two sphere-cast wheels, forces at the contact patches; the stick asks for a lean and the rider steers the turn that balances it (δ = atan(L g tan φ / v²) / cos φ); camber thrust; free pitch, so wheelies and stoppies happen at the real g·b/h limits; wheelie/stoppie control, cornering ABS, bail-off. | `motorcycle-physics.md` |
+| `Boat` | `BoatSim` | Buoyancy columns over the hull (floats at the spec's draft), planing lift that saturates at full planing speed, friction + wave hump + planing drag, keel and chines, momentum-theory prop or jet, rudder lift, inward banking, waves. | `boat-physics.md` |
+| `Plane` | `PlaneSim` | Lift curve with stall, drag polar with ground effect and Mach rise, prop (momentum theory) or jet with afterburner, landing gear; GTA-style control layer: follow the flight path, stick sets angle of attack, stall protection, wings-level, auto-rudder. | `airplane-physics.md` |
+| `Helicopter` | `HeliSim` | Rotor thrust limited by engine power through momentum theory with Glauert inflow (translational lift), profile power, ground effect, retreating-blade stall; altitude-hold collective, self-levelling cyclic, hover hold, coordinated yaw, rotor spool. | `helicopter-physics.md` |
+
+Motorcycles, boats, planes and helicopters live in **real gravity** (an upward force cancels the part of `Workspace.Gravity` beyond 9.81 m/s²), so lift, buoyancy, wheelie limits and lean balance are the real vehicle's, and every assist is a 0–1 dial in the spec, from GTA-arcade to sim.
+
+## How the car physics works (short)
 
 Per wheel, every physics step, on whoever owns the car (the driver's client, or the server when parked):
 
@@ -28,7 +42,7 @@ Engine, brakes, tires and drag use the spec's real mass and real gravity, then c
 
 ## Never stuck (hard requirement)
 
-Players must always be able to keep driving. Every vehicle built with this skill gets, by default:
+Players must always be able to keep driving. The other types get the same idea in their own form: a low-friction rounded hull (a narrow one above 1.4 wheel radii for bikes, so a 50° lean never scrapes), auto-upright, Reset, and bikes standing back up, boats pushing off beaches and righting themselves, aircraft flipping back onto their gear when stopped. Every car built with this skill gets, by default:
 - **sphere-cast wheels** that ride over kerbs, cracks and terrain voxel steps, with wall hits rejected so cars don't climb walls
 - **a hidden collision hull** instead of the body mesh: bottom no lower than the axles, rounded nose and tail cylinders, friction 0.08, so the car rides over, deflects off and slides along kerbs, trees, poles and barriers
 - **a `VehicleIgnore` collision group** for grass, flowers, small rocks and debris (no collision, invisible to the wheels)
@@ -43,13 +57,15 @@ Never ship a vehicle with these turned off for free-roam driving, with collision
 | The user wants... | Do this |
 |---|---|
 | A new car / vehicle class | Write a spec JSON (start from the closest file in `specs/`), run the report, tune until the numbers match the real vehicle or the intended feel, export Luau, set up the model. |
-| "Make this model drivable" | Model checklist in `references/vehicle-setup.md`: wheel names, a VehicleSeat, tag and `Vehicle` attribute. Pick or write a spec. |
-| Better handling / fix a problem | Symptom table in `references/tuning-guide.md` (flips, understeer, oversteer, bouncing, floaty, slow, wheelspin, can't stop). Change one variable at a time and re-run the report. |
-| A racing / driving game | Kit install + specs per class + the game-design skill for the loop; `references/vehicle-setup.md` covers multiplayer, camera, HUD, sound, effects and anti-cheat. |
-| Arcade vs simulation feel | `references/tuning-guide.md` §4 lists the dials (grip, steering speed, slip curve, anti-roll, roll centre, assists). |
+| A motorcycle, boat, plane or helicopter | Read that type's physics reference, copy the closest spec (`sport_bike`, `dirt_bike`, `speedboat`, `jet_ski`, `fishing_boat`, `light_plane`, `jet_fighter`, `light_heli`, `attack_heli`), run the report, set up the model (the reference's last section). |
+| "Make this model drivable / flyable" | Model checklist in `references/vehicle-setup.md` §1: wheel / rotor / skid names, the pivot facing forward, a VehicleSeat, tag and `Vehicle` attribute. Pick or write a spec. |
+| Better handling / fix a problem | Cars: symptom table in `references/tuning-guide.md`. Other types: the "symptom → fix" table in their reference. Change one variable at a time and re-run the report. |
+| GTA-like vs simulation | Cars: `tuning-guide.md` §4. Others: the `assists` block (bikes: `wheelie.assist`, `assists.stability`; boats: `assists.stability`, `recovery.selfRight`; planes: `stallProtection`, `autoTrim`, `autoLevel`, `coordination`; helicopters: `altitudeHold`, `level`, `hoverHold`, `coordination`, `realism.vortexRing`). |
+| A racing / driving / open-world game | Kit install + specs per class + the game-design skill for the loop; `references/vehicle-setup.md` covers multiplayer, camera, HUD, sound, effects and anti-cheat. |
 | Drifting / a drift game | `references/drifting.md`: setup from `specs/drift_car.json`, assists per device, server-side scoring, smoke and skids. |
+| Water, an ocean, terrain water | `boat-physics.md` §8: the `SeaLevel` / `WaveHeight` attributes, terrain water, or `Water.SetHeightFunction` for a custom ocean. |
 | "My car keeps getting stuck" | `references/anti-stuck.md`: protections, prohibited patterns, map rules, the test course. |
-| Cars that knock over players and pedestrians | The `roblox-ragdoll` skill: its `ImpactService` sweeps every model tagged `Vehicle` (this kit's cars already are) and ragdolls anyone on foot hit above a closing speed, with launch and optional damage. |
+| Riders thrown off bikes, pedestrians knocked over | The `roblox-ragdoll` skill: `VehicleService` ragdolls a bailing rider with its `RagdollService` when installed, and its `ImpactService` sweeps every model tagged `Vehicle`. |
 
 ## Specs and the report
 
@@ -58,22 +74,37 @@ node <skill>/scripts/rveh.cjs report specs/sports_car.json      # or a whole fol
 node <skill>/scripts/rveh.cjs luau specs --out src/shared/Vehicle/VehicleSpecs.luau
 ```
 
-A spec is plain JSON with real units (kg, m, N·m, rpm, km/h, g, Hz, degrees). Omitted fields use defaults. The report prints power (kW/hp, W/kg), 0–100 km/h, 0–60 mph, 0–60 km/h, quarter mile, top speed and what limits it (drag, redline, limiter), 100–0 km/h distance, cornering g, top speed per gear at redline, and suspension sag versus bump travel. Braking is modelled per axle with load transfer, so a brake bias (`frontBias`) that locks one axle stops short of `decelG`. Its `WARN` lines catch suspension that will bottom out, bouncy or over-damped settings, brake bias that locks an axle, too-short first gear, and gearing that wastes the engine.
+A spec is plain JSON with real units (kg, m, N·m, rpm, km/h, g, Hz, kW, kN, degrees) and a `type`. Omitted fields use defaults. The report prints what matters for the type, from the same physics the kit runs, with `WARN` lines for specs that will misbehave:
 
-Bundled specs (verified by `scripts/selftest.cjs` to land in realistic ranges):
+- **Car**: power, 0–100 km/h, 0–60 mph, quarter mile, top speed and what limits it, 100–0 km/h distance (per-axle braking with load transfer), cornering g, gear speeds, suspension sag versus bump travel.
+- **Motorcycle**: the same plus the wheelie and stoppie limits (g·b/h), which one limits launch and braking, grip and clearance lean limits, turn radius at 50 and 100 km/h.
+- **Boat**: displacement, draft, wetted area, hull speed, hump speed and resistance, full-planing speed, static thrust, top speed and what limits it (resistance, the hump, the hull-speed wall, a limiter), 0–30 / 0–50 km/h, time to plane, GM, heave and roll periods.
+- **Plane**: wing loading, aspect ratio, lift slope, stall angle and speeds (clean, flaps), takeoff roll and lift-off speed, top speed (and with afterburner), best climb rate and speed, best L/D, corner speed and turn rate.
+- **Helicopter**: disk loading, hover downwash, hover power out of and in ground effect, power margin, vertical climb, the minimum-power speed and climb rate there, top speed and whether power or blade stall limits it.
 
-| Spec | Drive | 0–100 km/h | Top speed | 100–0 km/h |
-|---|---|---|---|---|
-| `Hatchback` | FWD, 117 hp, 1200 kg | 9.8 s | 197 km/h (drag) | 41 m |
-| `SportsCar` | RWD, 411 hp, 1450 kg | 4.2 s | 290 km/h (limiter) | 35 m |
-| `PickupTruck` | AWD, 379 hp, 2300 kg | 6.1 s | 180 km/h (limiter) | 45 m |
-| `Kart` | RWD, 20 hp, 160 kg | 0–60 km/h 4.6 s | 88 km/h (redline) | 30 m |
-| `DriftCar` | RWD, 374 hp, 1250 kg | 5.5 s | 251 km/h (redline) | 38 m |
-| `ArcadeCar` | AWD, 279 hp, 1300 kg | 4.2 s | 240 km/h (limiter) | 32 m |
+Bundled specs (verified by `scripts/selftest.cjs` to land in real-world ranges, and by the lab to do the same in the sim):
 
-`ArcadeCar` is the planted, keyboard-friendly tune: full stability assist, high grip with the rear 14% above the front, high slide grip, a stabilizer that catches slides past 15°, and 2 g air gravity for GTA-like hang time. Start from it when players say the cars feel slippery (tuning-guide.md, "Arcade / stable").
+| Spec | Type | Key numbers (report) |
+|---|---|---|
+| `Hatchback` | Car | FWD, 117 hp, 1200 kg · 0–100 9.8 s · 197 km/h (drag) · 100–0 41 m |
+| `SportsCar` | Car | RWD, 411 hp, 1450 kg · 0–100 4.2 s · 290 km/h (limiter) · 100–0 35 m |
+| `PickupTruck` | Car | AWD, 379 hp, 2300 kg · 0–100 6.1 s · 180 km/h (limiter) · 100–0 45 m |
+| `Kart` | Car | RWD, 20 hp, 160 kg · 0–60 km/h 4.6 s · 88 km/h (redline) · 100–0 30 m |
+| `DriftCar` | Car | RWD, 374 hp, 1250 kg · 0–100 5.5 s · 251 km/h (redline) · 100–0 38 m |
+| `ArcadeCar` | Car | AWD, 279 hp, 1300 kg · 0–100 4.2 s · 240 km/h (limiter) · 100–0 32 m |
+| `SportBike` | Motorcycle | 1000 cc superbike + rider, 197 hp, 280 kg · 0–100 2.8 s · 299 km/h (limiter) · 100–0 34 m · wheelie at 1.13 g · 50° lean |
+| `DirtBike` | Motorcycle | 450 cc enduro + rider, 59 hp, 195 kg · 0–100 3.5 s · 164 km/h · long travel |
+| `Speedboat` | Boat | 6.2 m runabout, 250 hp outboard, 1800 kg · draft 0.30 m · planes at ~34 km/h · 86 km/h · 0–50 km/h 4.3 s |
+| `JetSki` | Boat | 3.3 m PWC + rider, water jet, 450 kg · 108 km/h (limiter) · 0–50 km/h 1.6 s |
+| `FishingBoat` | Boat | 10 m displacement workboat, inboard + rudder, 9 t · 17 km/h (hull-speed wall) |
+| `LightPlane` | Plane | Cessna 172S-class at gross weight · stall 54 kt (POH 53) · 124 kt top (POH 126) · 3.5 m/s climb (POH 3.7) · 258 m roll (POH 293) |
+| `JetFighter` | Plane | F-16-class, 76/127 kN · stall 236 km/h · 1225 km/h dry, 1400 km/h afterburner · 249 m/s climb |
+| `LightHeli` | Helicopter | Bell 206-class, skids · hover 197 kW of 236 · 6.1 m/s vertical climb · 205 km/h |
+| `AttackHeli` | Helicopter | Apache-class, wheels · hover 1683 kW of 2100 · 10.9 m/s vertical climb · 301 km/h (blade stall) |
 
-Spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m above ground), `wheelRadius` (m, used for gearing; the mesh's wheel size is only visual), `wheelbase` (m, report only), `drivetrain`, `awdFrontSplit`, `engine` {`idleRpm`, `redlineRpm`, `launchRpm`, `efficiency`, `speedLimitKmh`, `torqueCurve` [[rpm, N·m]...]}, `gearbox` {`ratios`, `reverse`, `finalDrive`, `shiftUpRpm`, `shiftDownRpm`, `shiftTime`}, `brakes` {`decelG`, `frontBias`, `handbrakeGripScale`}, `steering` {`maxAngle`, `speed`, `highSpeedScale`, `highSpeedKmh`}, `tires` {`gripFront`, `gripRear`, `stiffness`, `shape`, `slideGrip`, `rollingResistance`}, `drift` {`countersteer`, `maxAngle`, `stabilizer`}, `recovery` {`airControl`, `airGravity` (g in the air, default 2.5), `airInput` (deg/s of GTA-style air steering: W/S pitch, A/D roll, handbrake + A/D spin; 0 = off), `autoFlip`, `stuckAssist`}, `assists` {`stability` (0–1, GTA/ESC-style yaw assist, default 0.6)}, `body` {`autoHull`, `hullFriction`}, `suspension` {`frequencyFront`, `frequencyRear`, `dampingRatio`, `maxLength` (studs), `rideHeight` (0–1), `antiRoll`, `rollCenter` (0–1)}, `aero` {`cd`, `area` (m²), `downforceCl`}.
+`ArcadeCar` is the planted, keyboard-friendly car tune: full stability assist, high grip with the rear 14% above the front, high slide grip, a stabilizer that catches slides past 15°, and 2 g air gravity for GTA-like hang time. Start from it when players say the cars feel slippery (tuning-guide.md, "Arcade / stable"). `JetFighter` has no speed limiter: at 1400 km/h it crosses a 10,000-stud map in 7 s, so most games set `engine.speedLimitKmh`.
+
+Car spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m above ground), `wheelRadius` (m, used for gearing; the mesh's wheel size is only visual), `wheelbase` (m, report only), `drivetrain`, `awdFrontSplit`, `engine` {`idleRpm`, `redlineRpm`, `launchRpm`, `efficiency`, `speedLimitKmh`, `torqueCurve` [[rpm, N·m]...]}, `gearbox` {`ratios`, `reverse`, `finalDrive`, `shiftUpRpm`, `shiftDownRpm`, `shiftTime`}, `brakes` {`decelG`, `frontBias`, `handbrakeGripScale`}, `steering` {`maxAngle`, `speed`, `highSpeedScale`, `highSpeedKmh`}, `tires` {`gripFront`, `gripRear`, `stiffness`, `shape`, `slideGrip`, `rollingResistance`}, `drift` {`countersteer`, `maxAngle`, `stabilizer`}, `recovery` {`airControl`, `airGravity` (g in the air, default 2.5), `airInput` (deg/s of GTA-style air steering: W/S pitch, A/D roll, handbrake + A/D spin; 0 = off), `autoFlip`, `stuckAssist`}, `assists` {`stability` (0–1, GTA/ESC-style yaw assist, default 0.6)}, `body` {`autoHull`, `hullFriction`}, `suspension` {`frequencyFront`, `frequencyRear`, `dampingRatio`, `maxLength` (studs), `rideHeight` (0–1), `antiRoll`, `rollCenter` (0–1)}, `aero` {`cd`, `area` (m²), `downforceCl`}. The other types' fields are listed in their references (section "Spec fields").
 
 ## The kit
 
@@ -81,43 +112,58 @@ Spec fields (all optional except `name`): `mass`, `frontWeight`, `comHeight` (m 
 
 | File | Side | Does |
 |---|---|---|
-| `shared/Vehicle/VehicleSpecs.luau` | both | Generated from the spec JSONs. |
-| `shared/Vehicle/VehicleMath.luau` | both | Torque curve, gearing, launch, auto-shift, drag, downforce, tire curve, spring maths, top speed, unit conversion. Mirrors `rveh.cjs`. |
-| `shared/Vehicle/VehicleSim.luau` | both | The per-step physics for one chassis (sphere-cast suspension, anti-roll, tires with slide grip, friction circle, brakes, handbrake, steering with countersteer assist, drift stabilizer, gearbox, aero), the never-stuck layer (stuck assist, auto-flip, air control, `Recover()`), and telemetry (speed, rpm, gear, slip, drift angle, stuck). |
-| `server/Services/VehicleService.luau` | server | Builds the chassis from any tagged model (with the rounded low-friction collision hull and the `VehicleHull` / `VehicleIgnore` collision groups), hands physics to the driver, simulates parked cars and puts them to sleep, flags impossible speeds (uses `roblox-security`'s Sanctions if present), `Spawn(name, cframe)`. |
-| `client/Controllers/VehicleController.luau` | client | The driver's loop: VehicleSeat input (keyboard, gamepad, touch for free), handbrake on LeftShift / gamepad X / touch "Drift", Reset on R / gamepad Y / touch, sim step, speed-based FOV, HUD (speed, gear, rpm, drift score). |
-| `client/Components/VehicleVisuals.luau` | client | For every nearby car: places, steers and spins wheels; tire smoke, skid marks and tire squeal from per-wheel slip; engine loop pitched by rpm. |
+| `shared/Vehicle/VehicleSpecs.luau` | both | Generated from the spec JSONs (every type). |
+| `shared/Vehicle/VehicleMath.luau` | both | Car (and motorcycle) powertrain, drag, tire curve, spring maths, top speed, unit conversion. Mirrors `rveh.cjs`. |
+| `shared/Vehicle/VehicleSim.luau` | both | The car: sphere-cast suspension, anti-roll, tires with slide grip, friction circle, brakes, handbrake, steering with countersteer assist, drift stabilizer, gearbox, aero, the never-stuck layer and telemetry. |
+| `shared/Vehicle/BikeSim.luau` | both | The motorcycle (motorcycle-physics.md §7). |
+| `shared/Vehicle/BoatSim.luau` | both | The boat (boat-physics.md §7). |
+| `shared/Vehicle/PlaneSim.luau` | both | The plane (airplane-physics.md §10), plus `AimInput` for point-to-fly. |
+| `shared/Vehicle/HeliSim.luau` | both | The helicopter (helicopter-physics.md §7). |
+| `shared/Vehicle/Gear.luau` | both | Landing gear and skids: sprung contacts, wheel or skid friction, brakes, nose-wheel steering. |
+| `shared/Vehicle/Water.luau` | both | Water surface: custom function, `SeaLevel` + waves (server-time phased), or terrain water. |
+| `shared/Vehicle/SimUtil.luau` | both | Shared plumbing: force/torque accumulator, real gravity, rate tracking, momentum-theory thrust, atmosphere, recover. |
+| `shared/Vehicle/Sims.luau` | both | Picks the sim for a model from its spec's `type`; speed ceilings for the anti-cheat. |
+| `server/Services/VehicleService.luau` | server | Builds any tagged model (root at the spec's centre of mass, rounded low-friction hull, wheel / gear / skid mounts, rotor and control-surface visuals, `EnableFluidForces` off), hands physics to the driver, simulates and sleeps empty vehicles (hill hold, kickstand, parking brake, rotor wind-down, floating), puts seated players in the `VehicleRider` collision group, receives the `VehicleControl` remote (throttle, gear, flaps, bike bail-offs with optional ragdoll), flags impossible speeds (uses `roblox-security`'s Sanctions if present), `Spawn(name, cframe)`. |
+| `client/Controllers/VehicleController.luau` | client | The driver's loop for every type: seat input plus per-type actions on keyboard, gamepad and touch (bound at High priority), the sim step, speed-based FOV, a HUD per type (speed, gear/rpm, throttle, altitude, vertical speed, rotor, stall, wheelie, drift score), Reset, the control remote, bike bail-offs, optional `AIM_FLIGHT` point-to-fly for planes. |
+| `client/Components/VehicleVisuals.luau` | client | For every nearby vehicle: wheels (steered, spun, hidden when the gear is up), tire smoke, skid marks and squeal, spinning rotors and propellers, hinged ailerons, elevators, rudders and flaps, boat wake and bow spray, rotor downwash dust, engine sound per type. |
 
 Install steps to give the user:
 1. Copy `assets/kit` into `src`; export their specs into `src/shared/Vehicle/VehicleSpecs.luau` (or keep the bundled ones).
-2. Prepare each car model: wheels named `WheelFL`, `WheelFR`, `WheelRL`, `WheelRR` (BaseParts or Models; more axles as `WheelRL2`...), a `VehicleSeat` (named `DriverSeat` if there are several), attribute `Vehicle` = spec name, tag `Vehicle`, optional attributes `EngineSound` and `TireSound` (looping audio ids), and `KeepCollision = true` only if the body's own collision must stay (it then has to pass the stuck test course). The model can face any direction; forward is worked out from front and rear wheels.
+2. Prepare each model (`references/vehicle-setup.md` §1): a `VehicleSeat` (named `DriverSeat` if there are several), attribute `Vehicle` = spec name, tag `Vehicle`, optional `EngineSound` / `TireSound` attributes, and per type: cars `WheelFL/FR/RL/RR` (more axles `WheelRL2`...); motorcycles `WheelF` + `WheelR`; planes gear wheels (`WheelF` + `WheelRL/RR`, or `WheelFL/FR` + `WheelR` for a tail-dragger) and optional `Propeller`, `Aileron*`, `Elevator`, `Rudder`, `Flap*`; helicopters `Skid*` parts or gear wheels, `MainRotor`, `TailRotor`; boats nothing extra (the lowest body point is the keel). Except cars, the model's pivot must face forward (LookVector to the nose or bow).
 3. Put grass, flowers, small rocks and debris in the `VehicleIgnore` collision group (the service registers it).
-4. Place it in Workspace, or put it in `ServerStorage.Assets.Vehicles` and call `VehicleService:Spawn(name, cframe)`.
-5. Play, sit in the seat, drive. Tune the JSON, re-run the report, re-export.
-6. Drive the stuck test course (`references/anti-stuck.md` §5) with every vehicle.
+4. Boats: set the `Workspace` attribute `SeaLevel` (studs) for a sea plane, optionally `WaveHeight` / `WaveLength` / `WaveDirection`, or use terrain water; place the boat with its keel at the surface.
+5. Place it in Workspace, or put it in `ServerStorage.Assets.Vehicles` and call `VehicleService:Spawn(name, cframe)`.
+6. Play, sit in the seat, drive or fly. Tune the JSON, re-run the report, re-export.
+7. Cars: drive the stuck test course (`references/anti-stuck.md` §5) with every car.
 
 ## What good looks like
 
-- **Numbers you can name.** Each vehicle has a 0–100 time, top speed and braking distance you chose on purpose; classes are clearly different.
-- **Weight you can feel.** Visible pitch under braking and acceleration, roll in corners, kept in check by anti-roll and roll centre.
-- **Readable limits.** Tires that slide progressively (shape around 1.8–1.9), not snap; understeer at the limit for most road cars; oversteer only when provoked (handbrake, power in RWD).
-- **No bounce, no float.** Damping ratio 0.3–0.45, frequency 2–3.5 Hz, no bottoming warnings.
-- **Same feel for every body.** Swapping a mesh doesn't change the report or the drive.
-- **Never stuck.** Every item on the stuck test course passes or escapes in under 5 s without the reset button.
-- **Holdable slides.** A handbrake flick starts a drift that can be held with countersteer and throttle; spin-outs come from overdoing it, not from the tires giving up. Smoke and skid marks appear exactly when the tires are sliding.
+- **Numbers you can name.** Each vehicle has numbers you chose on purpose (0–100, top speed, braking distance, stall speed, climb rate, hover margin) and classes are clearly different.
+- **Weight you can feel.** Cars pitch under braking and roll in corners; bikes lean exactly as far as the turn needs; boats lift their bow over the hump, then settle on the plane; planes float in ground effect; helicopters climb through translational lift.
+- **Readable limits.** Tires slide progressively; a bike runs wide instead of washing out; a plane stalls and recovers; a helicopter runs out of power climbing.
+- **No bounce, no float, no snap.** Damped springs, porpoise-free hulls, no wobble in hover, no overshoot past the stall.
+- **Same feel for every body.** Swapping a mesh doesn't change the report or the handling.
+- **Never stuck.** Cars pass the stuck test course; bikes stand back up, boats push off beaches and right themselves, aircraft flip back onto their gear when stopped, and Reset always works.
+- **GTA by default, sim on request.** Assists are on by default (stability, wheelie control, cornering ABS, anti-capsize, stall protection, auto-coordination, altitude hold, self-levelling); every one is a 0–1 dial.
 
 ## Limits to be honest about
 
-- The Node report covers straight-line performance and braking on flat ground; cornering, roll and stability are checked by driving in Studio. A Three.js lab in the repo (`examples/roblox-vehicles`, `node lab/run-tests.cjs`) runs a JS port of `VehicleSim` against every bundled spec (launch, top speed, braking, skidpad, drift, a keyboard slalom, the stuck test course, flips, jumps, a stunt jump over obstacles, slopes and hill starts) and replays each run in 3D. Re-port and re-run it after changing the sim.
-- Simplifications: no wheel rotational inertia or clutch model beyond launch rpm (so no true burnouts), a single slip curve per axle, and no tire temperature or wear. They're deliberate: they keep the car stable and tunable at Roblox physics rates.
-- The kit's Luau has been checked through that JS port, not run in Studio as part of building this skill. Test with Studio's Play (and a second client) before shipping, and adjust `METERS_PER_STUD` only if the game uses a different world scale.
-- Roblox gravity (196.2 studs/s²) is stronger than real gravity at 0.28 m per stud, so jumps arc faster and shorter than a real car's; the suspension is tuned for Roblox's gravity on purpose, and the slope and load-transfer corrections above keep it from changing how the car grips. If a game changes `Workspace.Gravity`, the corrections follow it.
+- The Node report covers straight-line and steady-state performance; handling is checked by driving. A Three.js lab in the repo (`examples/roblox-vehicles`, `node lab/run-tests.cjs`) runs JS ports of every sim (`VehicleSim` for cars; `BikeSim`, `BoatSim`, `PlaneSim`, `HeliSim` in `lab/airsea.js`) on a Roblox-like rigid body against every bundled spec and replays each run in 3D: 268 checks, from launch, braking, drifting and the stuck course to balanced lean, wheelies, floating at the spec draft, planing, waves, takeoff, stall recovery, 45° turns holding altitude, point-to-fly, hover hold and ground effect. Re-port and re-run it after changing a sim.
+- The kit's Luau has been type-checked with luau-lsp against the Roblox API and checked through those JS ports, but not run in Studio as part of building this skill. Test with Studio's Play (and a second client) before shipping, and adjust `METERS_PER_STUD` only if the game uses a different world scale.
+- Cars: no wheel rotational inertia or clutch model beyond launch rpm (so no true burnouts), a single slip curve per axle, no tire temperature or wear. Roblox gravity (196.2 studs/s²) is stronger than real gravity at 0.28 m per stud; the car suspension is tuned for it on purpose, with slope and load-transfer corrections.
+- Motorcycles: balance is an assist (the contact patches' roll torque is cancelled while ridden), not countersteer dynamics, trail or gyroscopic precession; that is what GTA and most games do.
+- Boats: the hull is a column grid with an analytic resistance curve (Froude-number hump, planing drag, ITTC friction), not per-triangle pressure; no added mass, slamming loads or wave-driven drift. Roblox's own terrain-water buoyancy still acts slightly on boats in terrain water (kept to ~1–2% of the weight by a dense root).
+- Planes: stability-derivative moments are replaced by a rate-tracking control layer (follow the flight path, steer the angle of attack); no spins, adverse yaw, P-factor or wing drop. Helicopters: rotor torque reaction and autorotation aren't modelled, vortex ring state is optional, and the cyclic tilt is the body tilt.
 
 ## References
 
-- `references/vehicle-physics.md` — the complete model: unit bridge, suspension, anti-roll, roll centre, tires and slip, friction circle, powertrain, gearbox, brakes, steering, aero, and why raycast suspension over constraints.
+- `references/vehicle-physics.md` — the car model: unit bridge, suspension, anti-roll, roll centre, tires and slip, friction circle, powertrain, gearbox, brakes, steering, aero, and why raycast suspension over constraints.
+- `references/motorcycle-physics.md` — lean and countersteer, turn radius, camber thrust, wheelie and stoppie limits, self-stability, how GTA does bikes, the kit's model, spec fields, tuning, setup and controls.
+- `references/boat-physics.md` — buoyancy and stability, resistance, hull speed and the hump, planing, propellers and jets, steering, waves, how GTA and Just Cause do boats, the kit's model, water sources, spec fields, tuning, setup and controls.
+- `references/airplane-physics.md` — lift, stall, drag polar, props and jets, performance, turning, stability and control, ground effect, flaps and gear, how GTA and War Thunder do planes, the kit's model, spec fields, tuning, setup and controls.
+- `references/helicopter-physics.md` — collective, cyclic and pedals, momentum theory, the power bucket, translational lift, ground effect, vortex ring state, blade stall, how GTA does helicopters, the kit's model, spec fields, tuning, setup and controls.
 - `references/tuning-guide.md` — real-world reference values by vehicle class, the handling-balance levers, symptom → fix table, arcade vs sim presets, drift and off-road setups.
 - `references/anti-stuck.md` — why Roblox cars get stuck, every protection and its tuning, prohibited patterns, map and road rules, the stuck test course.
 - `references/drifting.md` — drift physics, the drift setup, assists per device, server-side scoring, tire smoke, skid marks and squeal.
 - `references/vehicle-setup.md` — model requirements and reuse across meshes, seats and passengers, spawning, ownership and multiplayer, controls on every device, camera, HUD, sound, effects (skids, smoke, exhaust), anti-cheat, performance, troubleshooting.
-- `specs/` — example specs. `scripts/rveh.cjs` — report and Luau export. `scripts/selftest.cjs` — checks.
+- `specs/` — example specs for every type. `scripts/rveh.cjs` — report and Luau export (`scripts/types/*.cjs` hold the motorcycle, boat, plane and helicopter maths). `scripts/selftest.cjs` — checks.

@@ -1,0 +1,53 @@
+{
+  "name": "JetSki",
+  "type": "Boat",
+  "title": "3.3 m personal watercraft with rider, water jet",
+  "mass": 450,
+  "comHeight": 0.42,
+  "hull": {
+    "length": 3.3,
+    "beam": 1.25,
+    "depth": 0.9,
+    "blockCoefficient": 0.42,
+    "humpRW": 0.1,
+    "waveWall": 0,
+    "trim": 3.5,
+    "planingLift": 0.88,
+    "planeDraft": 0.3,
+    "liftBow": 0.4,
+    "prowRise": 0.25,
+    "lateralDrag": 1,
+    "keelAft": 0.2,
+    "bank": 1.4,
+    "damping": 0.45
+  },
+  "drive": {
+    "type": "jet",
+    "power": 150,
+    "propDiameter": 0.16,
+    "efficiency": 0.62,
+    "staticEfficiency": 0.3,
+    "efficiencySpeedKmh": 40,
+    "reverse": 0.3,
+    "depth": 0.3,
+    "maxSteer": 25,
+    "steerSpeed": 160,
+    "idleSteer": 0.35,
+    "spool": 0.4,
+    "speedLimitKmh": 108
+  },
+  "recovery": {
+    "airGravity": 1.5,
+    "airControl": 0.4,
+    "autoFlip": true,
+    "selfRight": 0.8,
+    "beachPush": true
+  },
+  "assists": {
+    "stability": 0.5
+  },
+  "aero": {
+    "cd": 0.8,
+    "area": 1
+  }
+}

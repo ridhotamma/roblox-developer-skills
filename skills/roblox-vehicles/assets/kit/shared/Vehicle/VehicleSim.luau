@@ -245,6 +245,7 @@ function VehicleSim.new(model: Model): VehicleSim?
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	params.FilterDescendantsInstances = { model }
 	params.RespectCanCollide = true
+	params.IgnoreWater = true -- Terrain water is not a road (boats find it with Water.luau)
 	params.CollisionGroup = root.CollisionGroup -- skips parts in "VehicleIgnore" (grass, small props)
 
 	-- Rough rotational inertia of the root box (the only part with mass) for air control.

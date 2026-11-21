@@ -1,0 +1,108 @@
+{
+  "name": "SportBike",
+  "type": "Motorcycle",
+  "title": "1000 cc superbike with rider",
+  "mass": 280,
+  "frontWeight": 0.5,
+  "comHeight": 0.62,
+  "wheelbase": 1.405,
+  "wheelRadius": 0.31,
+  "engine": {
+    "idleRpm": 1300,
+    "redlineRpm": 14000,
+    "launchRpm": 7000,
+    "efficiency": 0.9,
+    "speedLimitKmh": 299,
+    "torqueCurve": [
+      [
+        3000,
+        55
+      ],
+      [
+        6000,
+        80
+      ],
+      [
+        9000,
+        100
+      ],
+      [
+        11500,
+        113
+      ],
+      [
+        13500,
+        104
+      ],
+      [
+        14000,
+        98
+      ]
+    ]
+  },
+  "gearbox": {
+    "ratios": [
+      2.6,
+      2,
+      1.65,
+      1.45,
+      1.3,
+      1.18
+    ],
+    "reverse": 2.6,
+    "finalDrive": 4.3,
+    "shiftUpRpm": 13500,
+    "shiftDownRpm": 7000,
+    "shiftTime": 0.08,
+    "reverseSpeedKmh": 7
+  },
+  "brakes": {
+    "decelG": 1.3,
+    "frontBias": 0.85
+  },
+  "steering": {
+    "maxAngle": 32,
+    "speed": 3,
+    "maxLean": 50,
+    "leanRate": 90,
+    "lowSpeedKmh": 12
+  },
+  "tires": {
+    "gripFront": 1.22,
+    "gripRear": 1.22,
+    "stiffness": 10,
+    "shape": 1.8,
+    "slideGrip": 0.82,
+    "camberThrust": 0.9,
+    "rollingResistance": 0.015
+  },
+  "wheelie": {
+    "control": true,
+    "balanceAngle": 28,
+    "stoppieAngle": -12,
+    "riderShift": 0.12,
+    "assist": 0.85
+  },
+  "recovery": {
+    "airControl": 0.3,
+    "airGravity": 2,
+    "airInput": 160,
+    "autoFlip": true,
+    "stuckAssist": true,
+    "bailG": 7
+  },
+  "assists": {
+    "stability": 0.5
+  },
+  "suspension": {
+    "frequencyFront": 2,
+    "frequencyRear": 2.2,
+    "dampingRatio": 0.45,
+    "maxLength": 1.6,
+    "rideHeight": 0.55
+  },
+  "aero": {
+    "cd": 0.6,
+    "area": 0.6
+  }
+}

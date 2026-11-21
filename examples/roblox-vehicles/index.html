@@ -60,7 +60,7 @@
   <aside>
     <header>
       <h1>roblox-vehicles · Vehicle Lab</h1>
-      <div class="sub">The kit's <code>VehicleSim</code>, <code>VehicleMath</code> and chassis builder, ported line by line to JS and run on a Roblox-like rigid body (240 Hz physics, 60 Hz sim step, 196.2 studs/s² gravity, Spherecast semantics). Each check compares against <code>rveh.cjs report</code> or what the skill promises.</div>
+      <div class="sub">The kit's sims (<code>VehicleSim</code> for cars, <code>BikeSim</code>, <code>BoatSim</code>, <code>PlaneSim</code>, <code>HeliSim</code>) and chassis builder, ported line by line to JS and run on a Roblox-like rigid body (240 Hz physics, 60 Hz sim step, 196.2 studs/s² gravity, Spherecast semantics). Each check compares against <code>rveh.cjs report</code> or what the skill promises.</div>
       <div class="row tabs">
         <button id="tabTests" class="on">Test replays</button>
         <button id="tabDrive">Drive it</button>
@@ -76,7 +76,7 @@
     <div class="top"><div class="card" id="caption">—</div></div>
     <div class="hud" id="hud"></div>
     <div class="timeline" id="timeline"><button id="play">❚❚</button><input type="range" id="scrub" min="0" max="0" value="0"><span id="time">0.0 s</span><button id="speedBtn">1×</button></div>
-    <div class="keys hidden" id="keys">W/S throttle · A/D steer · Shift handbrake · R reset · C camera</div>
+    <div class="keys hidden" id="keys"></div>
   </main>
 </div>
 
@@ -84,10 +84,14 @@
 <script src="lab/physics.js"></script>
 <script src="lab/specs.js"></script>
 <script src="lab/tests.js"></script>
+<script src="lab/airsea.js"></script>
+<script src="lab/tests-airsea.js"></script>
 <script>
 'use strict';
 const { V, M, VM, World, Car } = VehicleLab;
 const SPECS = VEHICLE_SPECS, { TESTS, runOne } = VehicleTests;
+const AS = AirSeaLab, AST = AirSeaTests;
+const kindOf = (name) => SPECS[name].type || 'Car';
 const MPS = VM.METERS_PER_STUD;
 const $ = (id) => document.getElementById(id);
 
@@ -117,8 +121,14 @@ function gridTexture() {
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
 const gridTex = gridTexture();
-function buildWorld(boxes) {
+function buildWorld(world) {
   while (worldGroup.children.length) { const o = worldGroup.children.pop(); o.geometry && o.geometry.dispose(); }
+  const boxes = Array.isArray(world) ? world : world.boxes;
+  const water = Array.isArray(world) ? null : world.water;
+  if (water && water.level !== undefined && water.level !== null) {
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(6000, 6000), new THREE.MeshStandardMaterial({ color: 0x2f6f9f, transparent: true, opacity: 0.72, roughness: 0.25, metalness: 0.1 }));
+    sea.rotation.x = -Math.PI / 2; sea.position.y = water.level; sea.receiveShadow = true; worldGroup.add(sea);
+  }
   for (const b of boxes) {
     const size = b.h.map((x) => x * 2);
     let mat;
@@ -189,6 +199,78 @@ function poseCar(fr) {
   });
 }
 
+// ------------------------------------------------------------- bike / boat / plane / helicopter visuals (box models)
+const OTHER_COLORS = { SportBike: 0xe0453a, DirtBike: 0xf2b134, Speedboat: 0xf4f4f4, JetSki: 0x2f80ed, FishingBoat: 0xc0392b, LightPlane: 0xf2f2f2, JetFighter: 0x8a96a3, LightHeli: 0x2f80ed, AttackHeli: 0x4b5a3c };
+let otherVis = null;
+function box(group, mat, size, pos) { const m = new THREE.Mesh(new THREE.BoxGeometry(...size), mat); m.position.set(...pos); m.castShadow = true; group.add(m); return m; }
+function wheel(group, r, pos, width = 0.5) { const t = new THREE.Mesh(new THREE.CylinderGeometry(r, r, width, 18), new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 })); t.rotation.z = Math.PI / 2; t.position.set(...pos); t.castShadow = true; group.add(t); return t; }
+function buildOtherVisual(name) {
+  if (otherVis) scene.remove(otherVis.group);
+  if (carVis) { scene.remove(carVis.group); carVis = null; }
+  const kind = kindOf(name), spec = SPECS[name].spec, S = (m) => m / MPS;
+  const group = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color: OTHER_COLORS[name] || 0x999999, roughness: 0.45, metalness: 0.2 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1b2330, roughness: 0.3, metalness: 0.4 });
+  const spinners = [];
+  if (kind === 'Motorcycle') {
+    const probe = new AS.Bike(new World(), spec);
+    for (const w of probe.wheels) wheel(group, w.radius, [0, w.local[1] - probe.spec.suspension.maxLength * probe.spec.suspension.rideHeight, w.local[2]], 0.5);
+    const zf = probe.wheels[0].local[2], zr = probe.wheels[1].local[2], r = probe.wheels[0].radius;
+    box(group, paint, [S(0.35), S(0.45), Math.abs(zr - zf) * 0.8], [0, -S(spec.comHeight) + S(0.75), (zf + zr) / 2]);
+    box(group, dark, [S(0.4), S(0.7), S(0.45)], [0, -S(spec.comHeight) + S(1.25), (zf + zr) / 2 + S(0.15)]);
+    void r;
+  } else if (kind === 'Boat') {
+    const h = spec.hull, keel = -S(spec.comHeight);
+    box(group, paint, [S(h.beam), S(h.depth), S(h.length)], [0, keel + S(h.depth) / 2, 0]);
+    const bow = new THREE.Mesh(new THREE.ConeGeometry(S(h.beam) / 2, S(h.length * 0.25), 4), paint); bow.rotation.x = -Math.PI / 2; bow.rotation.y = Math.PI / 4; bow.position.set(0, keel + S(h.depth) / 2, -S(h.length) / 2 - S(h.length * 0.12)); bow.scale.set(1, 1, 0.6); group.add(bow);
+    box(group, dark, [S(h.beam * 0.7), S(h.depth * 0.6), S(h.length * 0.25)], [0, keel + S(h.depth) * 1.25, S(h.length * 0.05)]);
+  } else if (kind === 'Plane') {
+    const probe = new AS.Plane(new World(), spec);
+    const chord = spec.wing.area / spec.wing.span, L = S(spec.length);
+    box(group, paint, [S(1.2), S(1.4), L], [0, S(0.6), 0]);
+    box(group, paint, [S(spec.wing.span), S(0.15), S(chord)], [0, S(spec.engine.type === 'jet' ? 0.3 : 1.2), -L * 0.05]);
+    box(group, paint, [S(spec.wing.span * 0.35), S(0.1), S(chord * 0.6)], [0, S(0.9), L * 0.45]);
+    box(group, paint, [S(0.12), S(1.6), S(chord * 0.7)], [0, S(1.6), L * 0.45]);
+    box(group, dark, [S(0.9), S(0.6), S(1.6)], [0, S(1.45), -L * 0.15]);
+    if (spec.engine.type === 'prop') { const prop = box(group, dark, [S(spec.engine.propDiameter), S(0.15), S(0.05)], [0, S(0.6), -L / 2 - S(0.1)]); spinners.push({ mesh: prop, axis: 'z', rate: 40 }); }
+    for (const g of probe.gear.points) wheel(group, g.radius, [g.local[0], g.local[1] - spec.gear.maxLength * spec.gear.rideHeight, g.local[2]], 0.4);
+  } else {
+    const L = S(spec.length), R = S(spec.rotor.diameter / 2);
+    box(group, paint, [S(2), S(2), L * 0.42], [0, S(0.6), -L * 0.12]);
+    box(group, paint, [S(0.45), S(0.45), L * 0.55], [0, S(1.1), L * 0.32]);
+    box(group, dark, [S(1.6), S(0.9), S(1.2)], [0, S(1.1), -L * 0.28]);
+    for (const x of [-1, 1]) box(group, dark, [S(0.1), S(0.1), S(2.6)], [x * S(1.15), -S(spec.comHeight) + S(0.1), 0]);
+    const disc = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 0.15, 32), new THREE.MeshStandardMaterial({ color: 0x222222, transparent: true, opacity: 0.25 })); disc.position.set(0, S(spec.rotor.hubHeight - spec.comHeight), 0); group.add(disc);
+    const blade = box(group, dark, [R * 2, 0.2, S(0.3)], [0, S(spec.rotor.hubHeight - spec.comHeight) + 0.15, 0]); spinners.push({ mesh: blade, axis: 'y', rate: 4, rotor: true });
+    const tail = box(group, dark, [0.15, S(1.6), S(0.15)], [S(0.35), S(1.3), L * 0.58]); spinners.push({ mesh: tail, axis: 'x', rate: 18, rotor: true });
+  }
+  scene.add(group);
+  otherVis = { group, kind, spinners, angle: 0 };
+  const extent = kind === 'Plane' ? Math.max(spec.wing.span, spec.length) : kind === 'Helicopter' ? Math.max(spec.rotor.diameter, spec.length) : kind === 'Boat' ? spec.hull.length : 3;
+  camDist = Math.min(120, Math.max(26, (extent / MPS) * 1.4));
+}
+function poseOther(fr, dt = 1 / 30) {
+  if (!otherVis) return;
+  otherVis.group.position.set(...fr.p);
+  otherVis.group.quaternion.set(fr.q[1], fr.q[2], fr.q[3], fr.q[0]);
+  for (const sp of otherVis.spinners) {
+    const speed = sp.rotor ? (fr.tel.rotorSpeed ?? 1) : 0.3 + 0.7 * (fr.tel.throttle ?? 0);
+    sp.mesh.rotation[sp.axis] += sp.rate * speed * 2 * Math.PI * dt;
+  }
+}
+function showHudOther(fr, name) {
+  const t = fr.tel || {}, kind = kindOf(name);
+  const n = (x, d = 0) => (x === undefined || x === null ? '—' : Number(x).toFixed(d));
+  const speed = kind === 'Plane' || kind === 'Helicopter' ? t.airspeedKmh : t.speedKmh;
+  const lines = {
+    Motorcycle: `gear ${n(t.gear)} · rpm ${n(t.rpm)} · lean ${n(t.lean)}° · pitch ${n(t.pitch, 1)}°${t.wheelie ? ' · <b style="color:#ffc43d">WHEELIE</b>' : ''}${t.crashed ? ' · <b style="color:#ff7a6b">CRASHED</b>' : ''}`,
+    Boat: `throttle ${n((t.throttle || 0) * 100)}% · planing ${n((t.planing || 0) * 100)}% · draft ${n(t.draft, 2)} m · trim ${n(t.trim, 1)}° · heel ${n(t.heel, 1)}°`,
+    Plane: `alt ${n(t.altitude)} m · v/s ${n(t.vs, 1)} · α ${n(t.alpha, 1)}° · bank ${n(t.bank)}° · thr ${n((t.throttle || 0) * 100)}%${t.stall ? ' · <b style="color:#ff7a6b">STALL</b>' : ''}`,
+    Helicopter: `height ${n(t.altitude, 1)} m · v/s ${n(t.vs, 1)} · pitch ${n(t.pitch)}° · bank ${n(t.bank)}° · rotor ${n((t.rotorSpeed || 0) * 100)}% · power ${n((t.powerShare || 0) * 100)}%`,
+  };
+  $('hud').innerHTML = `<div class="big">${Math.round(Math.abs(speed || 0))} km/h</div>${lines[kind] || ''}`;
+}
+
 // skid marks: small quads where a tyre slides
 const skidGeo = new THREE.PlaneGeometry(0.7, 0.7); skidGeo.rotateX(-Math.PI / 2);
 const skidMat = new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.55, depthWrite: false });
@@ -252,7 +334,9 @@ async function ensureResults(spec) {
   if (results[spec]) return;
   results[spec] = [];
   $('caption').textContent = `Running ${spec}…`;
-  for (const t of TESTS) { results[spec].push(runOne(t, spec, SPECS)); renderList(); await new Promise((r) => setTimeout(r, 0)); }
+  const kind = kindOf(spec);
+  const list = kind === 'Car' ? TESTS : AST.TESTS.filter((t) => t.type === kind);
+  for (const t of list) { results[spec].push(kind === 'Car' ? runOne(t, spec, SPECS) : AST.runOne(t, spec, SPECS)); renderList(); await new Promise((r) => setTimeout(r, 0)); }
 }
 function renderSummary() {
   const chips = [];
@@ -284,11 +368,12 @@ let frames = [], fi = 0, playing = true, rate = 1, acc = 0;
 function selectTest(r) {
   if (!r) return;
   selTest = r; renderList();
-  buildWorld(r.world); buildCarVisual(r.spec); clearSkids();
+  buildWorld(r.world); clearSkids();
+  if (kindOf(r.spec) === 'Car') { if (otherVis) { scene.remove(otherVis.group); otherVis = null; } buildCarVisual(r.spec); } else buildOtherVisual(r.spec);
   frames = r.frames; fi = 0; playing = true; acc = 0;
   $('scrub').max = Math.max(0, frames.length - 1);
   $('caption').innerHTML = `<b>${r.spec}</b> · ${r.title} — <span style="color:${r.pass ? '#7be0a5' : '#ff8f80'}">${r.pass ? 'PASS' : 'FAIL'}</span> · ${r.measured}`;
-  if (frames.length) { poseCar(frames[0]); updateCamera(frames[0], true); }
+  if (frames.length) { (otherVis ? poseOther : poseCar)(frames[0]); updateCamera(frames[0], true); }
 }
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '❚❚' : '▶'; };
 $('scrub').oninput = (e) => { fi = +e.target.value; playing = false; $('play').textContent = '▶'; clearSkids(); };
@@ -297,7 +382,7 @@ $('speedBtn').onclick = () => { rate = RATES[(RATES.indexOf(rate) + 1) % RATES.l
 
 // ------------------------------------------------------------- drive mode
 let mode = 'tests', live = null, keys = {};
-addEventListener('keydown', (e) => { keys[e.code] = true; if (mode === 'drive' && e.code === 'KeyR') live.recover(); if (e.code === 'KeyC') camMode = (camMode + 1) % 3; if (e.code === 'KeyH' && carVis) carVis.hullGroup.visible = !carVis.hullGroup.visible; });
+addEventListener('keydown', (e) => { keys[e.code] = true; if (mode === 'drive' && e.code === 'KeyG') liveGear = !liveGear; if (mode === 'drive' && e.code === 'KeyF') liveFlaps = !liveFlaps; if (mode === 'drive' && e.code === 'KeyR') (live.recover ? live.recover(kindOf(selSpec) === 'Car' ? undefined : (SPECS[selSpec].spec.comHeight / MPS + 2)) : null); if (e.code === 'KeyC') camMode = (camMode + 1) % 3; if (e.code === 'KeyH' && carVis) carVis.hullGroup.visible = !carVis.hullGroup.visible; });
 addEventListener('keyup', (e) => (keys[e.code] = false));
 function trackWorld() {
   const w = new World();
@@ -310,11 +395,35 @@ function trackWorld() {
   w.box('Ridge', [-120, 0.9, 40], [30, 1.8, 2.5], M.I(), { color: 0xb48ead });
   return w;
 }
+const KEYS = {
+  Car: 'W/S throttle · A/D steer · Shift handbrake · R reset · C camera',
+  Motorcycle: 'W/S throttle · A/D lean · Shift rear brake · Q/E lean back / forward · R reset · C camera',
+  Boat: 'W/S throttle · A/D helm · R reset · C camera',
+  Plane: 'Shift/Ctrl throttle (Ctrl brakes) · W/S pitch · A/D roll · Q/E rudder · G gear · F flaps · R reset · C camera',
+  Helicopter: 'Shift/Ctrl up/down · W/S pitch (forward) · A/D yaw · Q/E roll · R reset · C camera',
+};
+let liveGear = true, liveFlaps = false;
 function startDrive() {
-  const w = trackWorld();
-  live = new Car(w, SPECS[selSpec].raw, { position: [0, 0, 40] });
-  buildWorld(w.boxes); buildCarVisual(selSpec); clearSkids();
-  $('caption').innerHTML = `<b>Driving ${selSpec}</b> · kerbs 0.3/0.6/1.0 ahead-left, ramp ahead-right, 5°/10°/15° slopes far left, poles, wall, ridge. H toggles the collision hull.`;
+  const kind = kindOf(selSpec);
+  $('keys').textContent = KEYS[kind];
+  if (kind === 'Car') {
+    const w = trackWorld();
+    live = new Car(w, SPECS[selSpec].raw, { position: [0, 0, 40] });
+    if (otherVis) { scene.remove(otherVis.group); otherVis = null; }
+    buildWorld(w.boxes); buildCarVisual(selSpec); clearSkids();
+    $('caption').innerHTML = `<b>Driving ${selSpec}</b> · kerbs 0.3/0.6/1.0 ahead-left, ramp ahead-right, 5°/10°/15° slopes far left, poles, wall, ridge. H toggles the collision hull.`;
+    return;
+  }
+  const spec = SPECS[selSpec].spec;
+  let w;
+  if (kind === 'Boat') { w = AST.seaWorld(0.8); live = new AS.Boat(w, spec); }
+  else { w = AST.flatWorld(40000); const ang = (12 * Math.PI) / 180; w.box('Ramp', [0, Math.sin(ang) * 10 - 0.6, -160], [12, 1.2, 20], M.rotX(ang), { color: 0xd08770 }); for (let i = 0; i < 8; i++) w.box(`Tower${i}`, [-150 + i * 45, 30, -600 - i * 60], [20, 60, 20], M.I(), { color: 0x81a1c1 }); }
+  if (kind === 'Motorcycle') live = new AS.Bike(w, spec);
+  if (kind === 'Plane') live = new AS.Plane(w, spec);
+  if (kind === 'Helicopter') live = new AS.Heli(w, spec);
+  liveGear = true; liveFlaps = false;
+  buildWorld({ boxes: w.boxes, water: w.water }); buildOtherVisual(selSpec); clearSkids();
+  $('caption').innerHTML = `<b>${kind === 'Boat' ? 'Sailing' : kind === 'Plane' || kind === 'Helicopter' ? 'Flying' : 'Riding'} ${selSpec}</b>${kind === 'Boat' ? ' · 0.8 m swell' : ' · ramp ahead, towers in the distance'}`;
 }
 function setMode(m) {
   mode = m;
@@ -331,9 +440,25 @@ function loop(now) {
   const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
   if (mode === 'tests' && frames.length) {
     const fps = frames.length > 1 ? 1 / Math.max(1e-3, frames[1].t - frames[0].t) : 30;
-    if (playing) { acc += dt * rate * fps; while (acc >= 1) { acc -= 1; fi++; if (fi >= frames.length) { fi = 0; clearSkids(); } addSkids(frames[fi]); } }
-    const fr = frames[fi]; poseCar(fr); updateCamera(fr); showHud(fr, selTest.spec);
+    if (playing) { acc += dt * rate * fps; while (acc >= 1) { acc -= 1; fi++; if (fi >= frames.length) { fi = 0; clearSkids(); } if (!otherVis) addSkids(frames[fi]); } }
+    const fr = frames[fi];
+    if (otherVis) { poseOther(fr, dt * rate); updateCamera(fr); showHudOther(fr, selTest.spec); }
+    else { poseCar(fr); updateCamera(fr); showHud(fr, selTest.spec); }
     $('scrub').value = fi; $('time').textContent = fr.t.toFixed(1) + ' s';
+  } else if (mode === 'drive' && live && otherVis) {
+    const k = (c) => (keys[c] ? 1 : 0);
+    const ws = k('KeyW') + k('ArrowUp') - k('KeyS') - k('ArrowDown'), ad = k('KeyD') + k('ArrowRight') - k('KeyA') - k('ArrowLeft'), qe = k('KeyE') - k('KeyQ');
+    const power = k('ShiftLeft') + k('ShiftRight') - k('ControlLeft') - k('ControlRight');
+    const kind = otherVis.kind;
+    const input = kind === 'Motorcycle' ? { throttle: ws, steer: ad, handbrake: !!(keys.ShiftLeft || keys.ShiftRight), lean: qe }
+      : kind === 'Boat' ? { throttle: ws, steer: ad }
+      : kind === 'Plane' ? { pitch: ws, roll: ad, yaw: qe, power, brake: power < 0, gearDown: liveGear, flaps: liveFlaps }
+      : { pitch: ws, yaw: ad, roll: qe, power };
+    const n = Math.max(1, Math.round(dt * 60));
+    let tel;
+    for (let i = 0; i < n; i++) tel = live.frame(1 / 60, input);
+    const fr = { t: live.clock, p: live.body.pos, q: live.body.q, tel };
+    poseOther(fr, dt); updateCamera(fr); showHudOther(fr, selSpec);
   } else if (mode === 'drive' && live) {
     const input = { throttle: (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0), steer: (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), handbrake: !!(keys.ShiftLeft || keys.ShiftRight) };
     let n = Math.round(dt * 60);
@@ -346,7 +471,7 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 
-$('findings').innerHTML = `<b>How to read this.</b> PASS/FAIL thresholds: launch ±15% and top speed ±4% of the report, braking ±15%, cornering 70–120% of the report's lateral g. The kerb, beached, roof and side checks come from the skill's own stuck test course (anti-stuck.md §5). Click any row to replay it. Tyres turn amber near the grip limit and red while sliding; skid marks show slides. Mouse drag orbits the camera, the scroll wheel zooms, C changes the view, H shows the collision hull.`;
+$('findings').innerHTML = `<b>Motorcycles, boats, planes, helicopters</b> run their own suites (tests-airsea.js): launch, top speed and braking against the report, balanced lean, wheelies, floating at the spec draft, planing, turns, waves, takeoff, climb, stall, coordinated turns, hover and ground effect. <b>How to read this.</b> Every row prints its own threshold: cars use launch ±15%, top speed ±4%, braking ±15% and cornering 70–120% of the report's lateral g; air and sea tests use wider margins for the report match (for example bike launch ±20%, boat top speed ±10%, plane climb ±30%, helicopter top speed ±15%) and the skill's stated behaviour for the rest. Click any row to replay it. Tyres turn amber near the grip limit and red while sliding; skid marks show slides. Mouse drag orbits the camera, the scroll wheel zooms, C changes the view, H shows the collision hull; the Drive tab lists the keys for the selected type.`;
 
 resize();
 ensureResults(selSpec).then(() => { renderList(); selectTest(results[selSpec].find((r) => !r.pass) || results[selSpec][0]); });

@@ -1,0 +1,52 @@
+{
+  "name": "FishingBoat",
+  "type": "Boat",
+  "title": "10 m displacement workboat, inboard diesel and rudder",
+  "mass": 9000,
+  "comHeight": 1.3,
+  "hull": {
+    "length": 10,
+    "beam": 3.6,
+    "depth": 2.2,
+    "blockCoefficient": 0.5,
+    "humpRW": 0.16,
+    "waveWall": 1,
+    "trim": 2,
+    "planingLift": 0,
+    "planeDraft": 0.35,
+    "liftBow": 0.2,
+    "prowRise": 0.3,
+    "lateralDrag": 1.4,
+    "keelAft": 0.5,
+    "bank": -0.3,
+    "damping": 0.35
+  },
+  "drive": {
+    "type": "inboard",
+    "power": 150,
+    "propDiameter": 0.75,
+    "efficiency": 0.55,
+    "staticEfficiency": 0.45,
+    "efficiencySpeedKmh": 15,
+    "reverse": 0.5,
+    "depth": 1.1,
+    "maxSteer": 35,
+    "steerSpeed": 45,
+    "rudderArea": 0.12,
+    "spool": 1.5
+  },
+  "recovery": {
+    "airGravity": 1.5,
+    "airControl": 0.2,
+    "autoFlip": true,
+    "selfRight": 0.4,
+    "beachPush": true
+  },
+  "assists": {
+    "stability": 0.2
+  },
+  "aero": {
+    "cd": 0.8,
+    "area": 9
+  }
+}

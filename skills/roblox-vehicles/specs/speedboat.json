@@ -1,0 +1,52 @@
+{
+  "name": "Speedboat",
+  "type": "Boat",
+  "title": "6.2 m runabout, 250 hp outboard, planing V-hull",
+  "mass": 1800,
+  "comHeight": 0.55,
+  "hull": {
+    "length": 6.2,
+    "beam": 2.4,
+    "depth": 1.2,
+    "blockCoefficient": 0.4,
+    "humpRW": 0.12,
+    "waveWall": 0,
+    "trim": 4,
+    "planingLift": 0.85,
+    "planeDraft": 0.35,
+    "liftBow": 0.4,
+    "prowRise": 0.5,
+    "lateralDrag": 1.2,
+    "keelAft": 0.2,
+    "bank": 1,
+    "damping": 0.4
+  },
+  "drive": {
+    "type": "outboard",
+    "power": 186,
+    "propDiameter": 0.36,
+    "efficiency": 0.54,
+    "staticEfficiency": 0.4,
+    "efficiencySpeedKmh": 40,
+    "reverse": 0.4,
+    "depth": 0.45,
+    "maxSteer": 30,
+    "steerSpeed": 90,
+    "spool": 0.8,
+    "rudderArea": 0.015
+  },
+  "recovery": {
+    "airGravity": 1.5,
+    "airControl": 0.3,
+    "autoFlip": true,
+    "selfRight": 0.6,
+    "beachPush": true
+  },
+  "assists": {
+    "stability": 0.7
+  },
+  "aero": {
+    "cd": 0.5,
+    "area": 3
+  }
+}

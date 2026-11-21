@@ -1,0 +1,104 @@
+{
+  "name": "DirtBike",
+  "type": "Motorcycle",
+  "title": "450 cc enduro with rider, long travel, short gearing",
+  "mass": 195,
+  "frontWeight": 0.47,
+  "comHeight": 0.72,
+  "wheelbase": 1.48,
+  "wheelRadius": 0.34,
+  "engine": {
+    "idleRpm": 1700,
+    "redlineRpm": 11500,
+    "launchRpm": 5500,
+    "efficiency": 0.88,
+    "speedLimitKmh": 0,
+    "torqueCurve": [
+      [
+        2500,
+        32
+      ],
+      [
+        5000,
+        42
+      ],
+      [
+        7500,
+        47
+      ],
+      [
+        9500,
+        44
+      ],
+      [
+        11500,
+        36
+      ]
+    ]
+  },
+  "gearbox": {
+    "ratios": [
+      2.4,
+      1.9,
+      1.55,
+      1.3,
+      1.1,
+      0.96
+    ],
+    "reverse": 2.4,
+    "finalDrive": 7.2,
+    "shiftUpRpm": 11000,
+    "shiftDownRpm": 5500,
+    "shiftTime": 0.1,
+    "reverseSpeedKmh": 7
+  },
+  "brakes": {
+    "decelG": 0.95,
+    "frontBias": 0.65
+  },
+  "steering": {
+    "maxAngle": 38,
+    "speed": 3.5,
+    "maxLean": 45,
+    "leanRate": 100,
+    "lowSpeedKmh": 10
+  },
+  "tires": {
+    "gripFront": 1,
+    "gripRear": 1.05,
+    "stiffness": 8,
+    "shape": 1.7,
+    "slideGrip": 0.85,
+    "camberThrust": 0.8,
+    "rollingResistance": 0.025
+  },
+  "wheelie": {
+    "control": true,
+    "balanceAngle": 32,
+    "stoppieAngle": -12,
+    "riderShift": 0.15,
+    "assist": 0.9
+  },
+  "recovery": {
+    "airControl": 0.4,
+    "airGravity": 2,
+    "airInput": 200,
+    "autoFlip": true,
+    "stuckAssist": true,
+    "bailG": 9
+  },
+  "assists": {
+    "stability": 0.4
+  },
+  "suspension": {
+    "frequencyFront": 1.6,
+    "frequencyRear": 1.8,
+    "dampingRatio": 0.5,
+    "maxLength": 2.6,
+    "rideHeight": 0.6
+  },
+  "aero": {
+    "cd": 0.9,
+    "area": 0.7
+  }
+}
