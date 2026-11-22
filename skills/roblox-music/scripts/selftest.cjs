@@ -227,6 +227,85 @@ for (const id of toRender) {
   ok(missing.length === 0, `files named in SKILL.md exist (${mentioned.length + kitFiles.length})${missing.length ? ': ' + missing.join(', ') : ''}`);
 }
 
+// 9b. AI generation helpers (generate.cjs): prompts, loop fitting, one-shots, MCP client
+{
+  const G = require('./generate.cjs');
+  const insts = new Set(), pats = new Set();
+  for (const p of Object.values(moods)) for (const s of p.stems) for (const part of s.parts) {
+    if (part.role === 'drums') { if (part.pattern) pats.add(part.pattern); } else if (part.inst) insts.add(part.inst);
+  }
+  const noWord = [...insts].filter((i) => !G.INSTRUMENT_WORDS[i]).concat([...pats].filter((d) => !G.DRUM_WORDS[d] && !/^(wave|groups3|tick8|chug16|alberti|spread|pedal|broken|drive)$/.test(d)));
+  ok(noWord.length === 0, `every instrument has words for AI prompts${noWord.length ? ': missing ' + noWord.join(', ') : ''}`);
+  let badPrompt = 0;
+  for (const [id, p] of Object.entries(moods)) for (const t of ['ace-step', 'stable-audio', 'prose']) {
+    const pr = G.musicPrompt(Object.assign({ id }, p), t);
+    if (!pr.prompt.includes(String(p.bpm)) || !/no vocals/.test(pr.prompt) || pr.duration < pr.loopSeconds * 2) badPrompt++;
+  }
+  ok(badPrompt === 0, `AI prompts name the BPM, ask for no vocals and two passes (${Object.keys(moods).length * 3} prompts)`);
+
+  // fit: a rendered cue played 2.5 times after 1 s of silence must come back as exactly one loop,
+  // starting on a bar line, seamless, levelled; two stems must be cut at the same sample
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'music-fit-'));
+  const { cue, r } = renders[toRender[0]];
+  const pad = r.sr, total = pad + Math.round(r.loopSamples * 2.5);
+  const stemFiles = r.stems.slice(0, 2).map((s, si) => {
+    const L = new Float32Array(total), R = new Float32Array(total);
+    for (let i = pad; i < total; i++) { const k = (i - pad) % r.loopSamples; L[i] = s.L[k] * 0.3; R[i] = s.R[k] * 0.3; }
+    const f = path.join(dir, `ai_${si ? 'top' : 'bed'}.wav`);
+    fs.writeFileSync(f, M.wav(L, R, r.sr));
+    return f;
+  });
+  const log = console.log; console.log = () => {};
+  let res, res2, one;
+  try {
+    res = G.fitLoop([stemFiles[0]], { bpm: cue.bpm, bars: cue.bars, beats: cue.beatsPerBar, name: 'fit_one', out: dir });
+    res2 = G.fitLoop(stemFiles, { bpm: cue.bpm, bars: cue.bars, beats: cue.beatsPerBar, name: 'fit_two', out: dir });
+  } finally { console.log = log; }
+  const w = M.readWav(fs.readFileSync(res.files[0]));
+  const barSamples = cue.beatsPerBar * 60 / cue.bpm * r.sr;
+  ok(w.L.length === r.loopSamples, `fit cuts exactly one loop (${w.L.length} = ${r.loopSamples} samples)`);
+  // the fitted loop must be the rendered loop rotated by whole bars (gain aside): correlation at a bar offset
+  const ref = r.stems[0].L;
+  const corrAt = (rot) => { let a = 0, b2 = 0, c = 0; for (let i = Math.round(r.sr * 0.2); i < w.L.length; i += 13) { const x = ref[(i + rot) % r.loopSamples], y = w.L[i]; a += x * y; b2 += x * x; c += y * y; } return a / Math.sqrt(b2 * c + 1e-12); };
+  // onsets are found on a 5 ms grid, so allow +-10 ms around each bar line
+  let bestCorr = -1, bestLag = 0;
+  const tol = Math.round(r.sr * 0.01);
+  for (let b = 0; b < cue.bars; b++) for (let lag = -tol; lag <= tol; lag += 2) {
+    const c = corrAt((Math.round(b * barSamples) + lag + r.loopSamples) % r.loopSamples);
+    if (c > bestCorr) { bestCorr = c; bestLag = lag; }
+  }
+  ok(bestCorr > 0.98, `fit starts the loop on a bar line (within ${(Math.abs(bestLag) / r.sr * 1000).toFixed(1)} ms, correlation ${bestCorr.toFixed(4)})`);
+  const steps = []; for (let i = 1; i < w.L.length; i += 7) steps.push(Math.abs(w.L[i] - w.L[i - 1])); steps.sort((a, b) => a - b);
+  const seam = Math.abs(w.L[0] - w.L[w.L.length - 1]) / (steps[Math.floor(steps.length * 0.999)] || 1e-9);
+  ok(seam < 1.5, `fitted loop is seamless (seam ${seam.toFixed(2)})`);
+  const lu = M.loudness(w.L, w.R, w.sr), pk = M.gainToDb(M.peak(w.L, w.R));
+  ok((Math.abs(lu + 16) < 0.6 || Math.abs(pk + 1) < 0.1) && pk <= -0.95, `fitted loop levelled (${lu.toFixed(1)} LUFS, peak ${pk.toFixed(1)} dBFS)`);
+  const s1 = M.readWav(fs.readFileSync(res2.files[0])), s2 = M.readWav(fs.readFileSync(res2.files[1]));
+  ok(s1.L.length === s2.L.length && res2.files.length === 2 && fs.existsSync(path.join(dir, 'fit_two.luau')) && /Name = "bed"[^\n]*Min = 0, Full = 0[\s\S]*Name = "top"/.test(fs.readFileSync(path.join(dir, 'fit_two.luau'), 'utf8')), 'fit cuts stems identically and writes a MusicCues entry (bed first)');
+
+  // one-shot: silence trimmed, faded, peak at -1 dBFS
+  const sr = 44100, hit = new Float32Array(sr * 2);
+  for (let i = 0; i < sr * 0.4; i++) hit[sr * 0.5 + i] = Math.sin(i / sr * 2 * Math.PI * 220) * Math.exp(-i / (sr * 0.08)) * 0.2;
+  const hf = path.join(dir, 'hit.wav');
+  fs.writeFileSync(hf, M.wav(hit, hit, sr));
+  console.log = () => {};
+  try { one = G.fitOneShot(hf, { name: 'hit_clean', out: dir }); } finally { console.log = log; }
+  const h = M.readWav(fs.readFileSync(one.files[0]));
+  ok(h.L.length < sr * 0.45 && Math.abs(M.gainToDb(M.peak(h.L, h.R)) + 1) < 0.05 && Math.abs(h.L[h.L.length - 1]) < 1e-3, `one-shot trimmed to ${(h.L.length / sr).toFixed(2)} s, peak -1 dBFS, faded`);
+
+  // the MCP result parser takes files on disk, never the app's /files/ URLs
+  const fake = [{ id: 'a', path: path.resolve(hf), url: '/files/a.wav' }, { id: 'b', path: 'C:\\nope\\b.wav', url: '/files/b.wav' }];
+  const found = G.audioPaths(fake);
+  ok(found.length === 1 && found[0] === path.resolve(hf), 'MCP result parser keeps only audio files that exist on disk');
+
+  // live: the MCP client against a running Mirli app (skipped when it isn't running)
+  try {
+    const out = execFileSync(process.execPath, [path.join(__dirname, 'generate.cjs'), 'status'], { encoding: 'utf8', timeout: 20000 });
+    if (/ok {3}mirli/.test(out)) ok(/\+ audiocpp|\+ |installed|loaded/.test(out), 'Mirli MCP reachable: list_models answered');
+    else console.log('skip Mirli MCP (app not running)');
+  } catch (e) { ok(false, `generate.cjs status crashed: ${(e.stderr || e.message).slice(0, 300)}`); }
+}
+
 // 10. Luau
 {
   const runner = path.join(SKILL, 'tests', 'run-luau.cjs');

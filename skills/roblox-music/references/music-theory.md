@@ -180,7 +180,7 @@ Rules:
 The generated stems are a working temp score: right structure, tempo, harmony, layering and levels, synthesized instruments. To go further:
 - **DAW:** open the `.mid` (one track per part, General MIDI programs, tempo and loop markers), swap in real instruments, keep the bar length, bounce each stem from bar 1 for exactly the loop length with the tail wrapped onto the start, and check with `analyze`.
 - **Composer:** send `BRIEF.md` (written by `render`) plus the MIDI and the rendered stems as a reference. It states tempo, key, loop length, the stem stack with intensity thresholds, one-shots and the delivery spec.
-- **AI music generators:** most produce a finished stereo track, not aligned stems; use them for linear pieces (menu, credits) or as inspiration. For adaptive layers you need stems that share one grid: keep using the generated stems, or split a generated track with a stem separator and re-cut it to an exact bar length (then `analyze` it).
+- **AI music generators:** most produce a finished stereo track, not aligned stems; use them for linear pieces (menu, credits) or as inspiration. For adaptive layers you need stems that share one grid: keep using the generated stems, or split a generated track with a stem separator and re-cut it to an exact bar length. `generate.cjs fit` does the re-cut, the seam and the levels (`references/ai-audio-tools.md`).
 - Whatever the source, the Roblox side doesn't change: same `MusicCues` entry format, new asset ids.
 
 ## 9. Performance: what makes it sound played, not programmed
