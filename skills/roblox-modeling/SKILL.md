@@ -1,6 +1,6 @@
 ---
 name: roblox-modeling
-description: Build low-poly 3D models with animations from real reference images, then test them, look at them and export them for Blender, three.js and Roblox. Finds openly licensed reference photos and drawings online, measures the object's proportions and silhouette from them, plans the parts, pivots and hierarchy, generates flat-shaded geometry (boxes, hollow containers, lathes, lofted organic bodies, extruded outlines, hulls), rigs hinges and skinned spines with rig-ready topology (edge loops at joints, smooth or per-joint weights, bones on the centre line), attaches fins, wings and ears so their roots are welded and they follow the body, bakes clips (open/close, swim, idle, die, flap, spin...), runs an automatic test suite (watertight, z-fighting, floating parts, ground contact, reference dimensions, silhouette match, parts passing through each other, seamless loops, welded fin roots and fin/body sync, edge loops per joint, folding / pinching / volume loss while deforming), renders review sheets, and exports .glb (with node animations and skins), .obj, a Blender import script, a three.js loader and an interactive three.js preview. Use this whenever the user wants a 3D model, low-poly asset, prop, creature, game object or animated mesh ("build me a chest that opens", "low poly fish with swimming, idle and dying animation", "make a sword / tree / barrel / lantern / bird"), wants a .glb / glTF / .obj for Blender, three.js, React Three Fiber, Godot, Unity or Roblox's 3D Importer, or asks to fix the shape, proportions, topology, rigging or animation of such a model (collapsing elbows, tails that fold, parts tearing off a joint, fins sliding out of sync with the body).
+description: Build low-poly 3D models with animations from real reference images, then test them, look at them and export them for Blender, three.js and Roblox. Finds openly licensed reference photos and drawings online, measures the object's proportions and silhouette from them, plans the parts, pivots and hierarchy, generates flat-shaded geometry (boxes, hollow containers, lathes, lofted organic bodies, extruded outlines, hulls), rigs hinges and skinned spines with rig-ready topology (edge loops at joints, smooth or per-joint weights, bones on the centre line), attaches fins, wings and ears so their roots are welded and they follow the body, bakes clips (open/close, swim, idle, die, flap, spin...), runs an automatic test suite (watertight, z-fighting, floating parts, ground contact, reference dimensions, silhouette match, parts passing through each other, seamless loops, welded fin roots and fin/body sync, edge loops per joint, folding / pinching / volume loss while deforming), renders review sheets, and exports .glb (with node animations and skins), .obj, a Blender import script, a three.js loader and an interactive three.js preview. Use this whenever the user wants a 3D model, low-poly asset, prop, creature, game object or animated mesh ("build me a chest that opens", "low poly fish with swimming, idle and dying animation", "make a sword / tree / barrel / lantern / bird"), wants a .glb / glTF / .obj for Blender, three.js, React Three Fiber, Godot, Unity or Roblox's 3D Importer, wants a room, house, cabin or other place players walk into (it checks the avatar reaches every spot, fits the doors, has camera headroom and cannot get stuck), or asks to fix the shape, proportions, topology, rigging or animation of such a model (collapsing elbows, tails that fold, parts tearing off a joint, fins sliding out of sync with the body).
 ---
 
 # Low-poly modeling (reference → measure → model → test → export)
@@ -14,6 +14,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
 ## Workflow
 
 1. **Pin down the request.** What the object is, its style (stylised game prop vs realistic), size in real life, which animations and what each must show, the target (Blender, three.js, Roblox, all), and a triangle budget (default 2000; props 200-1500, characters/creatures 500-3000). For a clear request, start straight away and state your assumptions.
+   **Is it a place players walk into** (a room, house, shop, cabin, ruin, dungeon, cave, ship deck)? Then read `references/playspace.md` before planning. Real sizes are too tight for a Roblox avatar and its camera, so set `"roblox": { "studsPerMetre": 4.5 }` (4 to 5), model doorways at 1.1-1.3 m and ceilings at 2.7 m or more, and add a `playspace` block (where players arrive, the spots they must reach, the door-open poses). Furniture stays at real size.
 
 2. **Find references** (read `references/reference-research.md`). Run
    `node <skill>/scripts/refsearch.cjs "<object> side view" --out refs` (add a second query for another angle, e.g. "<object> front"). It downloads openly licensed images from Wikimedia Commons and Openverse, records source, licence and author in `refs/sources.json`, and writes `refs/contact-sheet.png`. **Look at the contact sheet** with the Read tool and pick the clearest views: a true side view (profile) is the most valuable, then front, then top; for anything that opens or moves, an image of the open / moving state too. If the search finds nothing useful, search the web for the object's typical dimensions and describe the shape from what you find; say that you did.
@@ -26,7 +27,7 @@ The loop: **find references → measure → plan parts → write the spec → bu
    **If anything bends** (creature, character, tail, hair, rope, limb), plan the rig with the topology too, and read `references/topology-and-rigging.md`. Decide rigid parts or skin (and `smooth` or `joints` weights) for each part. Note the largest bend at each joint, which sets how many edge loops it needs. Put bones on the body's centre line. Choose the rest pose (straight for things that bend both ways, half-bent for elbows and knees, A-pose arms).
    **For anything that grows out of a deforming surface** (fins, wings, ears, leaves, straps), decide how it attaches: skinned with the body's bones, bound to the surface, or rigid on the bone that owns its root. Its root line must sit 3-5 mm inside the body and the pivot must be on that line (`"pivot": "weld"` finds it). A rigid fin on a bone in a blend zone will slide even though it stays attached.
 
-5. **Write the spec** to `<name>.json`. Start from the closest file in `examples/` (`treasure_chest.json`: rigid parts, hinge, hollow container, mirrored parts; `fish.json`: lofted body traced from a reference, skinned spine, welded/skinned/bound fins, travelling-wave swim, one-shot death).
+5. **Write the spec** to `<name>.json`. Start from the closest file in `examples/` (`treasure_chest.json`: rigid parts, hinge, hollow container, mirrored parts; `fish.json`: lofted body traced from a reference, skinned spine, welded/skinned/bound fins, travelling-wave swim, one-shot death; `cabin.json`: a walkable building with a Roblox scale, a hinged door and a `playspace` block).
 
 6. **Build:** `node <skill>/scripts/rmodel.cjs build <name>.json --out out` (several specs become tabs in one preview; `--fast` skips the PNG sheets).
 
@@ -43,13 +44,14 @@ The loop: **find references → measure → plan parts → write the spec → bu
    - **dimensions** against `reference.dimensions`, and **silhouette** checks against a reference image (`compare-<Name>-<view>.png` shows green = both, red = reference only, blue = model only).
    - **per animation**: something moves, loops are seamless, nothing goes below the floor, no parts pass through each other (pairs that do not overlap at rest), **attached parts stay welded** (every vertex where a part meets its parent, or the skinned body its bone drives, at rest must stay in contact in every frame: catches fins, lids, wings and limbs that swing off their joint), no popping-fast rotations.
    - **deform** per animation (skinned parts): no triangle folds inside out (FAIL), no face pinches below 30% or stretches beyond ×2.5 of its area, and the volume changes by no more than 12% (collapsing joints, candy-wrapper twists). Each result names the joint and the time.
+   - **playspace** (specs with a `playspace` block: rooms, houses, anything players walk into), measured in studs at the Roblox scale with the avatar standing on what Roblox will collide with: the start has room; every spot is reachable on foot (FAIL if not at all, WARN if only with a jump) and the narrowest gap on the way (WARN under 3.5 studs); headroom under doorways and beams (WARN under 7.5) and ceilings for the camera (WARN when over a quarter of the covered floor is under 12); **traps**: places players can drop or jump into but never leave (FAIL); unguarded drops over 5 studs (WARN). Each result gives the place in model metres. See `references/playspace.md` for the fixes.
    - your own **checks** (angle at a time, poses that must match, gaps, ratios, parts kept apart through a clip).
 
 8. **Look at the sheets** with the Read tool: `sheet-<Name>.png` (three perspective views plus front / side / top orthographic blueprints with a metric grid and the overall size) and `anim-<Name>-<Clip>.png` (eight moments plus top views). Compare them with the reference images, not just with the plan: proportions, silhouette, where each part sits, how the motion reads. On creatures, check that every fin/wing/ear shows no straight cut where it meets the body and that the top-view row bends together with the body (a fin that stays straight while the body curves is out of sync even if the numeric test is close). For a close look at a detail use `rmodel.cjs render <spec> --clip Open --time 0.4 --yaw 120 --highlight Lid`.
 
 9. **Fix and rebuild** until the tests pass and the renders match the references. Two to four rounds is normal. Tighten your own checks as you learn (for example add an `apart` check for a lid you saw clipping).
 
-10. **Deliver**: `out/<Name>.glb` (the main asset), `out/preview.html` (interactive three.js viewer: clips, orthographic views, wireframe, dimensions, test results, drag-in reference overlay; three.js is bundled inline so the single file works offline; publish it as an artifact or send the file), `<Name>.roblox.glb` + `<Name>.<Clip>.roblox.glb` (what to import into Roblox: vertex colours, static parts merged, one clip per file), `<Name>.roblox.lua` (Studio command-bar script that sets each MeshPart's collision and sets up level of detail), `<Name>.lod.glb` (the LOD version for other engines; skinned models also get `<Name>.lod.roblox.glb`), `<Name>.blender.py`, `<Name>.three.js`, `<Name>.obj/.mtl`, the review sheets, and the reference list with licences. Tell the user, briefly: size and triangle count, the clips and their lengths, which references it was measured from, anything you approximated, and how to use it (read `references/integration.md` for Blender, three.js / React Three Fiber, Roblox, Godot and Unity steps).
+10. **Deliver**: `out/<Name>.glb` (the main asset), `out/preview.html` (interactive three.js viewer: clips, orthographic views, wireframe, dimensions, test results, drag-in reference overlay; three.js is bundled inline so the single file works offline; publish it as an artifact or send the file), `<Name>.roblox.glb` + `<Name>.<Clip>.roblox.glb` (what to import into Roblox: in studs, so the importer's default Scale Unit "Stud" gives the right size; vertex colours, static parts merged, one clip per file), `<Name>.roblox.lua` (Studio command-bar script that scales the model back if it came in at another size, sets each MeshPart's collision and sets up level of detail), `<Name>.lod.glb` (the LOD version for other engines; skinned models also get `<Name>.lod.roblox.glb`), `<Name>.blender.py`, `<Name>.three.js`, `<Name>.obj/.mtl`, the review sheets, and the reference list with licences. Tell the user, briefly: size (metres, and studs in Roblox) and triangle count, for a walkable model what the playspace test found, the clips and their lengths, which references it was measured from, anything you approximated, and how to use it (read `references/integration.md` for Blender, three.js / React Three Fiber, Roblox, Godot and Unity steps).
 
 ## Model spec
 
@@ -62,6 +64,8 @@ The loop: **find references → measure → plan parts → write the spec → bu
   "budget": 1500,                          // triangle budget
   "lod": { "distance": 160, "cull": 600 },   // optional: LOD on/off (true / false) and LodController distances in studs
   "targets": ["roblox", "blender", "threejs"], // default; Roblox's mesh rules apply while "roblox" is listed (also godot, unity)
+  "roblox": { "studsPerMetre": 3.57 },     // optional: scale of the Roblox files (default 3.57 = Roblox's 1 stud = 0.28 m; 4-5 for walkable places)
+  "playspace": { "start": [0, 0, 1], "spots": [ ... ], "poses": [ ... ] },   // optional: for places players walk into (below)
   "reference": {
     "sources": [ { "url": "https://...", "note": "side view, lid open ~105°", "file": "refs/ref03.jpg" } ],
     "dimensions": { "width": 0.92, "height": 0.63, "depth": 0.56, "tolerance": 0.05 },
@@ -73,6 +77,8 @@ The loop: **find references → measure → plan parts → write the spec → bu
 }
 ```
 (Comments are explanation only; the file must be plain JSON.)
+
+**Roblox scale.** The `.roblox.glb` files are written in studs (`roblox.studsPerMetre`, default 3.57, Roblox's own 1 stud = 0.28 m), because Roblox's 3D Importer reads files with Scale Unit = Stud by default: a file in metres would arrive 3.57 times too small. Every other export stays in metres.
 
 **Coordinates.** Metres, +Y up, the model's **front faces +Z**, its right is +X, and the floor is y = 0. Every position in the spec (`at`, `pivot`, outlines, stations, points) is in this one **model space at the rest pose**, whatever the hierarchy. That keeps measurements from the reference directly usable. These are glTF's conventions, so three.js and Blender's importer read them unchanged.
 
@@ -135,6 +141,23 @@ A track moves one part with `rot` (degrees, relative to rest), `pos` (metres off
 
 Every check takes an optional `label`. Add checks for every promise the user's request makes ("opens", "swims", "dies belly-up").
 
+### Walkable models (playspace)
+
+For anything players walk into, add a `playspace` block and a Roblox scale. The build then stands an R15-sized avatar on everything Roblox will collide with, at the Roblox scale, and reports what a player would hit. Positions are model metres; sizes are studs. Read `references/playspace.md` for the numbers, choosing the scale, and what to do about each result.
+
+```json
+"roblox": { "studsPerMetre": 4.5 },
+"playspace": {
+  "start": [0.3, 0.3, 1.4],                          // on the floor where players arrive (required)
+  "poses": [{ "clip": "DoorOpen", "at": "end" }],    // moving parts in these poses (doors open); rest pose otherwise
+  "spots": [{ "name": "Bedside", "at": [-1.3, 0.3, -1.3] }, { "name": "Yard", "at": [0, 0, 5.6] }],
+  "avatar": { "width": 2, "height": 5, "step": 2, "jump": 7.2 },                  // optional, studs (R15 defaults)
+  "minimum": { "passage": 3.5, "headroom": 7.5, "ceiling": 12, "drop": 5 }     // optional, studs
+}
+```
+
+Give one spot per room and per exit, plus anything the game needs players to reach. Decoration above head height (shelves, lamps, beams) should be `"collision": "none"`, or it counts as a beam the avatar hits.
+
 ## Limits to be honest about
 
 - Models are low-poly with one colour per part (flat-shaded by default, smoothed by angle per part with `shading`): no textures, UV maps, normal maps or subdivision. Detail comes from shape and palette.
@@ -142,17 +165,19 @@ Every check takes an optional `label`. Add checks for every promise the user's r
 - The silhouette score compares outlines only, and a photo in perspective never matches an orthographic view exactly. Use it with views that are close to straight-on, and treat 75-85% as a good match for a clean silhouette and 70%+ for a detailed illustration with soft fins or fur. Always look at the overlay.
 - The review sheets come from a simple software renderer (no shadows except a soft floor contact, no reflections). `preview.html` shows the real three.js look.
 - Reference search depends on the network and on Wikimedia / Openverse rate limits (HTTP 429: wait a minute, use the other source, or use the browser to find images). Respect licences: references are for measuring, not for copying textures or reproducing a specific copyrighted design.
+- The playspace test models the avatar as a 2-stud-wide body that climbs 2 studs, jumps 7.2 and drops any height, on a 0.25-stud grid. Ladders, TrussParts, seats, swimming and moving platforms are not simulated. A model with a `playspace` block collides precisely in Roblox (PreciseConvexDecomposition on merged and Default parts), because Default fidelity fills doorways in a concave building mesh.
 - The Blender script was generated for Blender's built-in glTF importer (3.6+). It runs without Blender-specific setup, but the NLA arrangement differs between Blender versions and is best effort.
 
 ## Files
 
 - `scripts/rmodel.cjs`: CLI (`build`, `test`, `trace`, `compare`, `render`); also a module (`require(...).MD.compile(spec)` etc.).
 - `scripts/refsearch.cjs`: reference image search, download, sources file and contact sheet.
-- `scripts/lib/`: `geometry` (shape generators, hull, triangulation, smoothing normals), `model` (parts, hierarchy, skins, animation sampling), `checks` (the test suite), `render` (rasteriser, sheets, PNG), `reference` (PNG decode, silhouette extraction, profile, comparison), `export` (glb, obj, Blender, three.js, the Roblox files), `roblox` (static-part merging, collision classes, the Studio setup script), `lod` (the level-of-detail version: reduction rules, detail parts), `preview` (three.js viewer).
-- `scripts/selftest.cjs`: checks the maths, every generator, hierarchy and skinning (edge loop insertion, joint weights, `taperAt`), that the test suite catches floating parts / z-fighting / clipping lids / broken loops / missing edge loops / folding and collapsing joints / bones outside the body / shallow fin roots / rigid fins drifting / fins hinged off their root, the exports and the tracer. Run it after editing the engine.
-- `examples/`: `treasure_chest.json`, `fish.json` (+ `refs/sea-perch-side.png`, CC BY 2.0, source in the spec).
+- `scripts/lib/`: `geometry` (shape generators, hull, triangulation, smoothing normals), `model` (parts, hierarchy, skins, animation sampling), `checks` (the test suite), `render` (rasteriser, sheets, PNG), `reference` (PNG decode, silhouette extraction, profile, comparison), `export` (glb, obj, Blender, three.js, the Roblox files), `roblox` (static-part merging, collision classes, the stud scale, the Studio setup script), `playspace` (the walkable-space test: Roblox colliders per grid cell, avatar clearance, reachability, traps, drops), `lod` (the level-of-detail version: reduction rules, detail parts), `preview` (three.js viewer).
+- `scripts/selftest.cjs`: checks the maths, every generator, hierarchy and skinning (edge loop insertion, joint weights, `taperAt`), that the test suite catches floating parts / z-fighting / clipping lids / broken loops / missing edge loops / folding and collapsing joints / bones outside the body / shallow fin roots / rigid fins drifting / fins hinged off their root, the exports (Roblox files in studs, the setup script's size check, each Blender clip only on the objects it moves), the playspace test (the cabin passes; a closed door, a narrow gap, a jump-only ledge, a pit trap and an unguarded drop are caught) and the tracer. Run it after editing the engine.
+- `examples/`: `treasure_chest.json`, `fish.json` (+ `refs/sea-perch-side.png`, CC BY 2.0, source in the spec), `cabin.json` (walkable building: Roblox scale, hinged door, playspace block).
 - `references/reference-research.md`: finding, choosing and measuring references; common real-world sizes.
 - `references/modeling-cookbook.md`: low-poly style rules, shape recipes by object type, pitfalls.
 - `references/animation-cookbook.md`: pivots, hinges, waves, skinned chains, clip recipes (open/close, swim/idle/die, fly, walk, spin, bob, hit).
 - `references/topology-and-rigging.md`: rig-ready shapes. Rigid parts vs skinning, edge loops per bend angle, weight modes and blend widths, bone placement, rest pose, joint designs for rigid segments, hair / capes / ropes, what the `rig` and `deform` results mean, and taking rigs to Roblox.
 - `references/integration.md`: using the exports in Blender, three.js / React Three Fiber, Roblox, Godot and Unity.
+- `references/playspace.md`: walkable models in Roblox: choosing studs per metre, the avatar / door / ceiling / stair numbers, the playspace block, each result and its fix, rules for safe spaces.

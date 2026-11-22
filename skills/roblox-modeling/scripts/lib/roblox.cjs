@@ -6,10 +6,18 @@
 const G = require('./geometry.cjs');
 const M = require('./math.cjs');
 const LOD = require('./lod.cjs');
+const MD = require('./model.cjs');
 
 // Roblox CollisionFidelity for each class ("none" is decoration: Box, with CanCollide and CanTouch off).
 const FIDELITY = { none: 'Box', box: 'Box', hull: 'Hull', default: 'Default', precise: 'PreciseConvexDecomposition' };
 const DECOR_SIZE = 0.15;   // m: parts smaller than this in every direction are decoration (coins, eyes, rivets, gems)
+
+// Roblox files are written in studs. The 3D Importer's Scale Unit defaults to Stud (one file unit = one stud), so a
+// file in metres would import 3.57x too small. spec.roblox.studsPerMetre sets the scale; the default is Roblox's own
+// 1 stud = 0.28 m (props and creatures at real size next to a 5 stud avatar). Places players walk around in need
+// more room than real life gives them: 4 to 5 (references/playspace.md).
+const STUDS_PER_METRE = 1 / 0.28;
+function studsPerMetre(model) { const r = model.spec.roblox; return r && r.studsPerMetre ? +r.studsPerMetre : STUDS_PER_METRE; }
 
 // The collision class of a part: its "collision" field, or for "auto":
 //   skinned / bound parts -> box (Roblox collides with the bind pose, it does not deform the collision shape)
@@ -59,7 +67,7 @@ function mergeGroups(model) {
   const out = [...groups.values()].filter(g => g.members.length > 1), perFrame = new Map();
   for (const g of out) {
     const cls = g.members.map(collisionClass);
-    g.collision = cls.every(c => c === 'none') ? 'none' : cls.includes('precise') ? 'precise' : 'default';
+    g.collision = cls.every(c => c === 'none') ? 'none' : cls.includes('precise') || walkable(model) ? 'precise' : 'default';
     g.material = g.members[0].material;
     if (g.onFrame) g.name = g.frame.name;
     else { const k = (perFrame.get(g.frame) || 0) + 1; perFrame.set(g.frame, k); g.name = `${g.frame.name}Static${k}`; }
@@ -67,10 +75,14 @@ function mergeGroups(model) {
   return out;
 }
 
+// A walkable model (playspace.md) collides precisely: Default fidelity approximates a concave mesh with a few convex
+// hulls, which on a building fills doorways and rooms that players must walk through.
+const walkable = model => !!model.spec.playspace;
+
 // What Roblox ends up with after import: one MeshPart per mesh, i.e. per unmerged part plus per merge group.
 function meshPlan(model) {
   const groups = mergeGroups(model), merged = new Set(groups.flatMap(g => g.members));
-  const parts = model.nodes.filter(n => n.mesh && !merged.has(n)).map(n => ({ name: n.skin ? n.name + 'Mesh' : n.name, collision: collisionClass(n), members: [n] }));
+  const parts = model.nodes.filter(n => n.mesh && !merged.has(n)).map(n => { const c = collisionClass(n); return { name: n.skin ? n.name + 'Mesh' : n.name, collision: c === 'default' && walkable(model) ? 'precise' : c, members: [n] }; });
   return parts.concat(groups.map(g => ({ name: g.name, collision: g.collision, members: g.members })));
 }
 
@@ -89,6 +101,8 @@ function renderVertices(n) {
 function setupScript(model) {
   const plan = meshPlan(model), rows = plan.map(p => `  [${JSON.stringify(p.name)}] = { ${JSON.stringify(FIDELITY[p.collision])}, ${p.collision !== 'none'} }, -- ${p.collision}${p.members.length > 1 ? ': ' + p.members.map(m => m.name).join(', ') : ''}`);
   const ls = LOD.settings(model), skinned = model.nodes.some(n => n.mesh && n.skin), simple = ls.on && !skinned && !LOD.build(model).model.errors.length;
+  const S = studsPerMetre(model), all = []; MD.posedMeshes(model, null, 0).forEach(m => all.push(...m.pos));
+  const size = G.bounds(all).size.map(v => +(v * S).toFixed(3)), sp = +S.toFixed(4);
   const attrs = [ls.distance != null ? `  holder:SetAttribute("LodDistance", ${ls.distance})` : null, ls.cull != null ? `  holder:SetAttribute("CullDistance", ${ls.cull})` : null].filter(Boolean);
   const lodBlock = !simple ? (ls.on && skinned ? `-- Level of detail: this model is skinned, so its cheaper version is a separate rig, ${model.name}.lod.roblox.glb
 -- (same bone names: the clip files animate it). Swap to it at distance, e.g. for crowds and schools.
@@ -115,15 +129,27 @@ else
 end
 `;
   return `-- ${model.title} - Roblox setup (roblox-modeling skill)
--- Import ${model.name}.roblox.glb with the 3D Importer, select the imported model in the Explorer, then paste this
--- into the command bar (View > Command Bar) and press Enter. It sets CollisionFidelity on every MeshPart and turns
--- collision off on decoration${simple ? ', then sets up level of detail' : ''}. ${plan.length} MeshParts (static parts are merged per material and collision class).
+-- Import ${model.name}.roblox.glb with the 3D Importer (Scale Unit: Stud, the default: the file is already in studs,
+-- ${sp} per metre, ${size.join(' x ')} studs), select the imported model in the Explorer, then paste this into the
+-- command bar (View > Command Bar) and press Enter. It checks the size, sets CollisionFidelity on every MeshPart and
+-- turns collision off on decoration${simple ? ', then sets up level of detail' : ''}. ${plan.length} MeshParts (static parts are merged per material and collision class).
 ${lodBlock && !simple ? lodBlock : ''}
 local SETTINGS = { -- name = { CollisionFidelity, CanCollide }
 ${rows.join('\n')}
 }
 local root = game:GetService("Selection"):Get()[1]
 assert(root, "select the imported ${model.name} model in the Explorer first")
+-- Size: if the model arrived at another size (another Scale Unit, or scaled by hand), scale it back so doors,
+-- steps and ceilings match the avatar. Set SIZE to nil to keep whatever size it has.
+local SIZE: Vector3? = Vector3.new(${size.join(', ')})
+if SIZE and root:IsA("Model") then
+  local _, got = root:GetBoundingBox()
+  local k = math.max(SIZE.X, SIZE.Y, SIZE.Z) / math.max(got.X, got.Y, got.Z)
+  if math.abs(k - 1) > 0.02 then
+    root:ScaleTo(root:GetScale() * k)
+    print(("[rmodel] scaled ${model.name} by %.3f to its intended size (${sp} studs per metre)"):format(k))
+  end
+end
 local done = 0
 for _, d in ipairs(root:GetDescendants()) do
   local s = d:IsA("MeshPart") and SETTINGS[d.Name]
@@ -138,4 +164,4 @@ print(("[rmodel] collision set on %d of ${plan.length} MeshParts"):format(done))
 ${simple ? lodBlock : ''}`;
 }
 
-module.exports = { FIDELITY, DECOR_SIZE, collisionClass, mergeGroups, meshPlan, renderVertices, setupScript };
+module.exports = { FIDELITY, DECOR_SIZE, STUDS_PER_METRE, studsPerMetre, collisionClass, mergeGroups, meshPlan, renderVertices, setupScript };

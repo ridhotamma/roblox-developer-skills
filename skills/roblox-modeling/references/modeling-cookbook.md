@@ -50,7 +50,7 @@ Fins, wings, ears, leaves, straps and limbs are plates or stubs growing out of a
 
 **Sword / axe / tool**: blade `extrude` in `xy` (front outline) with small depth and `taper` < 1 for an edge; guard `box` with `chamfer`; grip `cylinder` 6 sides; pommel `sphere detail 0`. Put the pivot at the grip for swing animations. `"ground": false` if it is held, or lay it flat.
 
-**House / building prop**: hollow walls are unnecessary unless it opens; `box` walls with `chamfer`, roof as two `box` slabs rotated or an `extrude` of the gable outline in `zy`, door and windows as slightly raised boxes (2-5 mm proud of the wall, never flush: flush = z-fighting).
+**House / building prop**: hollow walls are unnecessary unless it opens; `box` walls with `chamfer`, roof as two `box` slabs rotated or an `extrude` of the gable outline in `zy`, door and windows as slightly raised boxes (2-5 mm proud of the wall, never flush: flush = z-fighting). **If players walk into it**, it is a place, not a prop: walls are real boxes with openings (build them as piers, lintels and sills around each opening), doorways 1.1-1.3 m, ceilings 2.7 m+, a Roblox scale of 4-5 studs per metre, and a `playspace` block. See `playspace.md` and `examples/cabin.json`.
 
 **Lantern / lamp**: `lathe` frame, glass as a `cylinder` with `material.emissive`, handle `torus` with `arc: 180`.
 

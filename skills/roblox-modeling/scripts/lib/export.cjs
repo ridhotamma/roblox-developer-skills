@@ -13,10 +13,13 @@ const { sub, cross, unit, mul } = M;
 //   so parts merged into one mesh keep their colours (Roblox allows one material per mesh).
 // opts.clips: names of the clips to include (default: all).
 // opts.merge: merge parts that never move relative to each other into one mesh per frame / material class (Roblox).
+// opts.scale: multiply every length (vertices, node and animation translations, bind matrices): Roblox files are in
+//   studs (roblox.cjs studsPerMetre).
 // opts.simple: a LOD model whose whole rest pose becomes one extra mesh, "Simple", under the root: the cheap stand-in
 //   the roblox-performance LodController shows at distance (everything else goes in "Detail", see roblox.cjs).
 function toGltf(model, opts) {
   opts = opts || {};
+  const k = opts.scale || 1;
   const bin = [], bufferViews = [], accessors = [];
   let offset = 0;
   const pushView = (typed, target) => {
@@ -45,7 +48,7 @@ function toGltf(model, opts) {
   const kept = model.nodes.filter(n => !removed.has(n)), newIndex = new Map(kept.map((n, i) => [n, i]));
   const keptParent = n => { let p = n.parent; while (p && removed.has(p)) p = p.parent; return p; };
   const extra = n => { let t = [0, 0, 0]; for (let p = n.parent; p && removed.has(p); p = p.parent) t = M.add(t, MD.localTRS(p, null).t); return t; };
-  const nodes = kept.map(n => { const t = M.add(MD.localTRS(n, null).t, extra(n)), o = { name: n.name }; if (M.len(t) > 0) o.translation = t; return o; });
+  const nodes = kept.map(n => { const t = mul(M.add(MD.localTRS(n, null).t, extra(n)), k), o = { name: n.name }; if (M.len(t) > 0) o.translation = t; return o; });
   kept.forEach((n, i) => { const kids = kept.filter(k => keptParent(k) === n).map(k => newIndex.get(k)); if (kids.length) nodes[i].children = kids; });
   const meshes = [], skins = [], extraRoots = [];
   // one indexed primitive from several parts: corners that share position, normal, colour and weights share a
@@ -55,7 +58,7 @@ function toGltf(model, opts) {
     for (const n of parts) {
       const nrm = G.cornerNormals(n.mesh, n.smoothAngle || 0), col = n.color.map(M.srgbToLinear);
       n.mesh.tris.forEach((t, ti) => t.forEach((k, c) => {
-        const p = sub(n.mesh.pos[k], origin), nn = nrm[ti][c], jw = jointsOf ? jointsOf(n, k) : null;
+        const p = mul(sub(n.mesh.pos[k], origin), opts.scale || 1), nn = nrm[ti][c], jw = jointsOf ? jointsOf(n, k) : null;
         const key = [...p, ...nn].map(v => Math.round(v * 1e6)).join(',') + (opts.vertexColors ? '|' + col.join(',') : '') + (jw ? '|' + jw.j.join(',') + '|' + jw.w.map(v => v.toFixed(5)).join(',') : '');
         let vi = seen.get(key);
         if (vi == null) { vi = P.length / 3; seen.set(key, vi); P.push(...p); N.push(...nn); if (opts.vertexColors) C.push(...col); if (jw) { J.push(...jw.j); Wt.push(...jw.w); } }
@@ -77,7 +80,7 @@ function toGltf(model, opts) {
       const jointsOf = (part, k) => { const w = part.weights[k], idx = w.map((v, j) => [v, j]).sort((a, b) => b[0] - a[0]).slice(0, 4); while (idx.length < 4) idx.push([0, -1]); const s = idx.reduce((q, x) => q + x[0], 0) || 1; return { j: idx.map(x => (x[0] > 0 ? x[1] + off : 0)), w: idx.map(x => x[0] / s) }; };
       meshes.push({ name: n.name, primitives: [Object.assign(prim([n], [0, 0, 0], jointsOf), { material: material(n) })] });   // skinned meshes live in model space
       // glTF skinned meshes ignore their node transform, so the mesh goes on its own node at the scene root
-      const joints = (root ? [root] : []).concat(n.skinBones), ibm = []; joints.forEach(b => ibm.push(...M.mat4Translate(mul(b.pivot, -1))));
+      const joints = (root ? [root] : []).concat(n.skinBones), ibm = []; joints.forEach(b => ibm.push(...M.mat4Translate(mul(b.pivot, -k))));
       skins.push({ name: n.name + 'Skin', joints: joints.map(b => newIndex.get(b)), inverseBindMatrices: accessor(ibm, 'MAT4', 5126), skeleton: newIndex.get(joints[0]) });
       extraRoots.push({ name: n.name + 'Mesh', mesh: meshes.length - 1, skin: skins.length - 1 });
       return;
@@ -104,9 +107,9 @@ function toGltf(model, opts) {
       if (!newIndex.has(nd)) continue;                                   // a merged (never animated) part
       const d = bake.data.get(nd), ex = extra(nd);
       for (const [pathName, arr0, type] of [['translation', d.t, 'VEC3'], ['rotation', d.q, 'VEC4'], ['scale', d.s, 'VEC3']]) {
-        const arr = pathName === 'translation' ? arr0.map(v => M.add(v, ex)) : arr0;
+        const arr = pathName === 'translation' ? arr0.map(v => mul(M.add(v, ex), k)) : arr0;
         if (pathName === 'scale' && arr.every(s => Math.abs(s[0] - 1) + Math.abs(s[1] - 1) + Math.abs(s[2] - 1) < 1e-6)) continue;
-        if (pathName === 'translation' && arr.every(v => M.dist(v, arr[0]) < 1e-7) && M.dist(arr[0], M.add(MD.localTRS(nd, null).t, ex)) < 1e-7) continue;
+        if (pathName === 'translation' && arr.every(v => M.dist(v, arr[0]) < 1e-7) && M.dist(arr[0], mul(M.add(MD.localTRS(nd, null).t, ex), k)) < 1e-7) continue;
         samplers.push({ input, output: accessor(arr.flat(), type, 5126), interpolation: 'LINEAR' });
         channels.push({ sampler: samplers.length - 1, target: { node: newIndex.get(nd), path: pathName } });
       }
@@ -114,7 +117,7 @@ function toGltf(model, opts) {
     return { name: clip.name, channels, samplers, extras: { loop: clip.loop, duration: clip.duration, markers: clip.markers } };
   }).filter(a => a.channels.length);
   const gltf = {
-    asset: { version: '2.0', generator: 'roblox-modeling skill (rmodel.cjs)', extras: { title: model.title, units: 'metres, +Y up, front faces +Z' } },
+    asset: { version: '2.0', generator: 'roblox-modeling skill (rmodel.cjs)', extras: { title: model.title, units: k === 1 ? 'metres, +Y up, front faces +Z' : `studs (${+k.toFixed(4)} per metre), +Y up, front faces +Z` } },
     scene: 0, scenes: [{ name: model.name, nodes: [0, ...extraRoots.map((_, k) => extraStart + k)] }],
     nodes, meshes, materials, accessors, bufferViews, buffers: [{ byteLength: offset }],
   };
@@ -177,11 +180,12 @@ function validateGlb(buf) {
 // With a LOD version (lod.cjs): a model without skins gets the Simple stand-in inside its model file (one mesh the
 // LodController shows at distance); a skinned model gets <Name>.lod.roblox.glb, the reduced rig with the same bone
 // names, so the clip files animate it too.
+// All of them are in studs (roblox.cjs studsPerMetre), so the importer's default Scale Unit (Stud) gets the size right.
 function robloxGlbs(model) {
-  const skinned = model.nodes.some(n => n.mesh && n.skin), ls = LOD.settings(model), lod = ls.on ? LOD.build(model).model : null;
-  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [], merge: true, simple: lod && !lod.errors.length && !skinned ? lod : null }) }];
-  if (skinned) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name], merge: true }) });
-  if (skinned && lod && !lod.errors.length) out.push({ name: `${model.name}.lod.roblox.glb`, buf: toGlb(lod, { vertexColors: true, clips: [], merge: true }) });
+  const skinned = model.nodes.some(n => n.mesh && n.skin), ls = LOD.settings(model), lod = ls.on ? LOD.build(model).model : null, scale = RB.studsPerMetre(model);
+  const out = [{ name: `${model.name}.roblox.glb`, buf: toGlb(model, { vertexColors: true, clips: [], merge: true, scale, simple: lod && !lod.errors.length && !skinned ? lod : null }) }];
+  if (skinned) for (const c of model.clips) out.push({ name: `${model.name}.${c.name}.roblox.glb`, clip: c.name, buf: toGlb(model, { vertexColors: true, clips: [c.name], merge: true, scale }) });
+  if (skinned && lod && !lod.errors.length) out.push({ name: `${model.name}.lod.roblox.glb`, buf: toGlb(lod, { vertexColors: true, clips: [], merge: true, scale }) });
   return out;
 }
 // The LOD version for engines with their own LOD switch (three.js THREE.LOD, Godot, Unity LODGroup): same nodes,
@@ -231,8 +235,9 @@ function blenderScript(model) {
   return `# ${model.title} - Blender import script (roblox-modeling skill)
 # Run inside Blender:  Scripting tab > Open > this file > Run Script
 # or headless:          blender --background --python ${model.name}.blender.py -- [out.blend]
-# Imports ${model.name}.glb from the same folder, keeps its shading (the file's normals: faceted or smoothed per part), puts every animation
-# (${clips.join(', ') || 'none'}) on its own NLA strip so you can switch between them, and optionally saves a .blend.
+# Imports ${model.name}.glb from the same folder, keeps its shading (the file's normals: faceted or smoothed per part), puts each animation
+# (${clips.join(', ') || 'none'}) on its own muted NLA track on the objects it moves (the scene shows the rest pose: un-mute or solo
+# a track in the NLA editor to play it), and optionally saves a .blend.
 import bpy, os, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else os.getcwd()
@@ -247,20 +252,35 @@ def main():
     new = [o for o in bpy.data.objects if o not in before]   # the importer keeps the file's normals (hard and smooth edges)
     scene = bpy.context.scene
     scene.render.fps = ${model.fps}
-    # one NLA track per clip, muted except the first (best effort: the importer's action layout differs between Blender versions)
+    # one muted NLA track per clip, only on the objects that clip animates: Blender 4.4+ actions have a slot per target
+    # object; older importers make one action per object, named "<clip>_<object>". A clip put on an object it does not
+    # animate would still drive it (a roof turning with a door), so the target matters.
+    def slot_for(act, o):
+        slots = getattr(act, "slots", None)
+        if slots is None or not len(slots):
+            return None
+        return next((s for s in slots if s.name_display == o.name or s.identifier[2:] == o.name), False)
     try:
         for o in new:
             ad = o.animation_data
             if not ad:
                 continue
+            ad.action = None
+            for tr in list(ad.nla_tracks):
+                ad.nla_tracks.remove(tr)
             for act in list(bpy.data.actions):
                 clip = next((c for c in CLIPS if act.name == c or act.name.startswith(c + "_") or act.name.startswith(c + "|")), None)
                 if clip is None or ad.nla_tracks.get(clip):
                     continue
+                slot = slot_for(act, o)
+                if slot is False or (slot is None and act.name != clip and not act.name.endswith(("_" + o.name, "|" + o.name))):
+                    continue
                 tr = ad.nla_tracks.new()
                 tr.name = clip
-                tr.strips.new(clip, int(act.frame_range[0]), act)
-                tr.mute = clip != CLIPS[0]
+                strip = tr.strips.new(clip, int(act.frame_range[0]), act)
+                if slot:
+                    strip.action_slot = slot
+                tr.mute = True
     except Exception as e:
         print("[rmodel] NLA setup skipped: %s" % e)
     end = max([int(a.frame_range[1]) for a in bpy.data.actions] or [scene.frame_end])

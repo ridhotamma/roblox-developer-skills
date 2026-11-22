@@ -1,0 +1,69 @@
+{
+  "name": "Cabin",
+  "title": "Low-poly one-room cabin",
+  "description": "A walkable one-room log cabin on a raised deck with a porch step, a hinged front door that opens inward, a back window, a bed, a table with a bench and a wood stove. Exported for Roblox at 4.5 studs per metre so an R15 avatar has a 5.4 stud doorway and 14 stud ceilings; the playspace block checks that every spot can be walked to, nothing traps the player and the camera has room.",
+  "ground": true,
+  "budget": 1500,
+  "lod": false,
+  "targets": ["roblox", "blender", "threejs"],
+  "roblox": { "studsPerMetre": 4.5 },
+  "playspace": {
+    "start": [0.3, 0.3, 1.4],
+    "poses": [{ "clip": "DoorOpen", "at": "end" }],
+    "spots": [
+      { "name": "Table", "at": [0.55, 0.3, -1.2] },
+      { "name": "Bedside", "at": [-1.3, 0.3, -1.3] },
+      { "name": "Stove", "at": [1.75, 0.3, 1.6] },
+      { "name": "Porch", "at": [0, 0.3, 3.6] },
+      { "name": "Yard", "at": [0, 0, 5.6] }
+    ]
+  },
+  "reference": {
+    "sources": [],
+    "dimensions": { "width": 7.0, "height": 5.0, "tolerance": 0.05 },
+    "notes": "Typical small cabin: 6 x 5 m inside, 3.2 m walls, 0.3 m deck. The doorway is 1.2 m wide (5.4 studs) instead of a real 0.9 m so the avatar and camera fit (references/playspace.md)."
+  },
+  "palette": {
+    "deck": "#7a5a3c", "log": "#8b5e3c", "logDark": "#6e4a2f", "roof": "#4a4f45", "door": "#5c3b24", "brass": "#c9a43a",
+    "glass": "#2c3a47", "wood": "#9a6b44", "linen": "#e8e2d4", "blanket": "#7a3b34", "iron": "#2f3133", "rug": "#8e3b2e", "stone": "#9a9a92"
+  },
+  "camera": { "yaw": 30, "pitch": 22 },
+  "parts": [
+    { "name": "Deck", "shape": "box", "size": [7.0, 0.3, 7.5], "at": [0, 0.15, 0.75], "color": "deck", "collision": "box" },
+    { "name": "Step", "shape": "box", "size": [2.0, 0.15, 0.4], "at": [0, 0.075, 4.7], "color": "stone", "collision": "box", "note": "0.15 m riser: 0.7 studs, then 0.7 studs onto the deck" },
+
+    { "name": "WallFrontL", "shape": "box", "size": [2.55, 3.2, 0.15], "at": [-1.875, 1.9, 2.575], "color": "log", "collision": "box", "mirror": "x" },
+    { "name": "WallFrontTop", "shape": "box", "size": [1.2, 0.9, 0.15], "at": [0, 3.05, 2.575], "color": "log", "collision": "box" },
+    { "name": "WallBackL", "shape": "box", "size": [2.55, 3.2, 0.15], "at": [-1.875, 1.9, -2.575], "color": "log", "collision": "box", "mirror": "x" },
+    { "name": "WallBackLow", "shape": "box", "size": [1.2, 1.0, 0.15], "at": [0, 0.8, -2.575], "color": "log", "collision": "box" },
+    { "name": "WallBackTop", "shape": "box", "size": [1.2, 1.2, 0.15], "at": [0, 2.9, -2.575], "color": "log", "collision": "box" },
+    { "name": "BackGlass", "shape": "box", "size": [1.2, 1.0, 0.05], "at": [0, 1.8, -2.575], "color": "glass", "collision": "box" },
+    { "name": "WallSideL", "shape": "box", "size": [0.15, 3.2, 5.0], "at": [-3.075, 1.9, 0], "color": "log", "collision": "box", "mirror": "x" },
+    { "name": "GableL", "shape": "extrude", "plane": "zy", "depth": 0.15, "at": [-3.075, 0, 0], "outline": [[2.65, 3.5], [0, 4.8], [-2.65, 3.5]], "color": "logDark", "collision": "default", "mirror": "x" },
+    { "name": "Roof", "shape": "extrude", "plane": "zy", "depth": 6.9, "outline": [[3.0, 3.308], [3.0, 3.528], [0, 5.0], [-3.0, 3.528], [-3.0, 3.308], [0, 4.78]], "color": "roof", "collision": "default", "note": "chevron slab, 0.3 m eave overhang, overlaps the wall tops by 2 cm" },
+
+    { "name": "Door", "shape": "box", "size": [1.18, 2.28, 0.05], "at": [0, 1.45, 2.53], "pivot": [-0.6, 1.45, 2.505], "color": "door", "collision": "box", "note": "hinge on the left jamb, inside face; +Y opens inward" },
+    { "name": "Knob", "parent": "Door", "shape": "sphere", "radius": 0.035, "detail": 0, "at": [0.48, 1.35, 2.585], "color": "brass", "material": { "metalness": 0.7, "roughness": 0.35 }, "collision": "none" },
+
+    { "name": "Table", "shape": "box", "size": [1.2, 0.75, 0.8], "at": [1.6, 0.675, -1.2], "color": "wood", "collision": "box" },
+    { "name": "Bench", "shape": "box", "size": [1.2, 0.45, 0.35], "at": [1.6, 0.525, -0.45], "color": "wood", "collision": "box" },
+    { "name": "Bed", "shape": "box", "size": [1.0, 0.5, 2.0], "at": [-2.4, 0.55, -1.3], "color": "wood", "collision": "box" },
+    { "name": "Mattress", "shape": "box", "size": [0.94, 0.16, 1.9], "at": [-2.4, 0.87, -1.3], "chamfer": 0.03, "color": "linen", "collision": "none" },
+    { "name": "Blanket", "shape": "box", "size": [0.98, 0.1, 1.2], "at": [-2.4, 0.95, -0.95], "chamfer": 0.02, "color": "blanket", "collision": "none" },
+    { "name": "Stove", "shape": "box", "size": [0.7, 0.9, 0.6], "at": [2.55, 0.75, 1.6], "color": "iron", "collision": "box" },
+    { "name": "StovePipe", "shape": "cylinder", "radius": 0.08, "height": 3.1, "segments": 8, "at": [2.65, 2.75, 1.6], "color": "iron", "collision": "none", "note": "runs up through the roof" },
+    { "name": "Shelf", "shape": "box", "size": [1.2, 0.05, 0.3], "at": [-1.5, 1.9, -2.35], "color": "wood", "collision": "none", "note": "decoration: a collidable shelf over the floor is a head-height beam (playspace headroom)" },
+    { "name": "Rug", "shape": "box", "size": [2.0, 0.04, 1.4], "at": [0, 0.31, 0.2], "color": "rug", "collision": "none" }
+  ],
+  "animations": [
+    { "name": "DoorOpen", "duration": 1.2, "description": "The door swings 90 degrees inward.",
+      "tracks": [{ "part": "Door", "rot": [[0, [0, 0, 0]], [1.2, [0, 90, 0], "out"]] }] },
+    { "name": "DoorClose", "duration": 0.5, "description": "The door swings shut.",
+      "tracks": [{ "part": "Door", "rot": [[0, [0, 90, 0]], [0.5, [0, 0, 0], "in"]] }] }
+  ],
+  "checks": [
+    { "type": "angle", "clip": "DoorOpen", "at": "end", "part": "Door", "axis": "y", "min": 88, "max": 92, "label": "door opens 90 degrees inward" },
+    { "type": "pose", "clip": "DoorClose", "at": "end", "equals": "rest", "label": "door closes fully" },
+    { "type": "apart", "a": "Door", "b": "Deck", "clip": "DoorOpen", "label": "door clears the floor" }
+  ]
+}

@@ -8,7 +8,7 @@ const { add, sub, mul, D2R } = M;
 
 const PART_KEYS = new Set(('name parent pivot shape at rot scale color material mirror mirrorName jitter seed skin bind hidden note openSurface shading collision lod ' +
   'size taper taperAt chamfer hollow open radius height segments axis squash phase detail ico stagger tube arc profile stations sides outline depth plane points vertices faces').split(' '));
-const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags targets shading lod'.split(' '));
+const TOP_KEYS = new Set('name title description units reference palette budget ground parts animations checks camera fps seed tags targets shading lod roblox playspace'.split(' '));
 const EASE = {
   linear: t => t, step: t => (t < 1 ? 0 : 1), in: t => t * t, out: t => 1 - (1 - t) * (1 - t), inOut: t => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t)),
   sine: t => 0.5 - 0.5 * Math.cos(Math.PI * t), backOut: t => { const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
@@ -191,6 +191,15 @@ function skinWeights(n, bones, E) {
 function compile(spec) {
   const E = [], W = [], palette = spec.palette || {};
   for (const k of Object.keys(spec)) if (!TOP_KEYS.has(k)) W.push(`unknown top-level field "${k}"`);
+  if (spec.roblox != null) {
+    if (typeof spec.roblox !== 'object' || Array.isArray(spec.roblox)) E.push('roblox must be an object: { "studsPerMetre": 4.5 }');
+    else {
+      for (const k of Object.keys(spec.roblox)) if (k !== 'studsPerMetre') W.push(`roblox: unknown field "${k}" (studsPerMetre)`);
+      const s = spec.roblox.studsPerMetre;
+      if (s != null && !(typeof s === 'number' && s > 0)) E.push('roblox.studsPerMetre must be a positive number (3.57 is Roblox\'s 1 stud = 0.28 m; 4 to 5 for walkable places)');
+    }
+  }
+  require('./playspace.cjs').validate(spec, E, W);   // lazy: playspace.cjs requires this module
   if (spec.lod != null && typeof spec.lod !== 'boolean' && (typeof spec.lod !== 'object' || Object.keys(spec.lod).some(k => !['distance', 'cull'].includes(k)))) E.push('lod must be true, false or { "distance": studs, "cull": studs }');
   for (const p of spec.parts || []) if (p.lod != null && !['drop', 'keep'].includes(p.lod)) E.push(`part "${p.name}": lod must be "drop" or "keep"`);
   const name = String(spec.name || 'Model').replace(/[^A-Za-z0-9_]/g, '') || 'Model';

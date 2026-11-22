@@ -1,0 +1,165 @@
+{
+ "name": "Cabin",
+ "title": "Low-poly one-room cabin",
+ "triangles": 400,
+ "parts": 26,
+ "size": [
+  7,
+  5,
+  7.9
+ ],
+ "results": [
+  {
+   "id": "budget",
+   "status": "pass",
+   "msg": "400 triangles (budget 1500)"
+  },
+  {
+   "id": "performance",
+   "status": "pass",
+   "msg": "400 triangles, 828 GPU vertices (2.07 per triangle: hard edges split vertices, smoothed parts share them), 26 parts → 4 Roblox MeshParts / draw calls (2 merged groups of static parts); small detail: Blanket 24, Knob 20, Mattress 16, StovePipe 12 triangles under ~10 px at 200 px tall (19% of the model)"
+  },
+  {
+   "id": "lod",
+   "status": "pass",
+   "msg": "no LOD version: \"lod\": false"
+  },
+  {
+   "id": "geometry",
+   "status": "pass",
+   "msg": "26 parts watertight, outward-facing, consistently wound, no degenerate or sliver triangles, no self-intersections"
+  },
+  {
+   "id": "z-fighting",
+   "status": "pass",
+   "msg": "no coplanar overlapping faces between parts"
+  },
+  {
+   "id": "assembly",
+   "status": "pass",
+   "msg": "every part touches the assembly"
+  },
+  {
+   "id": "ground",
+   "status": "pass",
+   "msg": "sits on the ground (y = 0)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "width (x): 7.000 m vs reference 7 m (+0.0%, tolerance 5%)"
+  },
+  {
+   "id": "dimensions",
+   "status": "pass",
+   "msg": "height (y): 5.000 m vs reference 5 m (+0.0%, tolerance 5%)"
+  },
+  {
+   "id": "reference",
+   "status": "warn",
+   "msg": "no reference.sources: record the images you modelled from"
+  },
+  {
+   "id": "anim:DoorOpen",
+   "status": "pass",
+   "msg": "moves (largest displacement 1.684 m)"
+  },
+  {
+   "id": "anim:DoorOpen",
+   "status": "pass",
+   "msg": "1 attached part pairs stay joined"
+  },
+  {
+   "id": "anim:DoorOpen",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "anim:DoorClose",
+   "status": "pass",
+   "msg": "moves (largest displacement 1.684 m)"
+  },
+  {
+   "id": "anim:DoorClose",
+   "status": "pass",
+   "msg": "1 attached part pairs stay joined"
+  },
+  {
+   "id": "anim:DoorClose",
+   "status": "pass",
+   "msg": "no parts pass through each other"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "4.50 studs per metre: 31.5 × 22.5 × 35.6 studs (W × H × D); avatar 2 × 5 studs; 1670 sq studs of floor walkable from the start"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "reach Table: narrowest gap on the way 7.7 studs"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "reach Bedside: narrowest gap on the way 7.7 studs"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "reach Stove: narrowest gap on the way 7.7 studs"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "reach Porch: narrowest gap on the way 5.2 studs"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "reach Yard: narrowest gap on the way 5.2 studs"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "headroom: lowest 10.3 studs, 99% of the covered floor has 12+ studs for the camera"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "traps: everywhere the avatar can drop or jump to, it can get back from"
+  },
+  {
+   "id": "playspace",
+   "status": "pass",
+   "msg": "drops: no unguarded edge over 5 studs on the walkable floor"
+  },
+  {
+   "id": "check:door opens 90 degrees inward",
+   "status": "pass",
+   "msg": "Door rot y = 90.0° in DoorOpen @ 1.20 s (want 88..92)"
+  },
+  {
+   "id": "check:door closes fully",
+   "status": "pass",
+   "msg": "DoorClose @ end vs rest pose: max difference 0.0000 m"
+  },
+  {
+   "id": "check:door clears the floor",
+   "status": "pass",
+   "msg": "Door / Deck in DoorOpen: deepest overlap 0.0000 m"
+  }
+ ],
+ "clips": [
+  {
+   "name": "DoorOpen",
+   "duration": 1.2,
+   "loop": false
+  },
+  {
+   "name": "DoorClose",
+   "duration": 0.5,
+   "loop": false
+  }
+ ]
+}

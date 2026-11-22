@@ -1,7 +1,8 @@
 -- Low-poly treasure chest - Roblox setup (roblox-modeling skill)
--- Import TreasureChest.roblox.glb with the 3D Importer, select the imported model in the Explorer, then paste this
--- into the command bar (View > Command Bar) and press Enter. It sets CollisionFidelity on every MeshPart and turns
--- collision off on decoration, then sets up level of detail. 7 MeshParts (static parts are merged per material and collision class).
+-- Import TreasureChest.roblox.glb with the 3D Importer (Scale Unit: Stud, the default: the file is already in studs,
+-- 3.5714 per metre, 3.253 x 2.257 x 2.025 studs), select the imported model in the Explorer, then paste this into the
+-- command bar (View > Command Bar) and press Enter. It checks the size, sets CollisionFidelity on every MeshPart and
+-- turns collision off on decoration, then sets up level of detail. 7 MeshParts (static parts are merged per material and collision class).
 
 local SETTINGS = { -- name = { CollisionFidelity, CanCollide }
   ["Lid"] = { "Hull", true }, -- hull
@@ -14,6 +15,17 @@ local SETTINGS = { -- name = { CollisionFidelity, CanCollide }
 }
 local root = game:GetService("Selection"):Get()[1]
 assert(root, "select the imported TreasureChest model in the Explorer first")
+-- Size: if the model arrived at another size (another Scale Unit, or scaled by hand), scale it back so doors,
+-- steps and ceilings match the avatar. Set SIZE to nil to keep whatever size it has.
+local SIZE: Vector3? = Vector3.new(3.253, 2.257, 2.025)
+if SIZE and root:IsA("Model") then
+  local _, got = root:GetBoundingBox()
+  local k = math.max(SIZE.X, SIZE.Y, SIZE.Z) / math.max(got.X, got.Y, got.Z)
+  if math.abs(k - 1) > 0.02 then
+    root:ScaleTo(root:GetScale() * k)
+    print(("[rmodel] scaled TreasureChest by %.3f to its intended size (3.5714 studs per metre)"):format(k))
+  end
+end
 local done = 0
 for _, d in ipairs(root:GetDescendants()) do
   local s = d:IsA("MeshPart") and SETTINGS[d.Name]

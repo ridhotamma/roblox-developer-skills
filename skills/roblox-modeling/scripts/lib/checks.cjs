@@ -7,6 +7,7 @@ const G = require('./geometry.cjs');
 const MD = require('./model.cjs');
 const RB = require('./roblox.cjs');
 const LOD = require('./lod.cjs');
+const PS = require('./playspace.cjs');
 const RN = require('./render.cjs');
 const { sub, dot, len } = M;
 const { pointTriDist, distToMesh, insideByRay } = G;
@@ -388,7 +389,9 @@ function run(model, opts) {
     }
     if (maxW > 1800) add(id, 'warn', `very fast rotation (${maxW.toFixed(0)}°/s near ${at.toFixed(2)} s): it will look like a pop`);
   }
-  // 5. custom checks from the spec
+  // 5. walkable models: how the space plays for a Roblox avatar (playspace.cjs)
+  if (model.spec.playspace) { try { PS.check(model, add); } catch (e) { add('playspace', 'fail', e.message); } }
+  // 6. custom checks from the spec
   for (const c of model.spec.checks || []) {
     try { custom(model, c, rest, B, tol, add, opts); } catch (e) { add('check', 'fail', `${c.type || '?'}: ${e.message}`); }
   }

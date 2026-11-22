@@ -67,7 +67,8 @@ function cmdBuild(files, o) {
     const report = { name: model.name, title: model.title, triangles: RN.triCount(model), parts: model.nodes.length - 1, size: B.size, results, clips: model.clips.map(c => ({ name: c.name, duration: c.duration, loop: c.loop })) };
     fs.writeFileSync(path.join(out, `report-${model.name}.json`), JSON.stringify(report, null, 1)); written.push(`report-${model.name}.json`);
     entries.push({ name: model.name, title: model.title, description: model.description, glb, clips: report.clips.map((c, i) => Object.assign(c, { description: model.clips[i].description })), checks: results, dims: B.size, tris: report.triangles, parts: report.parts, ground: model.ground, refs: (model.reference && model.reference.sources) || [] });
-    console.log(`size W ${B.size[0].toFixed(3)} × H ${B.size[1].toFixed(3)} × D ${B.size[2].toFixed(3)} m · ${report.triangles} tris · ${(glb.length / 1024).toFixed(1)} KB glb · ${Date.now() - t0} ms`);
+    const S = RB.studsPerMetre(model), roblox = model.targets.includes('roblox') ? ` (Roblox: ${B.size.map(v => (v * S).toFixed(1)).join(' × ')} studs at ${+S.toFixed(2)} studs/m)` : '';
+    console.log(`size W ${B.size[0].toFixed(3)} × H ${B.size[1].toFixed(3)} × D ${B.size[2].toFixed(3)} m${roblox} · ${report.triangles} tris · ${(glb.length / 1024).toFixed(1)} KB glb · ${Date.now() - t0} ms`);
     console.log('wrote ' + written.join(', '));
   }
   if (entries.length) { fs.writeFileSync(path.join(out, 'preview.html'), PV.previewHtml(entries)); console.log(`\nwrote ${path.join(out, 'preview.html')} (${entries.length} model${entries.length > 1 ? 's' : ''})`); }

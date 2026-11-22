@@ -271,6 +271,50 @@ const status = (res, id, st) => res.some(r => r.id === id && r.status === st);
   const lg = EX.lodGlb(fish), lj = lg && JSON.parse(lg.toString('utf8', 20, 20 + lg.readUInt32LE(12)));
   ok(lg && !EX.validateGlb(lg).length && lj.animations.length === 3, '<Name>.lod.glb is valid and keeps the clips (three.js LOD, Godot, Unity LODGroup)');
 }
+// 5b. Roblox scale and walkable spaces (playspace)
+{
+  const read = f => JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'examples', f), 'utf8'));
+  const glbBounds = buf => { const g = JSON.parse(buf.toString('utf8', 20, 20 + buf.readUInt32LE(12))); let hi = -Infinity; for (const m of g.meshes) for (const pr of m.primitives) hi = Math.max(hi, g.accessors[pr.attributes.POSITION].max[1]); return { g, hi }; };
+  // Roblox files are in studs: 3.57 per metre by default (the importer's Scale Unit defaults to Stud), or the spec's own
+  const box = (extra) => MD.compile(Object.assign({ name: 'B', lod: false, parts: [{ name: 'A', shape: 'box', size: [1, 2, 1], at: [0, 1, 0] }] }, extra));
+  const b1 = glbBounds(EX.robloxGlbs(box())[0].buf), b2 = glbBounds(EX.robloxGlbs(box({ roblox: { studsPerMetre: 4.5 } }))[0].buf);
+  ok(near(b1.hi, 1 / 0.28, 1e-3) && near(b2.hi, 4.5, 1e-3) && /studs/.test(b2.g.asset.extras.units), 'Roblox files are written in studs (3.57 per metre by default, roblox.studsPerMetre when set)');
+  ok(near(glbBounds(EX.toGlb(box({ roblox: { studsPerMetre: 4.5 } }))).hi, 1, 1e-6), 'the main .glb stays in metres');
+  const fish = MD.compile(read('fish.json')), fr = EX.robloxGlbs(fish).find(r => r.clip);
+  ok(fr && !EX.validateGlb(fr.buf).length && !EX.validateRoblox(fr.buf).length, 'a skinned clip file in studs is still a valid Roblox rig');
+  const lua = RB.setupScript(box({ roblox: { studsPerMetre: 4.5 } }));
+  ok(/local SIZE: Vector3\? = Vector3\.new\(4\.5, 9, 4\.5\)/.test(lua) && /root:ScaleTo\(/.test(lua), 'the Studio setup script knows the intended size in studs and scales the model back to it');
+  ok(MD.compile({ name: 'X', roblox: { studsPerMetre: -1 }, parts: [] }).errors.some(e => /studsPerMetre/.test(e)) && MD.compile({ name: 'X', playspace: { spots: [] }, parts: [] }).errors.some(e => /playspace\.start/.test(e)), 'bad roblox / playspace fields are spec errors');
+  // the cabin example: every spot reachable, no traps, no unguarded drops
+  const ps = (spec) => CK.run(MD.compile(spec)).filter(r => r.id === 'playspace');
+  const cabin = ps(read('cabin.json'));
+  ok(RB.meshPlan(MD.compile(read('cabin.json'))).every(p => p.collision !== 'default') && RB.meshPlan(MD.compile(read('treasure_chest.json'))).some(p => p.collision === 'default'), 'a walkable model collides precisely (Default hulls would fill its doorways); props keep Default');
+  ok(cabin.length >= 6 && cabin.every(r => r.status === 'pass'), 'the cabin example passes every playspace check (' + cabin.filter(r => r.status !== 'pass').map(r => r.msg).join('; ') + ')');
+  // a closed door shuts the porch out
+  const closed = read('cabin.json'); closed.playspace.poses = [];
+  ok(ps(closed).some(r => r.status === 'fail' && /reach Porch/.test(r.msg) && /closed door/.test(r.msg)), 'with the door closed the porch cannot be reached (and the message points at the door pose)');
+  // a narrow gap: a cupboard beside the doorway leaves 2.7 studs
+  const narrow = read('cabin.json'); narrow.parts.push({ name: 'Cupboard', shape: 'box', size: [0.6, 2.0, 1.2], at: [0.9, 1.3, 1.0], color: 'wood', collision: 'box' });
+  ok(ps(narrow).some(r => r.status === 'warn' && /narrowest gap/.test(r.msg)), 'a passage under 3.5 studs is reported with where it is');
+  // a spot only reachable with a jump (a 0.8 m = 3.6 stud ledge)
+  const ledge = read('cabin.json'); ledge.parts.push({ name: 'Ledge', shape: 'box', size: [1.5, 0.8, 1.5], at: [0, 0.4, 7.0], color: 'deck', collision: 'box' });
+  ledge.playspace.spots.push({ name: 'Ledge', at: [0, 0.8, 7.0] });
+  ok(ps(ledge).some(r => r.status === 'warn' && /reach Ledge: only with a jump/.test(r.msg)), 'a spot behind a 3.6 stud riser is reachable only with a jump');
+  // a trap: stairs up to a platform beside a walled pit 2.5 m (11 studs) deep; also an unguarded drop
+  const trap = { name: 'Trap', lod: false, roblox: { studsPerMetre: 4.5 }, playspace: { start: [0, 0, 3], spots: [{ name: 'Platform', at: [3, 2.5, 0] }] }, parts: [
+    { name: 'Platform', shape: 'box', size: [2, 2.5, 2], at: [3, 1.25, 0], collision: 'box' },
+    ...Array.from({ length: 9 }, (_, i) => ({ name: 'Stair' + i, shape: 'box', size: [2, 0.25 * (i + 1), 0.4], at: [3, 0.125 * (i + 1), 1.2 + 0.4 * (8 - i)], collision: 'box' })),
+    { name: 'PitN', shape: 'box', size: [2.4, 2.5, 0.2], at: [0, 1.25, 1.1], collision: 'box' }, { name: 'PitS', shape: 'box', size: [2.4, 2.5, 0.2], at: [0, 1.25, -1.1], collision: 'box' },
+    { name: 'PitW', shape: 'box', size: [0.2, 2.5, 2.0], at: [-1.1, 1.25, 0], collision: 'box' }, { name: 'PitE', shape: 'box', size: [0.2, 2.5, 2.0], at: [1.1, 1.25, 0], collision: 'box' },
+    { name: 'Bridge', shape: 'box', size: [0.9, 0.2, 0.6], at: [1.6, 2.4, 0], collision: 'box' } ] };
+  const tr = ps(trap);
+  ok(!MD.compile(trap).errors.length && tr.some(r => r.status === 'pass' && /reach Platform/.test(r.msg)), 'stairs with 1.1 stud risers lead up to the platform');
+  ok(tr.some(r => r.status === 'fail' && /^trap:/.test(r.msg) && /climb of 11\.\d studs|walled in/.test(r.msg)), 'a walled pit players can drop into but not climb out of is a trap (fail)');
+  ok(tr.some(r => r.status === 'warn' && /^drops:/.test(r.msg)), 'an 11 stud platform edge without a railing is an unguarded drop');
+  // Blender import script: each clip only on the objects it animates, all muted (rest pose)
+  const bs = EX.blenderScript(MD.compile(read('cabin.json')));
+  ok(/def slot_for/.test(bs) && /strip\.action_slot = slot/.test(bs) && /tr\.mute = True/.test(bs) && !/CLIPS\[0\]/.test(bs), 'the Blender script puts each clip only on the objects it animates and leaves the rest pose showing');
+}
 // 6. rendering and reference tracing round-trip
 {
   const m = MD.compile({ name: 'R', parts: [{ name: 'A', shape: 'box', size: [2, 1, 1], at: [0, 0.5, 0] }] });

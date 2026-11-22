@@ -1,0 +1,181 @@
+newmtl Deck_mat
+Kd 0.4784 0.3529 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Step_mat
+Kd 0.6039 0.6039 0.5725
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallFrontL_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallFrontR_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallFrontTop_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallBackL_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallBackR_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallBackLow_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallBackTop_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl BackGlass_mat
+Kd 0.1725 0.2275 0.2784
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallSideL_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl WallSideR_mat
+Kd 0.5451 0.3686 0.2353
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl GableL_mat
+Kd 0.4314 0.2902 0.1843
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl GableR_mat
+Kd 0.4314 0.2902 0.1843
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Roof_mat
+Kd 0.2902 0.3098 0.2706
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Door_mat
+Kd 0.3608 0.2314 0.1412
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Knob_mat
+Kd 0.7882 0.6431 0.2275
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Table_mat
+Kd 0.6039 0.4196 0.2667
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Bench_mat
+Kd 0.6039 0.4196 0.2667
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Bed_mat
+Kd 0.6039 0.4196 0.2667
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Mattress_mat
+Kd 0.9098 0.8863 0.8314
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Blanket_mat
+Kd 0.4784 0.2314 0.2039
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Stove_mat
+Kd 0.1843 0.1922 0.2000
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl StovePipe_mat
+Kd 0.1843 0.1922 0.2000
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Shelf_mat
+Kd 0.6039 0.4196 0.2667
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
+
+newmtl Rug_mat
+Kd 0.5569 0.2314 0.1804
+Ka 0 0 0
+Ks 0.05 0.05 0.05
+Ns 10
+illum 2
