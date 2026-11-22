@@ -90,7 +90,6 @@ From the Creator Hub audio assets page:
 - Upload only audio you have the rights to. Generated stems from this skill are yours.
 - The Creator Store's audio library includes music licensed by Roblox for use in experiences; it is linear (no stems), so use it for menus or radios, not adaptive layers.
 - Don't recreate or "sound-alike" copyrighted game scores (no GTA, Doom or Dead Space themes): the moods borrow techniques, not melodies.
-- AI-generated audio carries the licence of the model or service that made it: ACE-Step output is MIT, Stable Audio's community licence covers you under US$1M revenue, free ElevenLabs and Suno plans are non-commercial. `generate.cjs` writes a `<name>.source.json` per sound with the licence, prompt and seed; keep it with the project (`ai-audio-tools.md` §9).
 
 ## 8. Troubleshooting
 
