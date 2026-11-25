@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-20T07:48:55.075Z",
+ "generated": "2026-11-25T09:19:28.870Z",
  "spec": "../../../skills/roblox-2d-art/examples/burger.art.mjs",
  "assets": [
   {
@@ -17,9 +17,9 @@
    ],
    "checks": [
     "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
-    "PASS fill: subject spans 87.9% of the canvas",
-    "PASS value range: subject lightness spans 0.57 (OKLab L, 5-95%)",
-    "PASS small size: 20.5% of pixels are high-contrast edges at 48x48"
+    "PASS fill: subject spans 80.5% of the canvas",
+    "PASS value range: subject lightness spans 0.56 (OKLab L, 5-95%)",
+    "PASS small size: 21.8% of pixels are high-contrast edges at 48x48"
    ],
    "refs": [
     {

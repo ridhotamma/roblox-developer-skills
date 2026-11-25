@@ -1,5 +1,5 @@
 {
- "generated": "2026-11-20T07:48:52.578Z",
+ "generated": "2026-11-25T09:19:25.257Z",
  "spec": "../../../skills/roblox-2d-art/examples/items.art.mjs",
  "assets": [
   {
@@ -17,7 +17,7 @@
    ],
    "checks": [
     "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
-    "PASS fill: subject spans 85.2% of the canvas",
+    "PASS fill: subject spans 79.3% of the canvas",
     "PASS value range: subject lightness spans 0.51 (OKLab L, 5-95%)",
     "PASS small size: 13.9% of pixels are high-contrast edges at 48x48"
    ]
@@ -37,9 +37,9 @@
    ],
    "checks": [
     "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
-    "PASS fill: subject spans 87.7% of the canvas",
-    "PASS value range: subject lightness spans 0.57 (OKLab L, 5-95%)",
-    "PASS small size: 34.8% of pixels are high-contrast edges at 48x48"
+    "PASS fill: subject spans 81.4% of the canvas",
+    "PASS value range: subject lightness spans 0.58 (OKLab L, 5-95%)",
+    "WARN small size: 53.2% of pixels are high-contrast edges at 48x48: cluttered when small; merge small details, thicken lines, simplify"
    ]
   },
   {
@@ -57,9 +57,9 @@
    ],
    "checks": [
     "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
-    "PASS fill: subject spans 85.7% of the canvas",
+    "PASS fill: subject spans 79.5% of the canvas",
     "PASS value range: subject lightness spans 0.56 (OKLab L, 5-95%)",
-    "PASS small size: 30.0% of pixels are high-contrast edges at 48x48"
+    "PASS small size: 29.8% of pixels are high-contrast edges at 48x48"
    ]
   },
   {
@@ -77,9 +77,9 @@
    ],
    "checks": [
     "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
-    "PASS fill: subject spans 87.9% of the canvas",
+    "PASS fill: subject spans 79.7% of the canvas",
     "PASS value range: subject lightness spans 0.52 (OKLab L, 5-95%)",
-    "PASS small size: 12.0% of pixels are high-contrast edges at 48x48"
+    "PASS small size: 12.9% of pixels are high-contrast edges at 48x48"
    ]
   },
   {
@@ -97,9 +97,9 @@
    ],
    "checks": [
     "PASS background: transparent background, alpha bleed applied (no dark fringes when Roblox scales it)",
-    "PASS fill: subject spans 87.9% of the canvas",
+    "PASS fill: subject spans 81.6% of the canvas",
     "PASS value range: subject lightness spans 0.38 (OKLab L, 5-95%)",
-    "PASS small size: 8.0% of pixels are high-contrast edges at 48x48"
+    "PASS small size: 7.1% of pixels are high-contrast edges at 48x48"
    ]
   }
  ]

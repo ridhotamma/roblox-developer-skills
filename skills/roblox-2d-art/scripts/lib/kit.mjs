@@ -63,8 +63,113 @@ export function makeKit(ctx = {}) {
     return { body, tails: tailD(-1) + tailD(1) };
   };
 
+  // ---------- illustration: curves, brush strokes, limbs, poses, scatter (references/illustration.md) ----------
+  // Dense points along the same Catmull-Rom curve k.smooth draws (per = samples per segment).
+  k.curve = (pts, closed = false, per = 12) => {
+    const n = pts.length, P = i => pts[closed ? (i + n) % n : Math.max(0, Math.min(n - 1, i))], out = [];
+    if (n < 2) return pts.map(p => [p[0], p[1]]);
+    for (let i = 0; i < (closed ? n : n - 1); i++) {
+      const p0 = P(i - 1), p1 = P(i), p2 = P(i + 1), p3 = P(i + 2);
+      for (let s = 0; s < per; s++) { const t = s / per, t2 = t * t, t3 = t2 * t; out.push([0, 1].map(j => 0.5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t2 + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t3))); }
+    }
+    if (!closed) out.push([pts[n - 1][0], pts[n - 1][1]]);
+    return out;
+  };
+  const clockwise = pts => { let a = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return a >= 0 ? pts : pts.slice().reverse(); };
+  // Brush stroke: a filled shape along a smooth curve whose width swells and tapers like an inked line. The single
+  // biggest step from "programmer art" to illustration: hair strands, grass blades, fur tufts, brows, whiskers,
+  // folds, speed lines, line art. width: number, [start, end], or t => px (t 0..1 along the stroke). taper: the
+  // fraction of the length over which each end thins to a point ([0, 0] = blunt ends). Returns a `d` (clockwise).
+  // Keep the width below the bend radius of the curve (a fat stroke round a tight bend folds over itself).
+  k.stroke = (pts, width = 10, { taper = [0.35, 0.35], per = 10, min = 0, wobble = 0, seed = 7 } = {}) => {
+    const P = k.curve(pts, false, per), n = P.length, L = [0], R = rng(seed), ph = R() * 6.28;
+    for (let i = 1; i < n; i++) L.push(L[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]));
+    const tot = L[n - 1] || 1, [ta, tb] = Array.isArray(taper) ? taper : [taper, taper], ease = x => Math.sin(Math.min(1, Math.max(0, x)) * Math.PI / 2);
+    const prof = typeof width === 'function' ? width : Array.isArray(width) ? t => width[0] + (width[1] - width[0]) * t : () => width;
+    const left = [], right = [];
+    for (let i = 0; i < n; i++) {
+      const t = L[i] / tot, a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)], dl = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const env = (ta > 0 ? ease(t / ta) : 1) * (tb > 0 ? ease((1 - t) / tb) : 1), w = Math.max(min, prof(t) * env * (1 + wobble * Math.sin(t * 17 + ph) * 0.5)) / 2;
+      const nx = -(b[1] - a[1]) / dl, ny = (b[0] - a[0]) / dl;
+      left.push([P[i][0] + nx * w, P[i][1] + ny * w]); right.push([P[i][0] - nx * w, P[i][1] - ny * w]);
+    }
+    return k.poly(clockwise(left.concat(right.reverse())));
+  };
+  // Tapered limb: two circles joined by their outer tangents (arms, legs, necks, tails, fingers, branches, horns).
+  k.limb = (a, b, ra, rb = ra) => {
+    const dx = b[0] - a[0], dy = b[1] - a[1], d = Math.hypot(dx, dy);
+    if (d <= Math.abs(ra - rb) + 1e-6) return ra >= rb ? k.circleD(a[0], a[1], ra) : k.circleD(b[0], b[1], rb);
+    const th = Math.atan2(dy, dx), ph = Math.acos((ra - rb) / d), at = (c, r, ang) => `${r2(c[0] + Math.cos(ang) * r)} ${r2(c[1] + Math.sin(ang) * r)}`;
+    return `M${at(b, rb, th - ph)}A${r2(rb)} ${r2(rb)} 0 ${2 * ph > Math.PI ? 1 : 0} 1 ${at(b, rb, th + ph)}L${at(a, ra, th + ph)}A${r2(ra)} ${r2(ra)} 0 ${2 * Math.PI - 2 * ph > Math.PI ? 1 : 0} 1 ${at(a, ra, th - ph)}Z`;
+  };
+  // Forward kinematics: joint positions of a chain from a root and [length, angle] per bone. The first angle is
+  // absolute (degrees, 0 = right, 90 = down), the rest are relative to the previous bone (bend at each joint).
+  // const [shoulder, elbow, hand] = k.fk([300, 260], [[70, 120], [64, -70]])
+  k.fk = (root, segs) => { const out = [[root[0], root[1]]]; let a = 0, x = root[0], y = root[1]; for (const [len, ang] of segs) { a += ang * Math.PI / 180; x += Math.cos(a) * len; y += Math.sin(a) * len; out.push([x, y]); } return out; };
+  // Natural scatter (Poisson-disc spacing: no clumps that touch, no grid): trees, rocks, flowers, stars, fireflies,
+  // coins. Returns [{ x, y, s, rot, r, i }] sorted far to near (by y) so later items overlap earlier ones. Sizes
+  // lean small (few big, many small); `inside(x, y)` keeps points in a region. gap defaults from the area and n.
+  k.scatter = ({ x = 0, y = 0, w = k.W, h = k.H, n = 30, gap, seed = 1, inside, tries = 40, scale = [1, 1], rot = 0, sort = 'y' } = {}) => {
+    const R = rng(seed), g = gap ?? Math.sqrt((w * h) / Math.max(1, n)) * 0.7, pts = []; let tried = 0;
+    while (pts.length < n && tried++ < n * tries) { const px = x + R() * w, py = y + R() * h; if (inside && !inside(px, py)) continue; if (pts.some(p => (p.x - px) ** 2 + (p.y - py) ** 2 < g * g)) continue; pts.push({ x: px, y: py }); }
+    const [s0, s1] = Array.isArray(scale) ? scale : [scale, scale];
+    pts.forEach((p, i) => Object.assign(p, { s: s0 + (s1 - s0) * R() ** 2, rot: (R() * 2 - 1) * rot, r: R(), i }));
+    return sort === 'y' ? pts.sort((a, b) => a.y - b.y) : pts;
+  };
+  // Ground-plane perspective: the scale of something standing at screen height y, given the horizon and the y where
+  // scale is 1. Objects further up the ground (closer to the horizon) shrink; use it for scattered trees and rocks.
+  k.persp = (y, horizon, refY = k.H) => Math.max(0, (y - horizon) / (refY - horizon));
+
+  // ---------- illustration: faces (eyes, brows and mouths carry the expression) ----------
+  // style 'bean' (dark oval + catchlights: cute, reads at icon size) or 'full' (white, iris, pupil, lid line).
+  // look: [-1..1, -1..1] gaze; lid: 0..1 of the eye covered from the top (sleepy, smug, determined); tilt: degrees
+  // the lid edge leans (positive lowers its right end: on the viewer's left eye that reads angry, on the right eye sad).
+  k.eye = (cx, cy, r, { style = 'bean', look = [0, 0], ink = '#1d1430', iris = '#4a7bd8', white = '#ffffff', h = style === 'bean' ? 1.35 : 1.15, lid = 0, tilt = 0, light = 'tl', glint = 1 } = {}) => {
+    const rx = r, ry = r * h, lx = /r/.test(light) ? 1 : -1, gx = cx + look[0] * r * 0.3, gy = cy + look[1] * ry * 0.3;
+    let s;
+    if (style === 'bean') s = `<ellipse cx="${r2(gx)}" cy="${r2(gy)}" rx="${r2(rx)}" ry="${r2(ry)}" fill="${ink}"/>` +
+      (glint ? k.circle(gx + lx * rx * 0.3, gy - ry * 0.38, r * 0.36 * glint, white) + k.circle(gx - lx * rx * 0.32, gy + ry * 0.36, r * 0.15 * glint, white, { opacity: 0.85 }) : '');
+    else {
+      const ir = r * 0.62, ix = cx + look[0] * r * 0.38, iy = cy + look[1] * ry * 0.38, cp = k.clip(k.ellipseD(cx, cy, rx, ry));
+      s = `<ellipse cx="${r2(cx)}" cy="${r2(cy)}" rx="${r2(rx)}" ry="${r2(ry)}" fill="${white}"/><g clip-path="${cp}">` +
+        k.circle(ix, iy, ir, k.linear([[0, C.shade(iris, -0.6)], [0.55, iris], [1, C.shade(iris, 0.35)]])) + k.circle(ix, iy, ir * 0.5, ink) +
+        k.circle(ix + lx * ir * 0.38, iy - ir * 0.4, ir * 0.3 * glint, white) + k.circle(ix - lx * ir * 0.3, iy + ir * 0.4, ir * 0.13 * glint, white, { opacity: 0.85 }) +
+        `<path d="M${r2(cx - rx * 1.2)} ${r2(cy - ry * 1.3)}H${r2(cx + rx * 1.2)}V${r2(cy - ry * 0.55)}Q${r2(cx)} ${r2(cy - ry * 0.95)} ${r2(cx - rx * 1.2)} ${r2(cy - ry * 0.55)}Z" fill="${ink}" opacity="0.18"/></g>` +
+        `<ellipse cx="${r2(cx)}" cy="${r2(cy)}" rx="${r2(rx)}" ry="${r2(ry)}" fill="none" stroke="${ink}" stroke-width="${r2(r * 0.1)}"/>` +
+        k.path(k.stroke([[cx - rx * 1.08, cy + ry * 0.05], [cx - rx * 0.6, cy - ry * 0.86], [cx + rx * 0.5, cy - ry * 0.92], [cx + rx * 1.12, cy - ry * 0.2]], r * 0.3, { taper: [0.25, 0.4] }), ink);
+    }
+    if (lid > 0 || tilt) {
+      const yl = cy - ry * 1.05 + lid * ry * 2.1, t = Math.tan(tilt * Math.PI / 180) * rx * 1.6, cut = k.clip(k.poly([[cx - rx * 1.6, yl - t], [cx + rx * 1.6, yl + t], [cx + rx * 1.6, cy + ry * 2], [cx - rx * 1.6, cy + ry * 2]]));
+      s = `<g clip-path="${cut}">${s}</g>` + k.clipped(k.ellipseD(cx, cy, rx * 1.12, ry * 1.12), k.line(`M${r2(cx - rx * 1.6)} ${r2(yl - t)}L${r2(cx + rx * 1.6)} ${r2(yl + t)}`, ink, r * 0.22));
+    }
+    return `<g>${s}</g>`;
+  };
+  // Brow: a tapered stroke. angle tilts it (positive raises the outer end on the viewer's right brow: worried /
+  // sad when the inner ends rise, angry when they drop); arch bows it up.
+  k.brow = (cx, cy, w, { angle = 0, arch = 0.15, thick = w * 0.22, ink = '#1d1430' } = {}) => {
+    const a = angle * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a), P = ([x, y]) => [cx + x * ca + y * sa, cy - x * sa + y * ca];
+    return k.path(k.stroke([[-w / 2, 0], [0, -w * arch], [w / 2, 0]].map(P), [thick * 1.15, thick * 0.8], { taper: [0.2, 0.45] }), ink);
+  };
+  // Mouth by mood: 'smile', 'grin' (open, teeth), 'open' (shout / surprise), 'o', 'flat', 'frown', 'smirk', 'wavy'
+  // (worried), 'cat' (:3). w = width in px.
+  k.mouth = (cx, cy, w, mood = 'smile', { ink = '#1d1430', sw = Math.max(3, w * 0.12), inside = '#7a2236', tongue = '#ff7d95', teeth = '#ffffff' } = {}) => {
+    const h = w / 2, L = d => k.line(d, ink, sw);
+    const filled = (top, bot) => { const d = `M${r2(cx - h)} ${r2(cy)}Q${r2(cx)} ${r2(cy + top)} ${r2(cx + h)} ${r2(cy)}Q${r2(cx)} ${r2(cy + bot)} ${r2(cx - h)} ${r2(cy)}Z`; return k.path(d, inside) + k.clipped(d, k.ellipse(cx, cy + bot * 0.62, h * 0.55, bot * 0.32, tongue) + (mood === 'grin' ? k.rect(cx - h, cy - w, w, w + top * 0.55, teeth) : '')) + k.path(d, 'none', { stroke: ink, strokeWidth: sw * 0.85, strokeLinejoin: 'round' }); };
+    switch (mood) {
+      case 'grin': return filled(w * 0.08, w * 0.75);
+      case 'open': return filled(-w * 0.12, w * 0.9);
+      case 'o': return k.ellipse(cx, cy + w * 0.1, h * 0.55, h * 0.7, inside, { stroke: ink, strokeWidth: sw * 0.85 });
+      case 'flat': return L(`M${r2(cx - h)} ${r2(cy)}Q${r2(cx)} ${r2(cy + w * 0.06)} ${r2(cx + h)} ${r2(cy)}`);
+      case 'frown': return L(`M${r2(cx - h)} ${r2(cy + w * 0.2)}Q${r2(cx)} ${r2(cy - w * 0.25)} ${r2(cx + h)} ${r2(cy + w * 0.2)}`);
+      case 'smirk': return L(`M${r2(cx - h)} ${r2(cy + w * 0.08)}Q${r2(cx + w * 0.1)} ${r2(cy + w * 0.22)} ${r2(cx + h)} ${r2(cy - w * 0.14)}`);
+      case 'wavy': return L(k.smooth([[cx - h, cy + w * 0.05], [cx - h * 0.5, cy - w * 0.08], [cx, cy + w * 0.05], [cx + h * 0.5, cy - w * 0.08], [cx + h, cy + w * 0.05]], false));
+      case 'cat': return L(`M${r2(cx - h)} ${r2(cy)}Q${r2(cx - h / 2)} ${r2(cy + w * 0.35)} ${r2(cx)} ${r2(cy)}Q${r2(cx + h / 2)} ${r2(cy + w * 0.35)} ${r2(cx + h)} ${r2(cy)}`);
+      default: return L(`M${r2(cx - h)} ${r2(cy)}Q${r2(cx)} ${r2(cy + w * 0.45)} ${r2(cx + h)} ${r2(cy)}`);
+    }
+  };
+
   // ---------- elements ----------
-  k.path = (d, fill = '#000', extra = {}) => `<path d="${d}" ${attrs(Object.assign({ fill }, extra))}/>`;
+  k.path =(d, fill = '#000', extra = {}) => `<path d="${d}" ${attrs(Object.assign({ fill }, extra))}/>`;
   k.shape = (d, o = {}) => `<path d="${d}" ${attrs({ fill: o.fill ?? '#000', stroke: o.stroke, strokeWidth: o.sw ?? (o.stroke ? 6 : null), strokeLinejoin: o.stroke ? 'round' : null, strokeLinecap: o.stroke ? 'round' : null, opacity: o.opacity, fillRule: o.evenodd ? 'evenodd' : o.fillRule, transform: o.transform, filter: o.filter, paintOrder: o.stroke && o.under ? 'stroke' : null })}/>`;
   k.line = (d, color = '#000', sw = 6, o = {}) => `<path d="${d}" ${attrs({ fill: 'none', stroke: color, strokeWidth: sw, strokeLinecap: o.cap || 'round', strokeLinejoin: 'round', opacity: o.opacity, strokeDasharray: o.dash })}/>`;
   k.circle = (cx, cy, r, fill = '#000', extra = {}) => `<circle cx="${r2(cx)}" cy="${r2(cy)}" r="${r2(r)}" ${attrs(Object.assign({ fill }, extra))}/>`;
@@ -100,6 +205,9 @@ export function makeKit(ctx = {}) {
   k.blurF = std => { const i = id('bf'); defs.push(`<filter id="${i}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="${std}"/></filter>`); return `url(#${i})`; };
   k.glowF = (std = 8, color = '#fff', op = 1) => { const i = id('gf'); defs.push(`<filter id="${i}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur in="SourceAlpha" stdDeviation="${std}"/><feFlood flood-color="${color}" flood-opacity="${op}"/><feComposite operator="in" in2="SourceAlpha"/><feGaussianBlur stdDeviation="${std}"/><feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter>`); return `url(#${i})`; };
   k.shadowF = (dx = 0, dy = 8, std = 6, color = '#000', op = 0.35) => { const i = id('sf'); defs.push(`<filter id="${i}" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="${dx}" dy="${dy}" stdDeviation="${std}" flood-color="${color}" flood-opacity="${op}"/></filter>`); return `url(#${i})`; };
+  // Hand-drawn edge: displaces the group by smooth noise (amount px, freq = noise frequency per px). Use on a
+  // `<g filter>` around foliage, rocks, clouds, paper cut-outs; keep amount small (1-4 px at 512) or it looks broken.
+  k.roughF = (amount = 3, freq = 0.03, seed = 1) => { const i = id('rf'); defs.push(`<filter id="${i}" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="2" seed="${seed}" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="${amount * 2}" xChannelSelector="R" yChannelSelector="G"/></filter>`); return `url(#${i})`; };
 
   // ---------- hand shading helpers (when you want control instead of the automatic `shade` effect) ----------
   // Cel shadow: the shape in its base colour, a shadow crescent (the shape minus a copy shifted toward the light).
@@ -182,6 +290,12 @@ export function makeKit(ctx = {}) {
     glowAt: (x, y, r, color = '#ffffff', op = 0.55) => `<circle cx="${r2(x)}" cy="${r2(y)}" r="${r2(r)}" fill="${k.radial([[0, color, op], [0.45, color, op * 0.45], [1, color, 0]])}"/>`,
     // Haze band: lays the sky colour over far layers (atmospheric perspective) from y0 (full) to y1 (none).
     haze: (y0, y1, color = '#bcdcff', op = 0.6) => `<rect width="${W()}" height="${H()}" fill="${k.linear([[0, color, op], [1, color, 0]], { x1: 0, y1: y0 / H(), x2: 0, y2: y1 / H() })}"/>`,
+    // Film / paper grain: grey noise for a front layer with blend 'overlay' or 'soft-light' (op 0.1-0.25). Takes the
+    // digital sterility off big flat areas; leave it off icons that are shown small.
+    grain: (op = 0.18, freq = 0.8, seed = 4) => { const i = id('gn'); defs.push(`<filter id="${i}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="3" seed="${seed}" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>`); return `<rect width="${W()}" height="${H()}" filter="url(#${i})" opacity="${op}"/>`; },
+    // Colour grade: one gradient laid over the finished picture (blend 'soft-light' or 'overlay' on a front layer)
+    // pulls every colour toward the light's temperature at the top and the shadow's at the bottom: unifies a scene.
+    grade: (top = '#ffcf8a', bottom = '#4a3fa8', op = 0.35, angle = 90) => k.bg.linear(top, bottom, angle).replace('<rect ', `<rect opacity="${op}" `),
   };
   k.frame = {
     // Rounded card border (inventory slots, shop tiles). Draw it on a 'front' layer.

@@ -1,0 +1,32 @@
+{
+ "generated": "2026-11-25T09:19:37.361Z",
+ "spec": "../../../skills/roblox-2d-art/examples/illustration.art.mjs",
+ "assets": [
+  {
+   "name": "SproutDusk",
+   "kind": "banner",
+   "size": [
+    1024,
+    576
+   ],
+   "files": [
+    "SproutDusk.png",
+    "review-SproutDusk.png"
+   ],
+   "checks": [
+    "PASS background: fully opaque",
+    "PASS separation: subject edge vs background: dE 0.12, dL 0.06",
+    "PASS small size: 1.4% of pixels are high-contrast edges at 512x256",
+    "PASS focal point: the eye lands first on \"body\" at 66%, 55%, then \"lantern\" at 46%, 61%",
+    "PASS hierarchy: one dominant image area (\"body\"), others clearly secondary",
+    "PASS figure / ground: background holds 71% of the attention on 89% of the area",
+    "PASS balance: visual weight centres at 55%, 58% (balanced)",
+    "PASS value plan: dark 59% / mid 38% / light 3% (dark dominates)",
+    "PASS colour proportion: magenta 75% / indigo 12% / grey 8% / green 4% (aim for roughly 60 / 30 / 10)",
+    "PASS harmony: split-complementary: magenta, indigo, green; warm 1% / cool 80%",
+    "PASS figure hue: 0% of the background around the green subject has the same hue and value",
+    "PASS saturation: subject chroma 0.118 vs background 0.057"
+   ]
+  }
+ ]
+}

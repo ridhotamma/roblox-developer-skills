@@ -161,6 +161,7 @@ Build sets in one spec with `set:` defaults and read `review-set.png` plus the s
 | Flat / minimal UI | no shading or one shadow tone, crisp shapes | `shade: false` or `k.cel`, small or no outline |
 | Pixel art | grid, limited palette, 1 px outline | `pixel: { size: 32, palette }` or `pixels` |
 | Sticker / badge | thick white outer rim + dark outline | `outline: [{width:10,color:'auto'},{width:16,color:'#fff'}]` |
+| Cel / storybook illustration | posed characters, inked tapered lines, designed light, graded scenes | `illustration.md`: `k.fk`, `k.limb`, `k.stroke`, `k.scatter`, `post` grade and grain |
 | Painterly / realistic | soft lighting, texture, detail | beyond vector drawing: generate with an image model, then `rart post` to finish it |
 
 Match the game: look at existing UI and assets in the project first, and continue their style.

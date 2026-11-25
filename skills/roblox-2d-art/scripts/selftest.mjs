@@ -73,6 +73,21 @@ export async function selftest() {
   const sk = makeKit({ w: 1920, h: 1080 });
   ok(near(sk.safe(0.05, 1920, 1080).y1, 1080 - 54, 1e-9) && near(sk.safe(0.05, 1920, 1080, 0.12).y1, 1080 - 129.6, 1e-9), 'safe box: margin and explicit bottom band');
   ok(near(sk.at('tl', 1920, 1080)[0], 640, 1e-9) && near(sk.at('phi-right', 1920, 1080)[0], (1 - 0.382) * 1920, 1e-9), 'layout anchors');
+  // illustration helpers: brush strokes, limbs, poses, scatter, perspective, faces
+  const nums = d => (d.match(/-?\d+(\.\d+)?/g) || []).map(Number), area = d => { const v = nums(d), p = []; for (let i = 0; i + 1 < v.length; i += 2) p.push([v[i], v[i + 1]]); let a = 0; for (let i = 0; i < p.length; i++) { const q = p[(i + 1) % p.length]; a += p[i][0] * q[1] - q[0] * p[i][1]; } return a / 2; };
+  const st = k.stroke([[0, 0], [100, 40], [200, 0]], 20);
+  ok(!/NaN/.test(st) && /Z$/.test(st) && area(st) > 0, 'stroke: closed, clockwise');
+  const stA = area(st), stB = area(k.stroke([[0, 0], [100, 40], [200, 0]], 20, { taper: [0, 0] }));
+  ok(stB > stA * 1.2 && near(stB, 20 * 225, 20 * 225 * 0.12), `stroke: blunt ends hold the full width, tapers thin (areas ${Math.round(stA)} / ${Math.round(stB)})`);
+  const fk = k.fk([0, 0], [[10, 0], [10, 90]]); ok(near(fk[1][0], 10, 1e-9) && near(fk[2][0], 10, 1e-9) && near(fk[2][1], 10, 1e-9), 'fk: relative bends');
+  const lb = k.limb([0, 0], [100, 0], 20, 10); ok(!/NaN/.test(lb) && (lb.match(/A/g) || []).length === 2 && Math.max(...nums(lb)) <= 110.01, 'limb: two arcs joined by tangents');
+  ok(k.limb([0, 0], [1, 0], 20, 5) === k.circleD(0, 0, 20), 'limb: one circle swallows the other');
+  const sc2 = k.scatter({ w: 300, h: 300, n: 40, gap: 30, seed: 3 });
+  ok(sc2.length > 20 && sc2.every((p, i) => !i || p.y >= sc2[i - 1].y) && sc2.every(p => sc2.every(q => p === q || Math.hypot(p.x - q.x, p.y - q.y) >= 30)), `scatter: spaced and sorted far to near (${sc2.length})`);
+  ok(JSON.stringify(k.scatter({ n: 10, seed: 5 })) === JSON.stringify(k.scatter({ n: 10, seed: 5 })), 'scatter: deterministic');
+  ok(near(k.persp(300, 200, 400), 0.5, 1e-9), 'persp: halfway to the horizon = half size');
+  const face = k.eye(50, 50, 10) + k.eye(80, 50, 10, { style: 'full', lid: 0.4, tilt: 10 }) + k.brow(50, 30, 20, { angle: 10 }) + ['smile', 'grin', 'open', 'o', 'flat', 'frown', 'smirk', 'wavy', 'cat'].map(m => k.mouth(60, 70, 20, m)).join('') + k.bg.grain() + k.bg.grade('#fc8', '#348') + k.roughF();
+  ok(!/NaN|undefined/.test(face), 'face, grain and grade markup');
   console.log(`maths and image ops: ${passes} passed, ${fails} failed`);
 
   // end to end with the browser
@@ -80,13 +95,17 @@ export async function selftest() {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rart-self-'));
     fs.writeFileSync(path.join(dir, 't.art.mjs'), `export default (k) => [{ name: 'T', kind: 'item', size: 256, layers: [{ name: 'b', svg: k.circle(128, 128, 90, '#3aa0e8'), shade: 'toon' }] },
       { name: 'P', kind: 'sprite', pixel: { size: 16, palette: 'sweetie16' }, layers: [{ svg: k.path(k.heart(256, 256, 400), '#e83a5a'), shade: 'toon' }] },
-      { name: 'I', kind: 'game-icon', layers: [{ name: 'bg', stage: 'back', svg: k.bg.solid('#1a2350') }, { name: 'orb', role: 'hero', svg: k.circle(256, 270, 150, '#ffd12e'), shade: 'toon' }] }]`);
+      { name: 'I', kind: 'game-icon', layers: [{ name: 'bg', stage: 'back', svg: k.bg.solid('#1a2350') }, { name: 'orb', role: 'hero', svg: k.circle(256, 270, 150, '#ffd12e'), shade: 'toon' }] },
+      { name: 'Q', kind: 'texture', size: 64, layers: [{ name: 'grey', stage: 'back', svg: k.rect(0, 0, 64, 64, '#808080') }, { name: 'grade', stage: 'post', blend: 'multiply', svg: k.rect(0, 0, 64, 64, '#ff0000') }] }]`);
     const { buildFile } = await import('./lib/build.mjs'), res = await buildFile(path.join(dir, 't.art.mjs'), { out: path.join(dir, 'out'), review: false });
-    const t = res[0], p = res[1], ic = res[2];
+    const t = res[0], p = res[1], ic = res[2], q = res[3];
     ok(fs.existsSync(t.main) && t.checks.every(c => c.level !== 'FAIL'), 'build: item icon with no FAIL');
     ok(p.img8.w === 16 && p.palette.length <= 16, 'build: pixel sprite');
     ok(ic.analysis && ic.analysis.peaks[0].layer === 'orb', 'build: composed analysis names the hero layer as the focal point');
     ok(ic.checks.some(c => c.name === 'focal point' && c.level === 'PASS') && ic.checks.every(c => c.level !== 'FAIL'), 'build: composed design checks run');
+    const qp = PNG.decode(fs.readFileSync(q.main)).rgba; ok(qp[0] > 100 && qp[1] < 20 && qp[3] === 255, 'build: a post layer blends over the finished picture (multiply red)');
+    const { normalize } = await import('./lib/build.mjs');
+    ok(normalize({ kind: 'item' }, {}).shadow && normalize({ kind: 'item' }, { shadow: { dy: 3 } }).shadow.dy === 3 && normalize({ kind: 'item' }, { glow: 9 }).glow.blur === 9, 'build: kind and set shadow / glow defaults reach the asset');
     console.log(`end to end: ${fails ? 'see failures above' : 'ok'} (${dir})`);
   } catch (e) { fails++; console.log('FAIL end to end: ' + e.message); }
   console.log(fails ? `\n${fails} FAILED` : '\nall passed');

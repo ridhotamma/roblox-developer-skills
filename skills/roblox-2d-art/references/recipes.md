@@ -10,6 +10,7 @@ of them; copy the closest one.
 - Game icon
 - Thumbnail
 - Banner
+- Illustrations and scenes (characters, mascots, loading screens)
 - Badges, passes, products
 - UI: glyphs, 9-slice frames and buttons, progress bars, rarity cards
 - Logos and title text
@@ -99,6 +100,20 @@ colour family. If it is displayed with `ScaleType.Crop`, keep everything importa
 (phones and tablets cut different sides). Loading screens: leave a calm band for the progress bar. Example:
 `examples/banner.art.mjs` (kicker + two-line title in a type-scale step, hero on the right thirds line with a
 glowing prop clearly behind its shoulder, hazed far layers, dark foreground rocks cropped by the corners).
+
+## Illustrations and scenes (characters, mascots, loading screens)
+
+Read `illustration.md` first. Usually kind `banner` (free size) or `thumbnail`. Layers, bottom to top:
+- `back`: sky gradient (+ afterglow or light pool), far plane, haze band, mid planes with their scattered props
+  (`k.scatter` + `k.persp`), the darkest shape directly behind the hero, the near ground, its grass or rocks, the
+  hero's cast and contact shadows (pointing away from the key light).
+- `main`: the character, one layer per body part, far limbs first: far arm, feet, props held behind, body, clothing
+  clipped to the body, near arm (`cast` onto the body), hand, held prop. `outline` around the main stage only.
+- `front`: the face (unshaded), particles (fireflies, sparkles, leaves), dark foreground framing cropped by the edges.
+- `post`: light pool around the light source (`screen`), colour grade (`soft-light`), vignette, grain (`overlay`).
+Pitfalls: a stiff symmetric pose, constant-width lines, the hero the same value as what is behind it, nature on a grid,
+a path pasted on the ground with no perspective, a second light that disagrees with the first. Example:
+`examples/illustration.art.mjs`.
 
 ## Badges, passes, products (512, circle crop)
 

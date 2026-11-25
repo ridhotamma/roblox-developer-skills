@@ -39,7 +39,9 @@ export function normalize(a, set) {
   const fit = pick('fit', K.fit);
   return Object.assign({}, a, {
     name: (a.name || 'asset').replace(/[^\w.-]+/g, '_'), K, W, H, layers, light: pick('light', 'tl'), shadeDefaults: pick('shade', {}),
-    outline: [].concat(pick('outline', K.outline) ?? []).map(o => asObj(o)).filter(Boolean),   // one outline, or several stacked outward (e.g. dark ink then a white rim for dark UIs) shadow: asObj(pick('shadow', K.shadow), 'dy'), glow: asObj(pick('glow', null), 'blur'),
+    // one outline, or several stacked outward (e.g. dark ink then a white rim for dark UIs)
+    outline: [].concat(pick('outline', K.outline) ?? []).map(o => asObj(o)).filter(Boolean),
+    shadow: asObj(pick('shadow', K.shadow), 'dy'), glow: asObj(pick('glow', null), 'blur'),
     fit: fit === true ? { pad: 0.06 } : fit || null, pixel: pick('pixel', null), exports: (a.export && a.export.sizes) || pick('exports', K.exports) || [],
     white: (a.export && a.export.white) || pick('white', false), ss: pick('ss', null), refs: a.refs || set.refs || [], credits: a.credits || set.credits || [],
   });
@@ -114,10 +116,12 @@ async function buildAsset(a, spec, out, b, opts) {
       }
     }
 
-    const stage = { back: R.create(IW, IH), main: R.create(IW, IH), front: R.create(IW, IH) }, raw = {}, lastRaw = {};
+    const stage = { back: R.create(IW, IH), main: R.create(IW, IH), front: R.create(IW, IH) }, raw = {}, lastRaw = {}, post = [];
     // composed images (thumbnails, banners, icons, badges, logos) keep a small mask per layer for the design analysis
     const studied = fi === 0 && !grid && DS.TEXTUAL.has(a.K.name), [aw, ah] = DS.analysisSize(a.W, a.H), layerInfo = [];
     for (const L of layers) {
+      // post layers are canvas-wide overlays (colour grade, grain, light rays) blended over the finished picture
+      if (L.stage === 'post') { post.push({ img: await renderF(L.markup, null), blend: L.blend || 'normal', opacity: L.opacity ?? 1 }); continue; }
       const st = stage[L.stage] ? L.stage : 'main';
       let img = await renderF(L.markup, st !== 'back' && L.fit !== false ? tf : null);   // front layers follow the fit unless fit: false
       const rawA = R.alpha(img);
@@ -144,6 +148,7 @@ async function buildAsset(a, spec, out, b, opts) {
     if (a.glow) main = R.under(main, FX.glowOf(main, scaleFx(a.glow, px, { blur: 14 })));
     if (a.shadow) main = R.under(main, FX.shadowOf(main, scaleFx(a.shadow, px, { dy: 8, blur: 6, opacity: 0.3 })));
     const fin = R.clone(stage.back); R.composite(fin, main); R.composite(fin, stage.front);
+    if (post.length) { const cover = R.alpha(fin); for (const P of post) R.composite(fin, P.img, P.blend, P.opacity, cover); }
     const down = F => ss > 1 && !grid ? R.resize(F, a.W, a.H) : F, design = down(fin);
     if (fi === 0) first = { design, mainA: R.alpha(down(stage.main)), silA: R.alpha(down(silhouette)), frontA: R.alpha(down(stage.front)), backA: R.alpha(down(stage.back)),
       analysis: studied ? DS.analyze(design, { a, layers: layerInfo, outlineWidth: a.outline.reduce((t, o) => t + (o.width ?? 12), 0) }) : null };

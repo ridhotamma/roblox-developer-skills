@@ -52,14 +52,14 @@ offsets, blur, depth) are in design pixels too and scale with supersampling auto
 |---|---|
 | `name` | used by `clip` and in messages |
 | `svg` | SVG markup string, or `(k, ctx) => string` (`ctx`: `{ w, h, t, frame, frames }`). Use the function form when the markup depends on the canvas size (`k.bg.*`, `k.frame.*` read `k.W` / `k.H`) or on the animation time |
-| `stage` | `'back'` (backgrounds; never fitted, not outlined), `'main'` (the subject: fitted, outlined, shadowed as a whole), `'front'` (on top of everything: sparkles, text, frames; follows `fit` unless `fit: false`) |
+| `stage` | `'back'` (backgrounds; never fitted, not outlined), `'main'` (the subject: fitted, outlined, shadowed as a whole), `'front'` (on top of everything: sparkles, text, frames; follows `fit` unless `fit: false`), `'post'` (canvas-wide overlay blended over the finished picture with its `blend` and `opacity`, only where the picture is: light pools with `screen`, a colour grade with `soft-light`, vignette, grain with `overlay`; no effects, not fitted, not in the design analysis) |
 | `clip` | `'prev'` / `true` (previous layer of the same stage) or a layer name: show this layer only inside that layer's shape (liquid in glass, seeds on a bun, stripes on a shield) |
 | `shade` | `'toon'`, `'soft'`, `'gloss'`, `'metal'`, `'flat'`, `true` (asset default) or an object (below) |
 | `outline` | per-layer outline (thin separations between parts): number or object |
 | `innerLine` | line just inside this layer's edge: number or `{ width, color }` |
 | `cast` | this layer's shadow falling on the layers already drawn below it (only where they are): `{ dx, dy, blur, opacity, color }`; number = dy |
 | `shadow`, `glow` | per-layer drop shadow / glow |
-| `blend` | `normal`, `multiply`, `screen`, `overlay`, `soft-light`, `hard-light`, `darken`, `lighten`, `add`, `color-dodge` |
+| `blend` | `normal`, `multiply`, `screen`, `overlay`, `soft-light`, `hard-light`, `darken`, `lighten`, `add`, `color-dodge`; blends with the layers below it in the same stage (use stage `post` to blend over the whole picture) |
 | `opacity` | 0..1 |
 | `hidden` | skip the layer |
 | `fit` | `false` on a front layer keeps its own coordinates |
@@ -127,6 +127,16 @@ tension=1)` (Catmull-Rom through points), `blob(cx,cy,rx,ry,{n,amp,seed,rot})`, 
 `bolt(cx,cy,size)`, `capsule(x1,y1,x2,y2,r)`, `ring(cx,cy,ro,ri)` (evenodd), `scallop(cx,cy,rx,ry,bumps,bulge)`,
 `cloud(cx,cy,w,h,seed)`, `flame(cx,baseY,w,h,seed)`, `ribbon(cx,cy,w,h)` → `{ body, tails }`.
 
+Illustration (references/illustration.md): `curve(pts, closed, per)` → dense points on the `smooth` curve;
+`stroke(pts, width, {taper: [start, end], min, wobble, seed})` → `d` of a tapered brush stroke along a smooth curve
+(width: number, `[start, end]` or `t => px`); `limb(a, b, ra, rb)` → `d` of a tapered capsule between two joints;
+`fk(root, [[length, angle], ...])` → joint points (first angle absolute, degrees, 0 = right, 90 = down; the rest bend
+relative to the previous bone); `scatter({x, y, w, h, n, gap, seed, scale: [min, max], rot, inside, sort})` →
+`[{x, y, s, rot, r, i}]` Poisson-spaced, sizes leaning small, sorted by y; `persp(y, horizon, refY = H)` → scale on a
+ground plane. Faces: `eye(cx, cy, r, {style: 'bean'|'full', look: [x, y], lid, tilt, ink, iris, light, glint, h})`,
+`brow(cx, cy, w, {angle, arch, thick, ink})`, `mouth(cx, cy, w, 'smile'|'grin'|'open'|'o'|'flat'|'frown'|'smirk'|
+'wavy'|'cat', {ink, sw, inside, tongue, teeth})`.
+
 Elements (return markup): `path(d, fill, attrs)`, `shape(d, {fill, stroke, sw, opacity, evenodd, transform,
 filter})`, `line(d, color, width, {cap, dash, opacity})`, `circle`, `ellipse`, `rect`, `g(attrs, ...kids)`,
 `tf(x, y, s, rot)` (transform string), `place(markup, cx, cy, size, rot, box=512)` (re-use a piece drawn in a
@@ -141,7 +151,8 @@ in px or `false`), `shadowColor`, `outer: { color, sw }` (second outline), `anch
 spacing), `width` (force exact width), `arc` (bend), `shine` (0..1 light top half), `weight`.
 
 Paint servers / filters (register defs, return `url(#id)`): `linear(stops, {x1,y1,x2,y2})`, `radial(stops,
-{cx,cy,r,fx,fy})`, `clip(d)`, `clipped(d, ...markup)`, `blurF(std)`, `glowF(std, color)`, `shadowF(dx,dy,std,color,op)`.
+{cx,cy,r,fx,fy})`, `clip(d)`, `clipped(d, ...markup)`, `blurF(std)`, `glowF(std, color)`, `shadowF(dx,dy,std,color,op)`,
+`roughF(amount, freq, seed)` (hand-drawn edges by noise displacement; on a `<g filter>`).
 Stops: `['#a', '#b']` or `[[0, '#a'], [1, '#b', 0.5]]`.
 
 Hand shading (when you want exact control): `cel(d, base, {shadow, dx, dy, light})` (crescent shadow),
@@ -153,7 +164,8 @@ Backgrounds (canvas-sized; call inside a layer function): `k.bg.solid(c)`, `line
 `radial(inner,outer,{cx,cy,r})`, `rays({color,n,op,cx,cy})`, `vignette(op)`, `dots(color,op,step,r)`,
 `stripes(color,op,step,angle)`, `rarity('common'|'uncommon'|'rare'|'epic'|'legendary'|'mythic'|hex)`,
 `glowAt(x, y, r, color, op)` (light pool behind the focal point), `haze(y0, y1, color, op)` (sky-coloured haze over
-far layers, full at y0, gone at y1).
+far layers, full at y0, gone at y1), `grain(op, freq, seed)` (noise for a `post` layer with blend `overlay`),
+`grade(top, bottom, op, angle)` (colour-grade gradient for a `post` layer with blend `soft-light`).
 Frames: `k.frame.card({r, border, color, inner})`, `k.frame.circle({color, width, inner, inset})`.
 
 Layout (graphic-design.md sections 3 and 13; design pixels; inside a layer function they use the asset's canvas, at

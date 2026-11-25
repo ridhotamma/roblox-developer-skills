@@ -1,6 +1,6 @@
 ---
 name: roblox-2d-art
-description: Make 2D images for Roblox games - item and inventory icons, shop and reward icons, HUD / UI glyphs, game icons (512), thumbnails (1920x1080), badge, game pass and developer product icons (circle-cropped), logos and title text, 9-slice UI frames and buttons, pixel-art sprites, sprite sheets and animations, ParticleEmitter flipbook textures, and seamless decal / texture tiles. Composed images (thumbnails, banners, game icons, badges, logos) follow graphic design rules: a written design brief, one focal point and a 1-2-3 reading order, thirds / golden-section layout with margins, balance of visual weight, a 3-value plan, 60-30-10 colour roles from harmony schemes by mood, depth by atmospheric perspective and a modular type scale, checked by a composition analysis (where the eye lands first, competing focal points, balance, value plan, colour proportion and harmony, camouflage, text size, contrast and margins, tangents). Researches openly licensed references first (emoji and icon sets for how the object is usually simplified, Wikimedia / Openverse photos for real proportions and colours), traces silhouettes and palettes from them, then draws layered SVG art rendered by the local Chrome / Edge, with automatic toon / gloss / metal shading, hue-shifted colour ramps, even distance-field outlines, cast and drop shadows, pixel-art conversion, alpha bleeding, Roblox upload rule checks, readability checks and a review sheet showing the image at the sizes players see it plus its composition (grid, reading order, attention map, notan, colour wheel). Also finishes AI-generated images, renders and screenshots (background removal, outline, padding, sizes). Use this whenever the user wants any picture, icon, sprite, thumbnail, badge, pass icon, logo, UI image, decal, texture or PNG for a Roblox game, asks for "art" or "graphics" for an ImageLabel / ImageButton / ParticleEmitter / Decal, wants game store media, or says their icons look inconsistent, blurry, have black edges or are unreadable when small, or that a thumbnail, banner or icon looks cluttered, amateur, flat or gets no clicks, even if they never say "2D".
+description: Make 2D images for Roblox games - item and inventory icons, shop and reward icons, HUD / UI glyphs, game icons (512), thumbnails (1920x1080), badge, game pass and developer product icons (circle-cropped), logos and title text, illustrations (mascots, characters, creatures, key art, loading screens and scenes), 9-slice UI frames and buttons, pixel-art sprites, sprite sheets and animations, ParticleEmitter flipbook textures, and seamless decal / texture tiles. Composed images (thumbnails, banners, game icons, badges, logos) follow graphic design rules: a written design brief, one focal point and a 1-2-3 reading order, thirds / golden-section layout with margins, balance of visual weight, a 3-value plan, 60-30-10 colour roles from harmony schemes by mood, depth by atmospheric perspective and a modular type scale, checked by a composition analysis (where the eye lands first, competing focal points, balance, value plan, colour proportion and harmony, camouflage, text size, contrast and margins, tangents). Illustrations follow an illustrator's method: passes from block-in to finish, characters posed on a skeleton with a line of action, tapered brush strokes for line art, faces built for expression, a designed light plan (key, rim, cast and contact shadows, light pools), depth planes with ground perspective, natural scatter, and a colour grade over the finished picture. Researches openly licensed references first (emoji and icon sets for how the object is usually simplified, Wikimedia / Openverse photos for real proportions and colours), traces silhouettes and palettes from them, then draws layered SVG art rendered by the local Chrome / Edge, with automatic toon / gloss / metal shading, hue-shifted colour ramps, even distance-field outlines, cast and drop shadows, pixel-art conversion, alpha bleeding, Roblox upload rule checks, readability checks and a review sheet showing the image at the sizes players see it plus its composition (grid, reading order, attention map, notan, colour wheel). Also finishes AI-generated images, renders and screenshots (background removal, outline, padding, sizes). Use this whenever the user wants any picture, icon, sprite, thumbnail, badge, pass icon, logo, UI image, decal, texture or PNG for a Roblox game, asks for "art" or "graphics" for an ImageLabel / ImageButton / ParticleEmitter / Decal, wants game store media, or says their icons look inconsistent, blurry, have black edges or are unreadable when small, or that a thumbnail, banner or icon looks cluttered, amateur, flat or gets no clicks, or asks how to draw an illustration programmatically or why their code-drawn art looks stiff, even if they never say "2D".
 ---
 
 # Roblox 2D art (reference → measure → draw in layers → shade → check → look → export)
@@ -27,7 +27,11 @@ look at every render before calling it done.**
    **For anything composed** (thumbnail, banner, game icon, badge, pass, product, logo, UI screen) also read
    `references/graphic-design.md`: hierarchy and the focal point, grids and margins, balance, Gestalt, eye flow,
    the value plan, colour roles and harmony, depth, typography, tangents, layout templates per kind. Those images
-   live or die on composition, not on how well each part is drawn. For store media and UI,
+   live or die on composition, not on how well each part is drawn. **For an illustration** (a character or
+   creature with a pose and an expression, a scene, key art, a loading screen, a story panel; or a mascot reused
+   across store art) also read `references/illustration.md`: work in passes (block-in, construction, flats, light,
+   line, detail, finish), pose on a skeleton, ink with tapered strokes, design the light, build depth with ground
+   perspective and scatter, grade the whole picture. For store media and UI,
    `references/roblox-specs.md` has the exact sizes and rules.
 
 3. **Find references**: `node <skill>/scripts/rart.mjs refs "<object>" --out refs` (icons + photos; `--kind
@@ -52,7 +56,9 @@ look at every render before calling it done.**
 6. **Write the spec** `<name>.art.mjs` from the closest example (`examples/`): `items.art.mjs` (consistent icon set,
    clipping, cast shadows, metal, glass), `burger.art.mjs` (reference-traced proportions), `store.art.mjs` (game icon,
    thumbnail with title text, badge, pass, each with its design brief), `banner.art.mjs` (menu / loading banner: text
-   column inside the crop-safe area, three depth planes, analogous dark scheme), `pixel.art.mjs` (converted, hand-placed and
+   column inside the crop-safe area, three depth planes, analogous dark scheme), `illustration.art.mjs` (a scene with
+   an original mascot: skeleton pose, brush strokes, face, light plan, ground perspective, scatter, `post` grade),
+   `pixel.art.mjs` (converted, hand-placed and
    animated pixel art), `ui.art.mjs` (9-slice panel and button, tintable glyph, seamless texture, particle flipbook).
    Full field list: `references/spec-reference.md`.
 
@@ -100,7 +106,7 @@ look at every render before calling it done.**
 | `game-icon` | 512, opaque | the experience icon (shown ~150 px) |
 | `thumbnail` | 1920x1080, opaque | store thumbnails (bottom band gets covered) |
 | `badge`, `pass`, `product` | 512, opaque | cropped to a circle by Roblox |
-| `logo`, `banner` | free | title art, menu / loading backgrounds |
+| `logo`, `banner` | free | title art, menu / loading backgrounds, illustrations and scenes |
 | `panel` | small | 9-slice frames and buttons (`slice: [l, t, r, b]`) |
 | `texture` | 256-1024 | decals and tiling textures (`tile: true`) |
 | `sprite` | design 512 → pixel grid | pixel art (`pixel` or `pixels`), `ResampleMode = Pixelated` |
@@ -128,8 +134,13 @@ has design helpers: `k.c.scheme(hero, type, { mood })` (60-30-10 colour roles), 
 `k.margin()` (thirds and golden-section anchors, margins), `k.typeScale(base, 1.5)`, `k.c.atmos(c, depth)` and
 `k.bg.haze` (depth), `k.bg.glowAt` (light behind the focal point). `examples/store.art.mjs` uses them on a
 thumbnail, game icon, badge and pass; `examples/banner.art.mjs` on a menu banner.
+For illustration the kit adds `k.fk` (pose a limb chain from bone lengths and bend angles), `k.limb` (tapered
+capsule on a bone), `k.stroke` (tapered brush stroke along a curve: line art, hair, grass, leaves, paths),
+`k.scatter` (Poisson-spaced placement, sorted far to near) and `k.persp` (ground-plane scale), `k.eye`, `k.brow`,
+`k.mouth` (expressions), `k.roughF`, `k.bg.grain` and `k.bg.grade`; see `examples/illustration.art.mjs`.
 Coordinates are pixels of the design canvas (512 here), y down. Stages: `back` (backgrounds, never fitted or
-outlined), `main` (the subject: fitted, outlined and shadowed as one), `front` (sparkles, text, frames). Shade
+outlined), `main` (the subject: fitted, outlined and shadowed as one), `front` (sparkles, text, frames), `post`
+(canvas-wide overlays blended over the finished picture: light pools, colour grade, vignette, grain). Shade
 styles: `toon`, `soft`, `gloss`, `metal`, `flat`; forms `round`, `cyl-x`, `cyl-y`, `flat` + `face`. Layer functions
 `(k, ctx) => markup` get the canvas size in `k.W`/`k.H` and animation time in `ctx.t`.
 
@@ -149,8 +160,9 @@ styles: `toon`, `soft`, `gloss`, `metal`, `flat`; forms `round`, `cyl-x`, `cyl-y
 
 ## When an image model is the better tool
 
-Painterly, realistic or highly detailed illustration (a rendered character splash, a moody landscape) is beyond
-layered vector drawing. If the user has an image-generation tool connected and wants that look, use it (ask first
+Cel, toon, storybook and sticker illustration is what the layered method does well (`references/illustration.md`).
+Painterly, realistic or highly detailed illustration (a rendered character splash, a photographic landscape) is
+beyond layered vector drawing. If the user has an image-generation tool connected and wants that look, use it (ask first
 when it costs credits), then finish the result with `rart post` and check it with the review sheet. Keep a set in
 one method: mixing generated and vector icons in the same inventory looks inconsistent.
 
@@ -175,7 +187,7 @@ one method: mixing generated and vector icons in the same inventory looks incons
   palette), `sheet`, `post`, `fonts`, `chrome` (renderer), `presets` (kinds), `png`.
 - `scripts/selftest.mjs`: maths, effects, tracing, packing and an end-to-end build. Run it after editing the engine.
 - `examples/`: `items`, `burger` (+ `refs/burger-cc0.jpg`, CC0, Evan-Amos, Wikimedia Commons), `store`,
-  `banner`, `pixel`, `ui`.
-- `references/`: `art-theory.md`, `graphic-design.md`, `recipes.md`, `roblox-specs.md`, `spec-reference.md`, `pixel-art.md`,
+  `banner`, `illustration`, `pixel`, `ui`.
+- `references/`: `art-theory.md`, `graphic-design.md`, `illustration.md`, `recipes.md`, `roblox-specs.md`, `spec-reference.md`, `pixel-art.md`,
   `references-and-licences.md`.
 - `fonts/`: download cache for open-licence fonts.
